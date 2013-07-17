@@ -5,4 +5,4 @@ clients for a snow2 repository
 
 See:
 
-  http://headache.hungry.com/~seth/snow/
+  http://trac.sacrideo.us/wg/wiki/Snow
