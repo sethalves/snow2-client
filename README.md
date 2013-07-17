@@ -1,4 +1,8 @@
 snow2-client
 ============
 
-client for a snow2 repository
+clients for a snow2 repository
+
+See:
+
+  http://headache.hungry.com/~seth/snow/
