@@ -36,34 +36,12 @@ exec csi -s $0 "$@"
            (loop (cdr cl) (car cl))))))
 
 
-(define (download-file url local-filename)
-  (format #t "downloading: ~S to ~S\n" url local-filename)
-  (with-input-from-request
-   url #f
-   (lambda ()
-     (let ((outp (open-output-file local-filename))
-           (data (read-string)))
-       (write-string data #f outp)
-       (close-output-port outp)
-       #t))))
+
 
 
 (define (untar filename)
   (let ((tar-pid (process-run (format #f "tar xf '~A'" filename))))
     (process-wait tar-pid)))
-
-
-(define (get-repository repository-url)
-  (format #t "(get-repository ~S)\n" repository-url)
-  (with-input-from-request repository-url #f read-repository))
-
-
-(define (read-from-string s)
-  (read (open-input-string s)))
-
-
-(define (decide-local-package-filename url)
-  (format #f "/tmp/snow2-~A.tgz" (current-process-id)))
 
 
 (main-program)
