@@ -1,9 +1,10 @@
-#!/usr/local/bin/chibi-scheme
+#! /usr/bin/env chibi-scheme
 
 (import (scheme base))
 (import (scheme read))
 (import (scheme write))
 (import (chibi io))
+(import (chibi net http))
 (import (chibi process))
 (import (chibi pathname))
 (import (scheme load))
@@ -13,10 +14,15 @@
 (import (scheme file))
 (import (chibi filesystem))
 
+(import (chibi filesystem))
+(import (chibi net))
+(import (scheme))
+
+
+
 (define program-and-command-line command-line)
 
 ;; (include "snow2-client-common.scm")
-
 
 
 (define (report-error format-string . args)
@@ -27,20 +33,537 @@
   #f)
 
 
-(define (with-input-from-request uri writer-thunk reader-thunk)
-  #t)
+;; (define (read-ascii-char in-port)
+;;   (integer->char (read-u8 in-port)))
+
+;; (define read-ascii-char read-char)
+
+
+
+;; (define (string-tack str c)
+;;   ;; add a character to the end of str
+;;   (string-append str (string c)))
+
+
+;; (define (string-starts-with? s starting . tester-oa)
+;;   (let ((tester (if (null? tester-oa) equal? (car tester-oa)))
+;;         (len-s (string-length s))
+;;         (len-starting (string-length starting)))
+;;     (if (> len-starting len-s)
+;;         #f
+;;         (tester (substring s 0 len-starting) starting))))
+
+
+
+;; (define (string-split-s str delim . nth-oa)
+;;   (let loop ((ret (list))
+;;              (this-part "")
+;;              (str str))
+;;     (cond
+;;      ((not str) #f)
+;;      ((= (string-length str) 0)
+;;       (let ((final (reverse (cons this-part ret))))
+;;         ;; if nth-oa was given, the caller only wants one part
+;;         (cond ((null? nth-oa) final)
+;;               ((> (length ret) (car nth-oa)) (list-ref final (car nth-oa)))
+;;               (else #f))))
+;;      ((string-starts-with? str delim)
+;;       (loop (cons this-part ret) ""
+;;             (substring str (string-length delim) (string-length str))))
+;;      (else
+;;       (loop ret
+;;             (string-tack this-part (string-ref str 0))
+;;             (substring str 1 (string-length str)))))))
+
+
+
+;; (define (http:headers->string headers)
+;;   (let loop ((headers headers)
+;;              (result (list)))
+;;     (cond
+;;      ((null? headers)
+;;       (apply string-append (reverse (cons "\r\n" result))))
+;;      (else
+;;       (let* ((name (car (car headers)))
+;;              (value (if (pair? (cdr (car headers)))
+;;                         (cadr (car headers))
+;;                         (cdr (car headers)))))
+;;         (loop (cdr headers)
+;;               (append (list "\r\n"
+;;                             (if (number? value) (number->string value) value)
+;;                             ": " name) result)))))))
+
+
+;; (define (http:read-headers read-port)
+;;   (display "http:read-headers called\n")
+;;   (let loop ((prev-0 #f)
+;;              (prev-1 #f)
+;;              (prev-2 #f)
+;;              (character (read-ascii-char read-port))
+;;              (headers (list)))
+;;     (display "loop\n")
+;;     (cond ((eof-object? character) #f)
+;;           ((and (equal? character #\newline)
+;;                 (equal? prev-0 (car (string->list "\r"))) ;; #\return #\cr
+;;                 (equal? prev-1 #\newline)
+;;                 (equal? prev-2 (car (string->list "\r")))) ;; #\return #\cr
+;;            (list->string (reverse (cons character headers))))
+;;           (else
+;;            (loop character prev-0 prev-1 (read-ascii-char read-port)
+;;                  (cons character headers))))))
+
+
+;; (define (http:string->header header-string)
+;;   (let ((colon-position (string-contains header-string (string #\:))))
+;;     (if (eq? colon-position #f) #f
+;;         (let ((name (substring header-string 0 colon-position))
+;;               (value (substring header-string (+ colon-position 1)
+;;                                 (string-length header-string))))
+;;           (list (string-strip name)
+;;                 (string-strip value))))))
+
+
+;; (define (http:string->headers headers-string)
+;;   (let ((lines (filter (lambda (x) (> (string-length x) 0))
+;;                        (string-split-s headers-string "\r\n"))))
+;;     (map http:string->header (http:join-continued-lines lines))))
+
+
+;; (define (http:header-as-integer headers name default)
+;;   (let* ((header (assoc-with name headers string-ci=?)))
+;;     (if header
+;;         (let ((value (if (pair? (cdr header))
+;;                          (cadr header)
+;;                          (cdr header))))
+;;           (string->number value))
+;;         default)))
+
+
+;; (define (http:header-as-string headers name default)
+;;   (let* ((header (assoc-with name headers string-ci=?)))
+;;     (if header
+;;         (if (pair? (cdr header))
+;;             (cadr header)
+;;             (cdr header))
+;;         default)))
+
+
+;; (define (http:join-continued-lines lines)
+;;   (let loop ((joined (list))
+;;              (unjoined lines))
+;;     (cond ((null? unjoined) (reverse joined))
+;;           ((null? joined) (loop (list (car unjoined))
+;;                                 (cdr unjoined)))
+;;           ((or (string-starts-with? (car unjoined) " ")
+;;                (string-starts-with? (car unjoined) "\t"))
+;;            (let ((continued (string-append
+;;                              (string-strip (car joined))
+;;                              (string-strip (car unjoined)))))
+;;              (loop (cons continued (cdr joined))
+;;                    (cdr unjoined))))
+;;           (else
+;;            (loop (cons (car unjoined) joined)
+;;                  (cdr unjoined))))))
+
+
+;; (define (with-input-from-request uri writer-thunk reader-thunk)
+;;   (display "with-input-from-request called\n")
+;;   (display "writer-thunk: ")
+;;   (display writer-thunk)
+;;   (newline)
+
+;;   ;; XXX parse uri
+
+;;   (let* ((remote-host "snow2.s3-website-us-east-1.amazonaws.com")
+;;          (remote-port 80)
+;;          (path "/")
+;;          (addr (get-address-info remote-host remote-port)))
+;;     (let ((sock (socket (address-info-family addr)
+;;                         (address-info-socket-type addr)
+;;                         (address-info-protocol addr))))
+;;       (connect sock
+;;                (address-info-address addr)
+;;                (address-info-address-length addr))
+;;       ;; (set-file-descriptor-flags! sock open/non-block)
+;;       (let* ((read-port (open-input-file-descriptor sock #t))
+;;              (write-port (open-output-file-descriptor sock #t))
+;;              (writer-output
+;;               (cond (writer-thunk (call-with-output-string
+;;                                    (lambda (out)
+;;                                      (current-output-port out)
+;;                                      (writer-thunk))))
+;;                     (else "")))
+;;              (headers `(("Host" . ,remote-host)))
+;;              )
+;;         (display "writer-output: ")
+;;         (display writer-output)
+;;         (newline)
+
+;;         (display (http:headers->string headers))
+;;         (newline)
+
+;;         (display "GET " write-port)
+;;         (display path write-port)
+;;         (display " HTTP/1.1\r\n" write-port)
+;;         (display (http:headers->string headers) write-port)
+;;         ;; (display "\r\n" write-port)
+
+;;         (let ((response-headers (http:read-headers read-port)))
+;;           (display "---------------------------------\n")
+;;           (display response-headers)
+;;           (newline))
+;;         ))))
+
+
 
 (define (untar filename)
   ;; (let ((tar-pid (process-run (format #f "tar xf '~A'" filename))))
   ;;   (process-wait tar-pid))
-  #t
-  )
+  (let ((fork-result (fork)))
+    (cond ((= fork-result 0)
+           ;; child
+           (execute "tar" (list "tar" "xf" filename)))
+          (else
+           (waitpid fork-result 0))))
+  #t)
 
 
-filter
+;; (define top (path-directory (car (command-line))))
+;; (load (string-append top "/snow2-client-common.scm"))
+;; (main-program)
+
+
+(define-record-type <snow2-repository>
+  (make-snow2-repository packages)
+  snow2-repository?
+  (packages snow2-repository-packages set-snow2-repository-packages!))
+
+
+(define-record-type <snow2-package>
+  (make-snow2-package name url libraries)
+  snow2-package?
+  (name snow2-package-name set-snow2-package-name!)
+  (url snow2-package-url set-snow2-package-url!)
+  (libraries snow2-package-libraries set-snow2-package-libraries!))
+
+
+(define-record-type <snow2-library>
+  (make-snow2-library name path depends)
+  snow2-library?
+  (name snow2-library-name set-snow2-library-name!)
+  (path snow2-library-path set-snow2-library-path!)
+  (depends snow2-library-depends set-snow2-library-depends!))
+
+
+(define (read-from-string s)
+  (read (open-input-string s)))
+
+
+(define (get-tag child)
+  ;; extract the tag from an element that is assumed to be shaped like:
+  ;; '(tag ...)
+  (cond ((not (list? child))
+         (report-error "not a list: ~A" child))
+        ((null? child)
+         (report-error "list is empty."))
+        (else
+         (car child))))
+
+
+(define (get-children-by-type obj child-type)
+  ;; return any child sexps that is a list starting with child-type
+  (filter (lambda (child)
+            (eq? (get-tag child) child-type))
+          (cdr obj)))
+
+
+(define (get-child-by-type obj child-type default)
+  ;; find a non-optional child with the given tag.  the tag
+  ;; is expected to be unique among the children.
+  (let ((childs (get-children-by-type obj child-type)))
+    (cond ((null? childs)
+           (if default
+               default
+               (report-error "~A has no ~A\n" (get-tag obj) child-type)))
+          ((> (length childs) 1)
+           (report-error "~A has more than one ~A\n." obj child-type))
+          (else
+           (car childs)))))
+
+
+(define (get-string-by-type obj child-type default)
+  ;; return the string from a child with the form
+  ;; '(child-type "...")
+  ;; if no such child is found and default isn't #f, return default
+  (let ((child (get-child-by-type obj child-type default)))
+    (cond ((and (not child) default) default)
+          ((and (null? child) default) default)
+          ((not child) #f)
+          ((null? child) #f)
+          ((not (= (length child) 2))
+           (report-error "~A has malformed ~A: ~A\n"
+                         (get-tag obj) child-type child))
+          (else
+           (let ((result (cadr child)))
+             (cond ((not (string? result))
+                    (report-error
+                     "value of ~A in ~A isn't a string\n"
+                     child-type (get-tag obj)))
+                   (else
+                    result)))))))
 
 
 
-(define top (path-directory (car (command-line))))
-(load (string-append top "/snow2-client-common.scm"))
+(define (get-list-by-type obj child-type default)
+  ;; return the list from a child with the form
+  ;; '(child-type (x y z))
+  ;; if no such child is found and default isn't #f, return default
+  (let ((child (get-child-by-type obj child-type default)))
+    (cond ((and (not child) default) default)
+          ((and (null? child) default) default)
+          ((not child) #f)
+          ((null? child) #f)
+          ((not (= (length child) 2))
+           (report-error "~A has malformed ~A: ~A\n"
+                         (get-tag obj) child-type child))
+          (else
+           (let ((result (cadr child)))
+             (cond ((not (list? result))
+                    (report-error
+                     "value of ~A in ~A isn't a list: ~A\n"
+                     child-type (get-tag obj) result))
+                   (else
+                    result)))))))
+
+
+(define (get-args-by-type obj child-type default)
+  ;; return the list '(x y z) from a child with the form
+  ;; '(child-type x y z)
+  ;; if no such child is found and default isn't #f, return default
+  (let ((child (get-child-by-type obj child-type default)))
+    (cond ((and (not child) default) default)
+          ((and (null? child) default) default)
+          ((not child) #f)
+          ((null? child) #f)
+          (else
+           (cdr child)))))
+
+
+(define (depend-from-sexp depend-sexp)
+  depend-sexp)
+
+
+(define (library-from-sexp library-sexp)
+  ;; convert an s-exp into a library record
+  (let ((name (get-list-by-type library-sexp 'name #f))
+        (path (get-string-by-type library-sexp 'path #f))
+        (depends-sexps (get-args-by-type library-sexp 'depends '())))
+    (cond ((not name) #f)
+          ((not path) #f)
+          (else
+           (make-snow2-library name path
+                               (map depend-from-sexp depends-sexps))))))
+
+
+(define (package-from-sexp package-sexp)
+  ;; convert a s-exp into a package record
+  (let ((url (get-string-by-type package-sexp 'url #f))
+        (name (get-list-by-type package-sexp 'name '()))
+        (library-sexps (get-children-by-type package-sexp 'library)))
+    (cond ((not url) #f)
+          ((not name) #f)
+          (else
+           (let ((libraries (map library-from-sexp library-sexps)))
+             (make-snow2-package name url libraries))))))
+
+
+(define (repository-from-sexp repository-sexp)
+  ;; convert an s-exp into a repository record
+  (cond ((not (list? repository-sexp))
+         (report-error "repository definition isn't a list."))
+        ((null? repository-sexp)
+         (report-error "repository is empty."))
+        ((not (eq? (car repository-sexp) 'repository))
+         (report-error "this doesn't look like a repository."))
+        (else
+         (let* ((package-sexps (get-children-by-type repository-sexp 'package))
+                (packages (map package-from-sexp package-sexps)))
+           (make-snow2-repository packages)))))
+
+
+
+
+
+(define (read-repository in-port)
+  ;; read an s-exp from (current-input-port) and convert it to
+  ;; a repository record
+  (let* ((repository-sexp (read in-port))
+         (repository (repository-from-sexp repository-sexp)))
+    repository))
+
+
+
+
+
+
+(define (package-contains-library? package library-name)
+  ;; return #t if a package contains any libraries with the given name
+  (let loop ((libraries (snow2-package-libraries package)))
+    (cond ((null? libraries) #f)
+          (else
+           (let ((library (car libraries)))
+             (if (equal? (snow2-library-name library) library-name)
+                 #t
+                 (loop (cdr libraries))))))))
+
+
+
+(define (find-package-with-library repository library-name)
+  ;; find the last package that contains a library with the given name
+  (let loop ((packages (snow2-repository-packages repository))
+             (candidate-packages '()))
+    (cond ((null? packages)
+           (cond ((null? candidate-packages) #f)
+                 ;; XXX rather than just taking the last one,
+                 ;; select one based on version requirements, etc
+                 (else (car candidate-packages))))
+          (else
+           (let ((package (car packages)))
+             (loop (cdr packages)
+                   (if (package-contains-library? package library-name)
+                       (cons package candidate-packages)
+                       candidate-packages)))))))
+
+
+(define (library-from-name repository library-name)
+  (let ((package (find-package-with-library repository library-name)))
+    (cond ((not package)
+           (report-error "can't find package that contains ~S\n" library-name)
+           #f)
+          (else
+           (let loop ((libraries (snow2-package-libraries package)))
+             (cond ((null? libraries) #f)
+                   ((equal? library-name (snow2-library-name (car libraries)))
+                    (car libraries))
+                   (else (loop (cdr libraries)))))))))
+
+
+(define (gather-depends repository libraries)
+  (let ((lib-name-ht (make-hash-table))
+        (package-url-ht (make-hash-table)))
+    (for-each
+     (lambda (library)
+
+       (let* ((lib-name (snow2-library-name library))
+              (package (find-package-with-library repository lib-name)))
+         (hash-table-set! lib-name-ht lib-name #t)
+         (hash-table-set! package-url-ht (snow2-package-url package) #t))
+
+       (for-each
+        (lambda (depend)
+          (let* ((package (find-package-with-library repository depend))
+                 (libs (snow2-package-libraries package)))
+            (hash-table-set! package-url-ht (snow2-package-url package) #t)
+            (for-each
+             (lambda (lib)
+               (hash-table-set! lib-name-ht (snow2-library-name lib) #t))
+             libs)))
+        (snow2-library-depends library)))
+     libraries)
+
+    (let* ((result-names (hash-table-keys lib-name-ht))
+           (result (map (lambda (library-name)
+                          (library-from-name repository library-name))
+                        result-names)))
+      (cond ((= (length result) (length libraries))
+             (hash-table-keys package-url-ht))
+            (else
+             (gather-depends repository result))))))
+
+
+(define (get-repository repository-url)
+  ;; (with-input-from-request repository-url #f read-repository)
+  (call-with-input-url repository-url read-repository))
+
+
+(define (decide-local-package-filename url)
+  (string-append "/tmp/snow2-"
+                 (number->string (current-process-id))
+                 ".tgz"))
+
+
+(define (download-file url local-filename)
+  (display "downloading: ")
+  (display url)
+  (display " to ")
+  (display local-filename)
+  (newline)
+  (call-with-input-url
+   url
+   (lambda (inp)
+     (let ((outp (open-output-file local-filename)))
+       (let loop ()
+         (let ((data (read-u8 inp)))
+           (cond ((eof-object? data)
+                  (close-output-port outp)
+                  #t)
+                 (else
+                  (write-u8 data outp)
+                  (loop)))))))))
+
+
+(define (snow2-install repository library-name)
+  (let ((package (find-package-with-library repository library-name)))
+    (cond ((not package)
+           (report-error "didn't find a package with library: ~S\n"
+                   library-name))
+          (else
+           (let* ((libraries (snow2-package-libraries package))
+                  (urls (gather-depends repository libraries)))
+
+             (for-each
+              (lambda (url)
+                (display "installing ~A")
+                (display url)
+                (newline)
+                (let ((local-package-filename
+                       (decide-local-package-filename url)))
+                  (download-file url local-package-filename)
+                  (untar local-package-filename)
+                  (delete-file local-package-filename)))
+              urls))))))
+
+
+
+(define (snow2-uninstall repository library-name)
+  #f)
+
+
+
+(define (usage pargs)
+  (display (car pargs))
+  (display " ")
+  (display "<operation> '(library name)'")
+  (newline)
+  (display "  <operation> can be \"install\" or \"uninstall\"")
+  (newline))
+
+
+(define (main-program)
+  (let* ((repository-url
+          "http://snow2.s3-website-us-east-1.amazonaws.com/")
+         (repository (get-repository repository-url))
+         (pargs (program-and-command-line)))
+    (cond ((not (= (length pargs) 3))
+           (usage pargs))
+          (else
+           (let ((operation (list-ref pargs 1))
+                 (library-name (read-from-string (list-ref pargs 2))))
+             (cond ((equal? operation "install")
+                    (snow2-install repository library-name))
+                   ((equal? operation "uninstall")
+                    (snow2-uninstall repository library-name))
+                   ))))))
+
+
 (main-program)
