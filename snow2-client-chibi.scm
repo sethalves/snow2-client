@@ -22,198 +22,12 @@
 
 (define program-and-command-line command-line)
 
-;; (include "snow2-client-common.scm")
-
-
 (define (report-error format-string . args)
   (display format-string)
   (newline)
   (display args)
   (newline)
   #f)
-
-
-;; (define (read-ascii-char in-port)
-;;   (integer->char (read-u8 in-port)))
-
-;; (define read-ascii-char read-char)
-
-
-
-;; (define (string-tack str c)
-;;   ;; add a character to the end of str
-;;   (string-append str (string c)))
-
-
-;; (define (string-starts-with? s starting . tester-oa)
-;;   (let ((tester (if (null? tester-oa) equal? (car tester-oa)))
-;;         (len-s (string-length s))
-;;         (len-starting (string-length starting)))
-;;     (if (> len-starting len-s)
-;;         #f
-;;         (tester (substring s 0 len-starting) starting))))
-
-
-
-;; (define (string-split-s str delim . nth-oa)
-;;   (let loop ((ret (list))
-;;              (this-part "")
-;;              (str str))
-;;     (cond
-;;      ((not str) #f)
-;;      ((= (string-length str) 0)
-;;       (let ((final (reverse (cons this-part ret))))
-;;         ;; if nth-oa was given, the caller only wants one part
-;;         (cond ((null? nth-oa) final)
-;;               ((> (length ret) (car nth-oa)) (list-ref final (car nth-oa)))
-;;               (else #f))))
-;;      ((string-starts-with? str delim)
-;;       (loop (cons this-part ret) ""
-;;             (substring str (string-length delim) (string-length str))))
-;;      (else
-;;       (loop ret
-;;             (string-tack this-part (string-ref str 0))
-;;             (substring str 1 (string-length str)))))))
-
-
-
-;; (define (http:headers->string headers)
-;;   (let loop ((headers headers)
-;;              (result (list)))
-;;     (cond
-;;      ((null? headers)
-;;       (apply string-append (reverse (cons "\r\n" result))))
-;;      (else
-;;       (let* ((name (car (car headers)))
-;;              (value (if (pair? (cdr (car headers)))
-;;                         (cadr (car headers))
-;;                         (cdr (car headers)))))
-;;         (loop (cdr headers)
-;;               (append (list "\r\n"
-;;                             (if (number? value) (number->string value) value)
-;;                             ": " name) result)))))))
-
-
-;; (define (http:read-headers read-port)
-;;   (display "http:read-headers called\n")
-;;   (let loop ((prev-0 #f)
-;;              (prev-1 #f)
-;;              (prev-2 #f)
-;;              (character (read-ascii-char read-port))
-;;              (headers (list)))
-;;     (display "loop\n")
-;;     (cond ((eof-object? character) #f)
-;;           ((and (equal? character #\newline)
-;;                 (equal? prev-0 (car (string->list "\r"))) ;; #\return #\cr
-;;                 (equal? prev-1 #\newline)
-;;                 (equal? prev-2 (car (string->list "\r")))) ;; #\return #\cr
-;;            (list->string (reverse (cons character headers))))
-;;           (else
-;;            (loop character prev-0 prev-1 (read-ascii-char read-port)
-;;                  (cons character headers))))))
-
-
-;; (define (http:string->header header-string)
-;;   (let ((colon-position (string-contains header-string (string #\:))))
-;;     (if (eq? colon-position #f) #f
-;;         (let ((name (substring header-string 0 colon-position))
-;;               (value (substring header-string (+ colon-position 1)
-;;                                 (string-length header-string))))
-;;           (list (string-strip name)
-;;                 (string-strip value))))))
-
-
-;; (define (http:string->headers headers-string)
-;;   (let ((lines (filter (lambda (x) (> (string-length x) 0))
-;;                        (string-split-s headers-string "\r\n"))))
-;;     (map http:string->header (http:join-continued-lines lines))))
-
-
-;; (define (http:header-as-integer headers name default)
-;;   (let* ((header (assoc-with name headers string-ci=?)))
-;;     (if header
-;;         (let ((value (if (pair? (cdr header))
-;;                          (cadr header)
-;;                          (cdr header))))
-;;           (string->number value))
-;;         default)))
-
-
-;; (define (http:header-as-string headers name default)
-;;   (let* ((header (assoc-with name headers string-ci=?)))
-;;     (if header
-;;         (if (pair? (cdr header))
-;;             (cadr header)
-;;             (cdr header))
-;;         default)))
-
-
-;; (define (http:join-continued-lines lines)
-;;   (let loop ((joined (list))
-;;              (unjoined lines))
-;;     (cond ((null? unjoined) (reverse joined))
-;;           ((null? joined) (loop (list (car unjoined))
-;;                                 (cdr unjoined)))
-;;           ((or (string-starts-with? (car unjoined) " ")
-;;                (string-starts-with? (car unjoined) "\t"))
-;;            (let ((continued (string-append
-;;                              (string-strip (car joined))
-;;                              (string-strip (car unjoined)))))
-;;              (loop (cons continued (cdr joined))
-;;                    (cdr unjoined))))
-;;           (else
-;;            (loop (cons (car unjoined) joined)
-;;                  (cdr unjoined))))))
-
-
-;; (define (with-input-from-request uri writer-thunk reader-thunk)
-;;   (display "with-input-from-request called\n")
-;;   (display "writer-thunk: ")
-;;   (display writer-thunk)
-;;   (newline)
-
-;;   ;; XXX parse uri
-
-;;   (let* ((remote-host "snow2.s3-website-us-east-1.amazonaws.com")
-;;          (remote-port 80)
-;;          (path "/")
-;;          (addr (get-address-info remote-host remote-port)))
-;;     (let ((sock (socket (address-info-family addr)
-;;                         (address-info-socket-type addr)
-;;                         (address-info-protocol addr))))
-;;       (connect sock
-;;                (address-info-address addr)
-;;                (address-info-address-length addr))
-;;       ;; (set-file-descriptor-flags! sock open/non-block)
-;;       (let* ((read-port (open-input-file-descriptor sock #t))
-;;              (write-port (open-output-file-descriptor sock #t))
-;;              (writer-output
-;;               (cond (writer-thunk (call-with-output-string
-;;                                    (lambda (out)
-;;                                      (current-output-port out)
-;;                                      (writer-thunk))))
-;;                     (else "")))
-;;              (headers `(("Host" . ,remote-host)))
-;;              )
-;;         (display "writer-output: ")
-;;         (display writer-output)
-;;         (newline)
-
-;;         (display (http:headers->string headers))
-;;         (newline)
-
-;;         (display "GET " write-port)
-;;         (display path write-port)
-;;         (display " HTTP/1.1\r\n" write-port)
-;;         (display (http:headers->string headers) write-port)
-;;         ;; (display "\r\n" write-port)
-
-;;         (let ((response-headers (http:read-headers read-port)))
-;;           (display "---------------------------------\n")
-;;           (display response-headers)
-;;           (newline))
-;;         ))))
-
 
 
 (define (untar filename)
@@ -226,11 +40,6 @@
           (else
            (waitpid fork-result 0))))
   #t)
-
-
-;; (define top (path-directory (car (command-line))))
-;; (load (string-append top "/snow2-client-common.scm"))
-;; (main-program)
 
 
 (define-record-type <snow2-repository>
@@ -392,17 +201,12 @@
 
 
 
-
-
 (define (read-repository in-port)
   ;; read an s-exp from (current-input-port) and convert it to
   ;; a repository record
   (let* ((repository-sexp (read in-port))
          (repository (repository-from-sexp repository-sexp)))
     repository))
-
-
-
 
 
 
