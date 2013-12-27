@@ -1,11 +1,13 @@
 #! /usr/bin/env chibi-scheme
 
-(import (scheme))
+(import (scheme process-context))
 (import (scheme base))
+(import (scheme read))
+(import (scheme write))
+(import (scheme file))
 (import (srfi 1))
 (import (srfi 69))
 (import (chibi filesystem))
-(import (chibi net))
 (import (chibi net http))
 (import (chibi process))
 
