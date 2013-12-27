@@ -1,4 +1,9 @@
-#! /usr/bin/env chibi-scheme
+#! /bin/sh
+#| -*- scheme -*-
+exec chibi-scheme -I /usr/local/share/scheme -s $0 "$@"
+|#
+
+;; #! /usr/bin/env chibi-scheme
 
 (import (scheme process-context))
 (import (scheme base))
