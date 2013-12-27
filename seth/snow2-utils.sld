@@ -1,7 +1,7 @@
 (define-library (seth snow2-utils)
   (export read-repository
           find-package-with-library
-          package-libraries
+          snow2-package-libraries
           gather-depends)
   (cond-expand
    (chibi
@@ -22,7 +22,7 @@
       snow2-package?
       (name snow2-package-name set-snow2-package-name!)
       (url snow2-package-url set-snow2-package-url!)
-      (libraries package-libraries set-package-libraries!))
+      (libraries snow2-package-libraries set-snow2-package-libraries!))
 
 
     (define-record-type <snow2-library>
@@ -165,17 +165,17 @@
                (make-snow2-repository packages)))))
 
 
-    (define (read-repository)
+    (define (read-repository in-port)
       ;; read an s-exp from (current-input-port) and convert it to
       ;; a repository record
-      (let* ((repository-sexp (read))
+      (let* ((repository-sexp (read in-port))
              (repository (repository-from-sexp repository-sexp)))
         repository))
 
 
     (define (package-contains-library? package library-name)
       ;; return #t if a package contains any libraries with the given name
-      (let loop ((libraries (package-libraries package)))
+      (let loop ((libraries (snow2-package-libraries package)))
         (cond ((null? libraries) #f)
               (else
                (let ((library (car libraries)))
@@ -208,7 +208,7 @@
                 "can't find package that contains ~S\n" library-name)
                #f)
               (else
-               (let loop ((libraries (package-libraries package)))
+               (let loop ((libraries (snow2-package-libraries package)))
                  (cond ((null? libraries) #f)
                        ((equal? library-name
                                 (snow2-library-name (car libraries)))
@@ -230,7 +230,7 @@
            (for-each
             (lambda (depend)
               (let* ((package (find-package-with-library repository depend))
-                     (libs (package-libraries package)))
+                     (libs (snow2-package-libraries package)))
                 (hash-table-set! package-url-ht (snow2-package-url package) #t)
                 (for-each
                  (lambda (lib)

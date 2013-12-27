@@ -27,16 +27,18 @@
 
 
 (define (get-repository repository-url)
-  (with-input-from-request repository-url #f read-repository))
+  (with-input-from-request repository-url #f
+                           (lambda ()
+                             (read-repository (current-input-port)))))
 
 
 (define (snow2-install repository library-name)
   (let ((package (find-package-with-library repository library-name)))
     (cond ((not package)
-           (report-error "didn't find a package with library: ~S\n"
+           (error "didn't find a package with library: ~S\n"
                    library-name))
           (else
-           (let* ((libraries (package-libraries package))
+           (let* ((libraries (snow2-package-libraries package))
                   (urls (gather-depends repository libraries)))
 
              (for-each
