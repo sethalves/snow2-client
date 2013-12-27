@@ -10,8 +10,8 @@
 (import (chibi filesystem))
 (import (chibi net http))
 (import (chibi process))
+(import (prefix (seth tar) tar-))
 
-(define program-and-command-line command-line)
 
 (define (report-error format-string . args)
   (display format-string)
@@ -21,16 +21,14 @@
   #f)
 
 
-(define (untar filename)
-  ;; (let ((tar-pid (process-run (format #f "tar xf '~A'" filename))))
-  ;;   (process-wait tar-pid))
-  (let ((fork-result (fork)))
-    (cond ((= fork-result 0)
-           ;; child
-           (execute "tar" (list "tar" "xf" filename)))
-          (else
-           (waitpid fork-result 0))))
-  #t)
+;; (define (untar filename)
+;;   (let ((fork-result (fork)))
+;;     (cond ((= fork-result 0)
+;;            ;; child
+;;            (execute "tar" (list "tar" "xf" filename)))
+;;           (else
+;;            (waitpid fork-result 0))))
+;;   #t)
 
 
 (define-record-type <snow2-repository>
@@ -324,7 +322,7 @@
                 (let ((local-package-filename
                        (decide-local-package-filename url)))
                   (download-file url local-package-filename)
-                  (untar local-package-filename)
+                  (tar-extract local-package-filename)
                   (delete-file local-package-filename)))
               urls))))))
 
@@ -348,7 +346,7 @@
   (let* ((repository-url
           "http://snow2.s3-website-us-east-1.amazonaws.com/")
          (repository (get-repository repository-url))
-         (pargs (program-and-command-line)))
+         (pargs (command-line)))
     (cond ((not (= (length pargs) 3))
            (usage pargs))
           (else
