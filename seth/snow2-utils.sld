@@ -1,13 +1,24 @@
 (define-library (seth snow2-utils)
-  (export read-repository
+  (export get-repository
+          read-repository
           find-package-with-library
           snow2-package-libraries
-          gather-depends)
+          gather-depends
+          install
+          uninstall)
   (cond-expand
    (chibi
-    (import (scheme base) (scheme read) (srfi 1) (srfi 69)))
+    (import (scheme base) (scheme read) (scheme write) (srfi 1) (srfi 69))
+    (import (chibi net http))
+    (import (chibi process))
+    (import (chibi filesystem))
+    (import (prefix (seth tar) tar-))
+    (import (prefix (seth http) http-)))
    (chicken
-    (import (scheme base) (chicken) (posix) (srfi 1) (srfi 69)))
+    (import (scheme base) (chicken) (posix) (srfi 1) (srfi 69))
+    (import (prefix (seth tar) tar-))
+    (import (prefix (seth http) http-))
+    )
    (gauche
     (import (scheme base))))
   (begin
@@ -247,5 +258,37 @@
                  (hash-table-keys package-url-ht))
                 (else
                  (gather-depends repository result))))))
+
+    (define (get-repository repository-url)
+      (http-call-with-request-body repository-url read-repository))
+
+    (define (decide-local-package-filename url)
+      (string-append "/tmp/snow2-"
+                     (number->string (current-process-id))
+                     ".tgz"))
+
+    (define (install repository library-name)
+      (let ((package (find-package-with-library repository library-name)))
+        (cond ((not package)
+               (error "didn't find a package with library: ~S\n"
+                      library-name))
+              (else
+               (let* ((libraries (snow2-package-libraries package))
+                      (urls (gather-depends repository libraries)))
+
+                 (for-each
+                  (lambda (url)
+                    (display "installing ")
+                    (display url)
+                    (newline)
+                    (let ((local-package-filename
+                           (decide-local-package-filename url)))
+                      (http-download-file url local-package-filename)
+                      (tar-extract local-package-filename)
+                      (delete-file local-package-filename)))
+                  urls))))))
+
+    (define (uninstall repository library-name)
+      #f)
 
     ))

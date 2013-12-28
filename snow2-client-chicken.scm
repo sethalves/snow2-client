@@ -5,24 +5,18 @@ exec csi -include-path /usr/local/share/scheme -s $0 "$@"
 
 (use r7rs)
 ;; (import-for-syntax r7rs)
-(use inclub)
-(use http-client)
+;; (use http-client)
 (use srfi-69)
-
 (require-library scheme.process-context)
 (import (scheme process-context))
-
-;; (inclub "seth/tar.sld")
 (include "seth/tar.sld")
+(include "seth/http.sld")
 (include "seth/snow2-utils.sld")
-(import (chicken) (prefix (seth tar) tar-) (seth snow2-utils))
-
-
-
-
-
-(define (read-from-string s)
-  (read (open-input-string s)))
+(include "seth/string-read-write.sld")
+(import (chicken))
+(import (prefix (seth snow2-utils) snow2-))
+(import (prefix (seth http) http-))
+(import (seth string-read-write))
 
 
 (define (decide-local-package-filename url)
@@ -31,48 +25,30 @@ exec csi -include-path /usr/local/share/scheme -s $0 "$@"
                  ".tgz"))
 
 
-(define (download-file url local-filename)
-  (display "downloading: ")
-  (display url)
-  (display " to ")
-  (display local-filename)
-  (newline)
-  (with-input-from-request
-   url #f
-   (lambda ()
-     (let ((outp (open-output-file local-filename))
-           (data (read-string)))
-       (write-string data #f outp)
-       (close-output-port outp)
-       #t))))
+;; (define (get-repository repository-url)
+;;   (http-call-with-request-body repository-url read-repository))
 
 
-(define (get-repository repository-url)
-  (with-input-from-request repository-url #f
-                           (lambda ()
-                             (read-repository (current-input-port)))))
+;; (define (snow2-install repository library-name)
+;;   (let ((package (find-package-with-library repository library-name)))
+;;     (cond ((not package)
+;;            (error "didn't find a package with library: ~S\n"
+;;                    library-name))
+;;           (else
+;;            (let* ((libraries (snow2-package-libraries package))
+;;                   (urls (gather-depends repository libraries)))
 
-
-(define (snow2-install repository library-name)
-  (let ((package (find-package-with-library repository library-name)))
-    (cond ((not package)
-           (error "didn't find a package with library: ~S\n"
-                   library-name))
-          (else
-           (let* ((libraries (snow2-package-libraries package))
-                  (urls (gather-depends repository libraries)))
-
-             (for-each
-              (lambda (url)
-                (display "installing ~A")
-                (display url)
-                (newline)
-                (let ((local-package-filename
-                       (decide-local-package-filename url)))
-                  (download-file url local-package-filename)
-                  (tar-extract local-package-filename)
-                  (delete-file local-package-filename)))
-              urls))))))
+;;              (for-each
+;;               (lambda (url)
+;;                 (display "installing ")
+;;                 (display url)
+;;                 (newline)
+;;                 (let ((local-package-filename
+;;                        (decide-local-package-filename url)))
+;;                   (http-download-file url local-package-filename)
+;;                   (tar-extract local-package-filename)
+;;                   (delete-file local-package-filename)))
+;;               urls))))))
 
 
 
@@ -93,7 +69,7 @@ exec csi -include-path /usr/local/share/scheme -s $0 "$@"
 (define (main-program)
   (let* ((repository-url
           "http://snow2.s3-website-us-east-1.amazonaws.com/")
-         (repository (get-repository repository-url))
+         (repository (snow2-get-repository repository-url))
          (pargs (command-line)))
     (cond ((not (= (length pargs) 3))
            (usage pargs))
