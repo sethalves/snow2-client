@@ -10,7 +10,9 @@
     (import (http-client))
     )
    (gauche
-    (import (scheme base))))
+    (import (scheme base))
+    (import (rfc uri) (rfc http))
+    ))
   (begin
     (cond-expand
 
@@ -48,7 +50,14 @@
                         (loop))))))))))
 
      (gauche
-      (define (call-with-request-body url consumer)
-        #f)))
+      ;; http://practical-scheme.net/gauche/man/gauche-refe_149.html
 
-    ))
+      (define (call-with-request-body url consumer)
+
+        (let-values (((scheme user-info hostname port-number
+                              path-part query-part fragment-part)
+                      (uri-parse url)))
+          (let-values (((status-code headers body)
+                        (http-get hostname path-part)))
+            (consumer (open-input-string body))))))
+     )))

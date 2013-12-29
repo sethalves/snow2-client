@@ -18,6 +18,6 @@
           (close-output-port s)
           result)))
 
-    (cond-expand (chicken (register-feature! 'seth.string-read-write)))
+    ;; (cond-expand (chicken (register-feature! 'seth.string-read-write)))
 
     ))

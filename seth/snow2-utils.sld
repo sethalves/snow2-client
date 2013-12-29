@@ -6,21 +6,13 @@
           gather-depends
           install
           uninstall)
+  (import (scheme base) (scheme read))
   (cond-expand
-   (chibi
-    (import (scheme base) (scheme read) (scheme write) (srfi 1) (srfi 69))
-    (import (chibi net http))
-    (import (chibi process))
-    (import (chibi filesystem))
-    (import (prefix (seth tar) tar-))
-    (import (prefix (seth http) http-)))
-   (chicken
-    (import (scheme base) (chicken) (posix) (srfi 1) (srfi 69))
-    (import (prefix (seth tar) tar-))
-    (import (prefix (seth http) http-))
-    )
-   (gauche
-    (import (scheme base))))
+   (chibi (import (scheme write) (srfi 1) (srfi 69)))
+   (chicken (import (chicken) (posix) (srfi 1) (srfi 69)))
+   (gauche (import (scheme write) (srfi 1))))
+  (import (prefix (seth tar) tar-))
+  (import (prefix (seth http) http-))
   (begin
 
     (define-record-type <snow2-repository>

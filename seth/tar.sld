@@ -20,6 +20,7 @@
           (let-values (((pid normal-exit exit-status)
                         (process-wait tar-pid)))
             normal-exit))))
+
      (chibi
       (define (extract filename)
         (let ((fork-result (fork)))
@@ -29,4 +30,9 @@
                 (else
                  (waitpid fork-result 0))))
         #t))
+
+     (gauche
+      (define (extract filename)
+        (run-process '(list "tar" "xf" filename) :wait #t)
+        ))
      )))

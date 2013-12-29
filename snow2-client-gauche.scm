@@ -1,22 +1,21 @@
 #! /bin/sh
 #| -*- scheme -*-
-exec csi -include-path /usr/local/share/scheme -s $0 "$@"
+exec gosh \
+-e '(push! *load-suffixes* ".sld")' \
+-e '(push! *load-path* ".")' \
+-r7 $0 "$@"
 |#
 
-(use r7rs)
-;; (import-for-syntax r7rs)
-;; (use http-client)
-(use srfi-69)
-(require-library scheme.process-context)
-(import (scheme process-context))
-(include "seth/tar.sld")
-(include "seth/http.sld")
-(include "seth/snow2-utils.sld")
-(include "seth/string-read-write.sld")
-(import (chicken))
-;; (import (prefix (seth http) http-))
+(import (scheme base) (scheme read) (scheme write) (scheme process-context))
 (import (prefix (seth snow2-utils) snow2-))
 (import (seth string-read-write))
+
+
+;; (scheme char) (scheme lazy)
+;; (scheme inexact) (scheme complex) (scheme time)
+;; (scheme file) (scheme eval)  (scheme case-lambda)
+;; (except (scheme r5rs) write) (srfi 64)
+;; (chibi test)
 
 
 (define (usage pargs)
@@ -33,6 +32,11 @@ exec csi -include-path /usr/local/share/scheme -s $0 "$@"
           "http://snow2.s3-website-us-east-1.amazonaws.com/")
          (repository (snow2-get-repository repository-url))
          (pargs (command-line)))
+
+    (display "repository=")
+    (display repository)
+    (newline)
+
     (cond ((not (= (length pargs) 3))
            (usage pargs))
           (else

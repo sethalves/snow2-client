@@ -2,8 +2,6 @@
 #
 #
 
-CHICKEN_COMPILER=csc
-
 ifndef SCHEME
 $(info make SCHEME=chibi <target>)
 $(info make SCHEME=chicken <target>)
@@ -16,6 +14,7 @@ SHARE=$(shell dirname $(CHICKEN_HOME))
 TOP=$(shell dirname $(SHARE))
 PACKAGE_DIR=$(SHARE)/scheme
 BIN_DIR=$(TOP)/bin
+CHICKEN_COMPILER=csc -I /usr/local/share/scheme
 endif
 
 
@@ -29,57 +28,71 @@ endif
 
 all:
 
-
-#
-# build
-#
-
 build: build-$(SCHEME)
+
+install: build install-libs install-$(SCHEME)
+
+install-libs:
+	sudo mkdir -p $(PACKAGE_DIR)/seth
+	sudo cp seth/*.sld $(PACKAGE_DIR)/seth/
+
+uninstall: uninstall-$(SCHEME) uninstall-libs
+
+uninstall-libs:
+	sudo rm -f $(PACKAGE_DIR)/seth/*.sld
+	- sudo rmdir $(PACKAGE_DIR)/seth
+
+clean: clean-$(SCHEME)
+	rm *~
+
+
+#
+# chicken
+#
 
 build-chicken:
 	$(CHICKEN_COMPILER) snow2-client-chicken.scm -o snow2
 
+install-chicken:
+	sudo cp ./snow2-client-chicken.scm $(BIN_DIR)/snow2
+
+# chicken's compiler isn't working on this program.
+#install-chicken:
+#	sudo cp ./snow2 $(BIN_DIR)
+
+uninstall-chicken:
+	sudo rm -f $(BIN_DIR)/snow2
+
+clean-chicken:
+	rm -f snow2
+
+
+#
+# chibi
+#
+
 build-chibi:
 
-#
-# install
-#
-
-install: install-$(SCHEME)
-
-install-libs:
-	sudo mkdir -p $(PACKAGE_DIR)/seth
-	sudo cp seth/bytevector.sld $(PACKAGE_DIR)/seth/
-	sudo cp seth/tar.sld $(PACKAGE_DIR)/seth/
-	sudo cp seth/snow2-utils.sld $(PACKAGE_DIR)/seth/
-
-install-chicken: build-chicken install-libs
-	sudo cp ./snow2 $(BIN_DIR)
-
-install-chibi: build-chibi install-libs
+install-chibi:
 	sudo cp ./snow2-client-chibi.scm $(BIN_DIR)/snow2
 
-#
-# uninstall
-#
-
-uninstall: uninstall-$(SCHEME)
-
-uninstall-libs:
-	sudo rm -f $(PACKAGE_DIR)/seth/bytevector.sld
-	sudo rm -f $(PACKAGE_DIR)/seth/tar.sld
-	sudo rm -f $(PACKAGE_DIR)/seth/snow2-utils.sld
-	- sudo rmdir $(PACKAGE_DIR)/seth
-
-uninstall-chicken: uninstall-libs
+uninstall-chibi:
 	sudo rm -f $(BIN_DIR)/snow2
 
-uninstall-chibi: uninstall-libs
+clean-chibi:
+
+
+#
+# gauche
+#
+
+build-gauche:
+
+install-gauche:
+	sudo cp ./snow2-client-gauche.scm $(BIN_DIR)/snow2
+
+uninstall-gauche:
 	sudo rm -f $(BIN_DIR)/snow2
 
-#
-# clean
-#
+clean-gauche:
 
-clean:
-	rm -f snow2 *~
