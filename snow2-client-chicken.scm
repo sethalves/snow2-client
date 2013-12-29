@@ -9,6 +9,7 @@ exec csi -include-path /usr/local/share/scheme -s $0 "$@"
 (use srfi-69)
 (require-library scheme.process-context)
 (import (scheme process-context))
+(include "seth/temporary-file.sld")
 (include "seth/tar.sld")
 (include "seth/http.sld")
 (include "seth/snow2-utils.sld")

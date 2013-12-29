@@ -8,11 +8,12 @@
           uninstall)
   (import (scheme base) (scheme read))
   (cond-expand
-   (chibi (import (scheme write) (srfi 1) (srfi 69)))
+   (chibi (import (scheme write) (chibi filesystem) (srfi 1) (srfi 69)))
    (chicken (import (chicken) (posix) (srfi 1) (srfi 69)))
    (gauche (import (scheme write) (srfi 1))))
   (import (prefix (seth tar) tar-))
   (import (prefix (seth http) http-))
+  (import (seth temporary-file))
   (begin
 
     (define-record-type <snow2-repository>
@@ -254,10 +255,6 @@
     (define (get-repository repository-url)
       (http-call-with-request-body repository-url read-repository))
 
-    (define (decide-local-package-filename url)
-      (string-append "/tmp/snow2-"
-                     (number->string (current-process-id))
-                     ".tgz"))
 
     (define (install repository library-name)
       (let ((package (find-package-with-library repository library-name)))
@@ -273,9 +270,10 @@
                     (display "installing ")
                     (display url)
                     (newline)
-                    (let ((local-package-filename
-                           (decide-local-package-filename url)))
-                      (http-download-file url local-package-filename)
+
+                    (let-values (((write-port local-package-filename)
+                                  (temporary-file)))
+                      (http-download-file url write-port)
                       (tar-extract local-package-filename)
                       (delete-file local-package-filename)))
                   urls))))))

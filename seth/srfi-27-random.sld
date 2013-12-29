@@ -1,0 +1,25 @@
+;; -*- scheme -*-
+;; srfi-27, Sources of Random Bits
+;; http://srfi.schemers.org/srfi-27/srfi-27.html
+;; http://wiki.call-cc.org/eggref/4/srfi-27
+;; http://practical-scheme.net/gauche/man/gauche-refe_118.html#Sources-of-random-bits
+
+(define-library (seth srfi-27-random)
+  (export random-integer random-source-randomize! default-random-source)
+  (cond-expand
+   (chibi (import (scheme base) (srfi 27)))
+   (chicken (import (chicken) (srfi 27)))
+   (gauche (import (scheme base) (gauche) (srfi-27))))
+  (begin
+
+    (cond-expand
+     (chibi)
+
+     (chicken
+      (use srfi-27))
+
+     (gauche
+      (define random-integer random-integer)
+      (define random-source-randomize! random-source-randomize!)
+      (define default-random-source default-random-source)
+      ))))

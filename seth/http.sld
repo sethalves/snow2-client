@@ -21,33 +21,31 @@
         (with-input-from-request
          url #f (lambda () (consumer (current-input-port)))))
 
-      (define (download-file url local-filename)
+      (define (download-file url write-port)
         (call-with-request-body
          url
          (lambda (inp)
-           (let ((outp (open-output-file local-filename))
-                 (data (read-string #f inp)))
-             (write-string data #f outp)
-             (close-output-port outp)
+           (let ((data (read-string #f inp)))
+             (write-string data #f write-port)
+             (close-output-port write-port)
              #t)))))
 
      (chibi
       (define (call-with-request-body url consumer)
         (call-with-input-url url consumer))
 
-      (define (download-file url local-filename)
+      (define (download-file url write-port)
         (call-with-input-url
          url
          (lambda (inp)
-           (let ((outp (open-output-file local-filename)))
-             (let loop ()
-               (let ((data (read-u8 inp)))
-                 (cond ((eof-object? data)
-                        (close-output-port outp)
-                        #t)
-                       (else
-                        (write-u8 data outp)
-                        (loop))))))))))
+           (let loop ()
+             (let ((data (read-u8 inp)))
+               (cond ((eof-object? data)
+                      (close-output-port write-port)
+                      #t)
+                     (else
+                      (write-u8 data write-port)
+                      (loop)))))))))
 
      (gauche
       ;; http://practical-scheme.net/gauche/man/gauche-refe_149.html
