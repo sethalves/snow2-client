@@ -28,15 +28,18 @@
           bytevector-copy-partial
           bytevector-copy-partial!
           )
-  (cond-expand (chibi (import (scheme base) (chibi io)))
-               (chicken (import (chicken) (srfi-4)))
-               (gauche (import (scheme base) (gauche uvector))))
+  (import (scheme base))
+  (cond-expand
+   (chibi (import (chibi io)))
+   (chicken (import (chicken) (srfi 4)))
+   (gauche (import (gauche uvector)))
+   (sagittarius (import (util bytevector)))
+   )
   (begin
 
-    ;; (cond-expand (chicken (use srfi-4)) (else))
-
     (cond-expand
-     ((or chibi chicken gauche)
+
+     ((or chibi chicken gauche sagittarius)
       (define (latin-1->string bytes)
         (list->string
          (map integer->char
@@ -80,7 +83,7 @@
 
 
     (cond-expand
-     (chibi
+     ((or chibi sagittarius)
       (define (bytevector . args)
         (let* ((len (length args))
                (bv (make-bytevector len)))
@@ -105,7 +108,7 @@
 
 
     (cond-expand
-     ((or gauche chicken chibi)
+     ((or gauche chicken chibi sagittarius)
       ;; these didn't make it into final r7rs.
       (define (bytevector-copy-partial bv start end)
         (let ((res (make-bytevector (- end start))))

@@ -2,10 +2,7 @@
 
 (define-library (seth string-read-write)
   (export read-from-string write-to-string)
-  (cond-expand
-   (chibi (import (scheme base) (scheme read) (scheme write)))
-   (chicken (import (chicken)))
-   (gauche (import (scheme base) (scheme read) (scheme write))))
+  (import (scheme base) (scheme read) (scheme write))
   (begin
 
     (define (read-from-string s)

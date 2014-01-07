@@ -9,7 +9,8 @@
   (import (scheme base) (scheme read))
   (cond-expand
    (chibi (import (scheme write) (chibi filesystem) (srfi 1) (srfi 69)))
-   (chicken (import (chicken) (posix) (srfi 1) (srfi 69)))
+   (chicken (import (scheme read) (scheme write)
+                    (scheme file) (srfi 1) (srfi 69)))
    (gauche (import (scheme write) (srfi 1))))
   (import (prefix (seth tar) tar-))
   (import (prefix (seth http) http-))

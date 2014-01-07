@@ -5,7 +5,6 @@ exec csi -include-path /usr/local/share/scheme -s $0 "$@"
 
 (use r7rs)
 ;; (import-for-syntax r7rs)
-;; (use http-client)
 (use srfi-69)
 (require-library scheme.process-context)
 (import (scheme process-context))
@@ -15,7 +14,6 @@ exec csi -include-path /usr/local/share/scheme -s $0 "$@"
 (include "seth/snow2-utils.sld")
 (include "seth/string-read-write.sld")
 (import (chicken))
-;; (import (prefix (seth http) http-))
 (import (prefix (seth snow2-utils) snow2-))
 (import (seth string-read-write))
 

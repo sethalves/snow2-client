@@ -14,7 +14,7 @@ SHARE=$(shell dirname $(CHICKEN_HOME))
 TOP=$(shell dirname $(SHARE))
 PACKAGE_DIR=$(SHARE)/scheme
 BIN_DIR=$(TOP)/bin
-CHICKEN_COMPILER=csc -I /usr/local/share/scheme
+CHICKEN_COMPILER=csc -I $(PACKAGE_DIR)
 endif
 
 
@@ -53,12 +53,11 @@ clean: clean-$(SCHEME)
 build-chicken:
 	$(CHICKEN_COMPILER) snow2-client-chicken.scm -o snow2
 
-install-chicken:
-	sudo cp ./snow2-client-chicken.scm $(BIN_DIR)/snow2
+# install-chicken:
+# 	sudo cp ./snow2-client-chicken.scm $(BIN_DIR)/snow2
 
-# chicken's compiler isn't working on this program.
-#install-chicken:
-#	sudo cp ./snow2 $(BIN_DIR)
+install-chicken: build-chicken
+	sudo cp ./snow2 $(BIN_DIR)
 
 uninstall-chicken:
 	sudo rm -f $(BIN_DIR)/snow2

@@ -1,16 +1,15 @@
 
 (define-library (seth tar)
   (export extract)
+  (import (scheme base))
   (cond-expand
-   (chibi
-    (import (scheme base) (chibi io) (chibi process)))
-   (chicken
-    (import (scheme base) (chicken) (posix))
-    )
-   (gauche
-    (import (scheme base))))
+   (chibi (import (chibi io) (chibi process)))
+   (chicken (import (chicken) (posix)))
+   (gauche)
+   (sagittarius (import (prefix (sagittarius process) process-))))
   (begin
     (cond-expand
+
      (chicken
       (define (extract filename)
         ;; XXX check filename for '
@@ -35,4 +34,10 @@
       (define (extract filename)
         (run-process '(list "tar" "xf" filename) :wait #t)
         ))
+
+     (sagittarius
+      (define (extract filename)
+        (process-run "tar" "xf" filename)
+        ))
+
      )))
