@@ -14,7 +14,7 @@ SHARE=$(shell dirname $(CHICKEN_HOME))
 TOP=$(shell dirname $(SHARE))
 PACKAGE_DIR=$(SHARE)/scheme
 BIN_DIR=$(TOP)/bin
-CHICKEN_COMPILER=csc -I $(PACKAGE_DIR)
+CHICKEN_COMPILER=csc -X r7rs -I $(PACKAGE_DIR)
 endif
 
 
@@ -43,7 +43,7 @@ uninstall-libs:
 	- sudo rmdir $(PACKAGE_DIR)/seth
 
 clean: clean-$(SCHEME)
-	rm *~
+	rm -f *~
 
 
 #
