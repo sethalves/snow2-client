@@ -1,14 +1,16 @@
 (define-library (seth temporary-file)
   (export temporary-file)
+  (import (scheme base))
   (cond-expand
    (chibi
-    (import (scheme base) (scheme file)
+    (import (scheme file)
             (chibi io) (chibi process)
             (seth srfi-27-random)))
    (chicken
-    (import (scheme base) (chicken) (posix)))
-   (gauche
-    (import (scheme base))))
+    (import (posix)))
+   (gauche)
+   (sagittarius)
+   )
   (begin
     (cond-expand
      (chicken
@@ -33,7 +35,7 @@
                                (+ 100000 (random-integer 899999))))))
           (values (open-output-file temp-path)
                   temp-path))))
-     (gauche
+     ((or gauche sagittarius)
       (define (temporary-file)
         (let ((template
                (string-append

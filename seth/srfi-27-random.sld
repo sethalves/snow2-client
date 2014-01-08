@@ -6,17 +6,21 @@
 
 (define-library (seth srfi-27-random)
   (export random-integer random-source-randomize! default-random-source)
+  (import (scheme base))
   (cond-expand
-   (chibi (import (scheme base) (srfi 27)))
-   (chicken (import (chicken) (srfi 27)))
-   (gauche (import (scheme base) (gauche) (srfi-27))))
+   (chibi (import (srfi 27)))
+   (chicken (import (srfi 27)))
+   (gauche (import (gauche) (srfi-27)))
+   (sagittarius (import (srfi :27))))
   (begin
 
     (cond-expand
-     (chibi)
+
+     ((or chibi sagittarius))
 
      (chicken
-      (use srfi-27))
+      ;; (use srfi-27)
+      )
 
      (gauche
       (define random-integer random-integer)

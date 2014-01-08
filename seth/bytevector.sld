@@ -94,7 +94,11 @@
                    (bytevector-u8-set! bv i (car args))
                    (loop (+ i 1) (cdr args))))))))
 
-     ((or bigloo gauche chicken guile)
+     (chicken
+      (define u8-list->bytevector list->u8vector)
+      (define utf8->string latin-1->string)
+      (define string->utf8 string->latin-1))
+     ((or bigloo gauche guile)
       (define bytevector u8vector)
       (define make-bytevector make-u8vector)
       (define bytevector? u8vector?)
