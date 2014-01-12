@@ -8,8 +8,8 @@
             (seth srfi-27-random)))
    (chicken
     (import (posix)))
-   (gauche)
-   (sagittarius)
+   (gauche (import (scheme file) (file util) (seth srfi-27-random)))
+   (sagittarius (import (util file)))
    )
   (begin
     (cond-expand
@@ -35,10 +35,24 @@
                                (+ 100000 (random-integer 899999))))))
           (values (open-output-file temp-path)
                   temp-path))))
-     ((or gauche sagittarius)
+
+     (sagittarius
       (define (temporary-file)
-        (let ((template
-               (string-append
-                (sys-tmpdir) "tmp-" (current-process-id) ".XXXXXX")))
-          (file-mkstemp template))))
+        (make-temporary-file (string-append (temporary-directory) "/"))))
+
+     (gauche
+      (define (temporary-file)
+        (let ((temp-path
+               (string-append (temporary-directory)
+                              "/tmp-"
+                              ;; (number->string (sys-getpid))
+                              "gauche"
+                              "."
+                              (number->string
+                               (+ 100000 (random-integer 899999))))))
+          (values (open-output-file temp-path)
+                  temp-path))
+
+        ))
+
      )))
