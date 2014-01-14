@@ -8,14 +8,17 @@ exec csi -include-path /usr/local/share/scheme -s $0 "$@"
 (use srfi-69)
 (require-library scheme.process-context)
 (import (scheme process-context))
+(include "seth/srfi-69-hash-tables.sld")
 (include "seth/temporary-file.sld")
 (include "seth/tar.sld")
 (include "seth/http.sld")
 (include "seth/snow2-utils.sld")
 (include "seth/string-read-write.sld")
+(include "seth/srfi-27-random.sld")
 (import (chicken))
 (import (prefix (seth snow2-utils) snow2-))
 (import (seth string-read-write))
+(import (seth srfi-27-random))
 
 
 (define (usage pargs)
@@ -28,6 +31,7 @@ exec csi -include-path /usr/local/share/scheme -s $0 "$@"
 
 
 (define (main-program)
+  (random-source-randomize! default-random-source)
   (let* ((repository-url
           "http://snow2.s3-website-us-east-1.amazonaws.com/")
          (repository (snow2-get-repository repository-url))

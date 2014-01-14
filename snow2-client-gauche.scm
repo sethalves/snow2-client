@@ -8,7 +8,7 @@ exec gosh \
 
 (import (scheme base) (scheme read) (scheme write) (scheme process-context))
 (import (prefix (seth snow2-utils) snow2-))
-(import (seth string-read-write))
+(import (seth string-read-write) (seth srfi-27-random))
 
 
 ;; (scheme char) (scheme lazy)
@@ -28,6 +28,7 @@ exec gosh \
 
 
 (define (main-program)
+  (random-source-randomize! default-random-source)
   (let* ((repository-url
           "http://snow2.s3-website-us-east-1.amazonaws.com/")
          (repository (snow2-get-repository repository-url))

@@ -9,7 +9,7 @@
    (chicken
     (import (posix)))
    (gauche (import (scheme file) (file util) (seth srfi-27-random)))
-   (sagittarius (import (util file)))
+   (sagittarius (import (scheme file) (util file) (seth srfi-27-random)))
    )
   (begin
     (cond-expand
@@ -38,7 +38,17 @@
 
      (sagittarius
       (define (temporary-file)
-        (make-temporary-file (string-append (temporary-directory) "/"))))
+        ;; (make-temporary-file (string-append (temporary-directory) "/"))
+        (let ((temp-path
+               (string-append (temporary-directory)
+                              "/tmp-"
+                              "sagittarius"
+                              "."
+                              (number->string
+                               (+ 100000 (random-integer 899999))))))
+          (values (open-output-file temp-path :transcoder #f)
+                  temp-path))
+        ))
 
      (gauche
       (define (temporary-file)

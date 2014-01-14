@@ -68,7 +68,7 @@
                   (scheme write)
                   ;; (seth bytevector)
                   (seth port-extras)))
-   (chicken (import (chicken) (openssl) (udp) (posix) (ports)
+   (chicken (import (openssl) (udp) (posix) (ports)
                     ;; (tcp6) ;; XXX tcp6 is ignoring timeout parameters
                     (tcp)
                     ;; (seth bytevector)
@@ -218,8 +218,7 @@
      (chicken
       (define (open-network-client settings-list)
         (let* ((host (settings-list-get 'host settings-list #f))
-               (port (settings-list-get 'port settings-list 0))
-               (addr (get-address-info host port)))
+               (port (settings-list-get 'port settings-list 0)))
           (let-values (((read-port write-port)
                         (tcp-connect host port)))
             (list read-port write-port)))))

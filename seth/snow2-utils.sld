@@ -12,7 +12,7 @@
    (chicken (import (scheme read) (scheme write)
                     (scheme file) (srfi 1)))
    (gauche (import (scheme write) (srfi 1)))
-   (sagittarius (import (scheme write) (srfi 1))))
+   (sagittarius (import (scheme file) (scheme write) (srfi 1))))
   (import (seth srfi-69-hash-tables))
   (import (prefix (seth tar) tar-))
   (import (prefix (seth http) http-))

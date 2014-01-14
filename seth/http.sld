@@ -6,7 +6,7 @@
     (import (chibi io) (chibi process) (scheme file) (chibi net http))
     (import (seth srfi-13-strings)))
    (chicken (import (chicken) (extras) (posix) (http-client)))
-   (gauche (import (rfc uri) (rfc http)))
+   (gauche (import (rfc uri) (rfc http) (seth port-extras)))
    (sagittarius
     (import (scheme write) (rfc uri) (srfi 1) (srfi 13) (srfi 14))
     (import (seth port-extras) (seth bytevector) (seth network-socket)))
@@ -54,7 +54,18 @@
                       (uri-parse url)))
           (let-values (((status-code headers body)
                         (http-get hostname path-part)))
-            (consumer (open-input-string body))))))
+            (consumer (open-input-string body)))))
+
+
+      (define (download-file url write-port)
+        (call-with-request-body
+         url
+         (lambda (inp)
+           (let ((data (read-all-chars inp)))
+             (write-string data write-port)
+             (close-output-port write-port)
+             #t))))
+      )
 
      (sagittarius
       ;; http://ktakashi.github.io/sagittarius-ref.html#rfc.uri
@@ -149,12 +160,11 @@
                  (headers (http:string->headers headers-string))
                  (content-length
                   (http:header-as-integer headers 'content-length 0)))
-            (let ((body (read-n content-length read-port)))
+            (let ((body (latin-1->string (read-n-u8 content-length read-port))))
               (values 200 "" body)))))
 
 
       (define (call-with-request-body url consumer)
-
         (let-values (((scheme user-info hostname port-number
                               path-part query-part fragment-part)
                       (uri-parse url)))
@@ -167,8 +177,18 @@
         (call-with-request-body
          url
          (lambda (inp)
-           (let ((data (read-string #f inp)))
-             (write-string data #f write-port)
+           (let* ((data-s (read-all-chars inp))
+                  (data-bv (string->latin-1 data-s))
+                  )
+
+             ;; (write-bytevector data-bv write-port)
+             (let loop ((i 0))
+               (cond ((= i (bytevector-length data-bv)) #t)
+                     (else
+                      (let ((b (bytevector-u8-ref data-bv i)))
+                        (write-u8 b write-port)
+                        (loop (+ i 1))))))
+
              (close-output-port write-port)
              #t))))
 
