@@ -5,6 +5,6 @@ clients for a snow2 repository
 
 See:
 
-  http://trac.sacrideo.us/wg/wiki/Snow
-  http://snow.iro.umontreal.ca/
-  https://github.com/sethalves
+  http://trac.sacrideo.us/wg/wiki/Snow <br>
+  http://snow.iro.umontreal.ca/ <br>
+  https://github.com/sethalves <br>
