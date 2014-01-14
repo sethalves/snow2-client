@@ -2,6 +2,7 @@
 #| -*- scheme -*-
 exec gosh \
 -e '(push! *load-suffixes* ".sld")' \
+-e '(push! *load-path* ".")' \
 -e '(push! *load-path* "/usr/local/share/scheme")' \
 -r7 $0 "$@"
 |#

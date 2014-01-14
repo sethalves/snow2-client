@@ -61,8 +61,8 @@
         (call-with-request-body
          url
          (lambda (inp)
-           (let ((data (read-all-chars inp)))
-             (write-string data write-port)
+           (let ((data (read-all-u8 inp)))
+             (write-bytevector data write-port)
              (close-output-port write-port)
              #t))))
       )

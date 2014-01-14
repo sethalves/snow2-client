@@ -5,6 +5,8 @@
 ifndef SCHEME
 $(info make SCHEME=chibi <target>)
 $(info make SCHEME=chicken <target>)
+$(info make SCHEME=gauche <target>)
+$(info make SCHEME=sagittarius <target>)
 $(info <target> should be one of: build clean install uninstall)
 endif
 
@@ -94,4 +96,20 @@ uninstall-gauche:
 	sudo rm -f $(BIN_DIR)/snow2
 
 clean-gauche:
+
+
+
+#
+# sagittarius
+#
+
+build-sagittarius:
+
+install-sagittarius:
+	sudo cp ./snow2-client-sagittarius.scm $(BIN_DIR)/snow2
+
+uninstall-sagittarius:
+	sudo rm -f $(BIN_DIR)/snow2
+
+clean-sagittarius:
 

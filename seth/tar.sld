@@ -5,7 +5,7 @@
   (cond-expand
    (chibi (import (chibi io) (chibi process)))
    (chicken (import (chicken) (posix)))
-   (gauche)
+   (gauche (import (gauche process)))
    (sagittarius (import (prefix (sagittarius process) process-))))
   (begin
     (cond-expand
@@ -32,7 +32,7 @@
 
      (gauche
       (define (extract filename)
-        (run-process '(list "tar" "xf" filename) :wait #t)
+        (run-process (list "tar" "xf" filename) :wait #t)
         ))
 
      (sagittarius
