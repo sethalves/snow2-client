@@ -16,7 +16,7 @@
    (gauche (import (scheme write) (scheme file) (srfi 1)))
    (sagittarius (import (scheme file) (scheme write) (srfi 1))))
   (import (seth srfi-69-hash-tables))
-  (import (prefix (seth tar) tar-))
+  (import (snow binio) (snow genport) (snow zlib) (snow tar))
   (import (prefix (seth http) http-))
   (import (seth temporary-file))
   (begin
@@ -288,7 +288,20 @@
                     (let-values (((write-port local-package-filename)
                                   (temporary-file)))
                       (http-download-file url write-port)
-                      (tar-extract local-package-filename)
+                      ;; (tar-extract local-package-filename)
+                      (let* (;; (p (genport-open-input-file "test.gz"))
+                             (bin-port (binio-open-input-file
+                                        local-package-filename))
+                             (zipped-p
+                              (genport-native-input-port->genport bin-port))
+                             (unzipped-p (gunzip-genport zipped-p))
+                             ;(unzipped-data
+                             ; (utf8->string (genport-read-u8vector unzipped-p)))
+                             )
+                        (tar-unpack-genport unzipped-p)
+                        (genport-close-input-port unzipped-p)
+                        )
+
                       (delete-file local-package-filename)))
                   urls))))))
 
