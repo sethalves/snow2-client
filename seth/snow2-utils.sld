@@ -16,7 +16,7 @@
    (gauche (import (scheme write) (scheme file) (srfi 1)))
    (sagittarius (import (scheme file) (scheme write) (srfi 1))))
   (import (seth srfi-69-hash-tables))
-  (import (snow binio) (snow genport) (snow zlib) (snow tar))
+  (import (snow filesys) (snow binio) (snow genport) (snow zlib) (snow tar))
   (import (prefix (seth http) http-))
   (import (seth temporary-file))
   (begin
@@ -271,6 +271,25 @@
 
 
     (define (install repositories library-name)
+
+      (define (write-tar-recs-to-disk tar-recs)
+        (let loop ((tar-recs tar-recs))
+          (cond ((null? tar-recs) #t)
+                (else
+                 (let ((t (car tar-recs)))
+                   (cond
+                    ((eq? (tar-rec-type t) 'directory)
+                     (snow-create-directory-recursive
+                      (tar-rec-name t)))
+                    ((eq? (tar-rec-type t) 'regular)
+                     (let ((hndl (binio-open-output-file (tar-rec-name t))))
+                       (binio-write-subu8vector
+                        (tar-rec-content t) 0
+                        (bytevector-length (tar-rec-content t)) hndl)))
+                    (else
+                     (error "unexpected file type in tar file")))
+                   (loop (cdr tar-recs)))))))
+
       (let ((package (find-package-with-library repositories library-name)))
         (cond ((not package)
                (error "didn't find a package with library: ~S\n"
@@ -288,20 +307,14 @@
                     (let-values (((write-port local-package-filename)
                                   (temporary-file)))
                       (http-download-file url write-port)
-                      ;; (tar-extract local-package-filename)
-                      (let* (;; (p (genport-open-input-file "test.gz"))
-                             (bin-port (binio-open-input-file
+                      (let* ((bin-port (binio-open-input-file
                                         local-package-filename))
                              (zipped-p
                               (genport-native-input-port->genport bin-port))
                              (unzipped-p (gunzip-genport zipped-p))
-                             ;(unzipped-data
-                             ; (utf8->string (genport-read-u8vector unzipped-p)))
-                             )
-                        (tar-unpack-genport unzipped-p)
+                             (tar-recs (tar-unpack-genport unzipped-p)))
                         (genport-close-input-port unzipped-p)
-                        )
-
+                        (write-tar-recs-to-disk tar-recs))
                       (delete-file local-package-filename)))
                   urls))))))
 
