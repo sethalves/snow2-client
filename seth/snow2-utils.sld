@@ -5,13 +5,15 @@
           snow2-package-libraries
           gather-depends
           install
-          uninstall)
+          uninstall
+          client
+          )
   (import (scheme base) (scheme read))
   (cond-expand
    (chibi (import (scheme write) (chibi filesystem) (srfi 1)))
    (chicken (import (scheme read) (scheme write)
                     (scheme file) (srfi 1)))
-   (gauche (import (scheme write) (srfi 1)))
+   (gauche (import (scheme write) (scheme file) (srfi 1)))
    (sagittarius (import (scheme file) (scheme write) (srfi 1))))
   (import (seth srfi-69-hash-tables))
   (import (prefix (seth tar) tar-))
@@ -191,25 +193,33 @@
                      (loop (cdr libraries))))))))
 
 
-    (define (find-package-with-library repository library-name)
+    (define (find-package-with-library repositories library-name)
       ;; find the last package that contains a library with the given name
-      (let loop ((packages (snow2-repository-packages repository))
-                 (candidate-packages '()))
-        (cond ((null? packages)
-               (cond ((null? candidate-packages) #f)
-                     ;; XXX rather than just taking the last one,
-                     ;; select one based on version requirements, etc
-                     (else (car candidate-packages))))
-              (else
-               (let ((package (car packages)))
-                 (loop (cdr packages)
-                       (if (package-contains-library? package library-name)
-                           (cons package candidate-packages)
-                           candidate-packages)))))))
+      (let r-loop ((repositories repositories)
+                   (candidate-packages '()))
+        (cond
+         ((null? repositories)
+          (cond ((null? candidate-packages)
+                 (error "couldn't find library" library-name)
+                 #f)
+                ;; XXX rather than just taking the last one,
+                ;; select one based on version requirements, etc
+                (else (car candidate-packages))))
+         (else
+          (let loop ((packages (snow2-repository-packages (car repositories)))
+                     (candidate-packages candidate-packages))
+            (cond ((null? packages)
+                   (r-loop (cdr repositories) candidate-packages))
+                  (else
+                   (let ((package (car packages)))
+                     (loop (cdr packages)
+                           (if (package-contains-library? package library-name)
+                               (cons package candidate-packages)
+                               candidate-packages))))))))))
 
 
-    (define (library-from-name repository library-name)
-      (let ((package (find-package-with-library repository library-name)))
+    (define (library-from-name repositories library-name)
+      (let ((package (find-package-with-library repositories library-name)))
         (cond ((not package)
                (error
                 "can't find package that contains ~S\n" library-name)
@@ -223,20 +233,20 @@
                        (else (loop (cdr libraries)))))))))
 
 
-    (define (gather-depends repository libraries)
+    (define (gather-depends repositories libraries)
       (let ((lib-name-ht (make-hash-table))
             (package-url-ht (make-hash-table)))
         (for-each
          (lambda (library)
 
            (let* ((lib-name (snow2-library-name library))
-                  (package (find-package-with-library repository lib-name)))
+                  (package (find-package-with-library repositories lib-name)))
              (hash-table-set! lib-name-ht lib-name #t)
              (hash-table-set! package-url-ht (snow2-package-url package) #t))
 
            (for-each
             (lambda (depend)
-              (let* ((package (find-package-with-library repository depend))
+              (let* ((package (find-package-with-library repositories depend))
                      (libs (snow2-package-libraries package)))
                 (hash-table-set! package-url-ht (snow2-package-url package) #t)
                 (for-each
@@ -248,25 +258,26 @@
 
         (let* ((result-names (hash-table-keys lib-name-ht))
                (result (map (lambda (library-name)
-                              (library-from-name repository library-name))
+                              (library-from-name repositories library-name))
                             result-names)))
           (cond ((= (length result) (length libraries))
                  (hash-table-keys package-url-ht))
                 (else
-                 (gather-depends repository result))))))
+                 (gather-depends repositories result))))))
+
 
     (define (get-repository repository-url)
       (http-call-with-request-body repository-url read-repository))
 
 
-    (define (install repository library-name)
-      (let ((package (find-package-with-library repository library-name)))
+    (define (install repositories library-name)
+      (let ((package (find-package-with-library repositories library-name)))
         (cond ((not package)
                (error "didn't find a package with library: ~S\n"
                       library-name))
               (else
                (let* ((libraries (snow2-package-libraries package))
-                      (urls (gather-depends repository libraries)))
+                      (urls (gather-depends repositories libraries)))
 
                  (for-each
                   (lambda (url)
@@ -281,7 +292,15 @@
                       (delete-file local-package-filename)))
                   urls))))))
 
-    (define (uninstall repository library-name)
+    (define (uninstall repositories library-name)
       #f)
 
+
+    (define (client repository-urls operation library-name)
+      (let ((repositories (map get-repository repository-urls)))
+        (cond ((equal? operation "install")
+               (install repositories library-name))
+              ((equal? operation "uninstall")
+               (uninstall repositories library-name))
+              )))
     ))

@@ -12,7 +12,7 @@
 ;; (use-modules (rnrs bytevectors))
 
 
-(define-library (seth bytevector)
+(define-library (snow bytevector)
   (export bytevector
           make-bytevector
           bytevector?
@@ -27,6 +27,11 @@
           string->latin-1
           bytevector-copy-partial
           bytevector-copy-partial!
+
+          bytevector-u16-set!
+          bytevector-u16-ref
+          bytevector-u16-length
+          make-u16-bytevector
           )
   (import (scheme base))
   (cond-expand
@@ -95,9 +100,11 @@
                    (loop (+ i 1) (cdr args))))))))
 
      (chicken
+      ;; (define make-bytevector make-u8vector)
       (define u8-list->bytevector list->u8vector)
-      (define utf8->string latin-1->string)
-      (define string->utf8 string->latin-1))
+      ;; (define utf8->string latin-1->string)
+      ;; (define string->utf8 string->latin-1)
+      )
      ((or bigloo gauche guile)
       (define bytevector u8vector)
       (define make-bytevector make-u8vector)
@@ -112,19 +119,47 @@
 
 
     (cond-expand
-     ((or gauche chicken chibi sagittarius)
+     ((or chibi chicken gauche sagittarius)
       ;; these didn't make it into final r7rs.
       (define (bytevector-copy-partial bv start end)
         (let ((res (make-bytevector (- end start))))
           (bytevector-copy-partial! bv start end res 0)
           res))
 
-      (define (bytevector-copy-partial! from start end to at)
-        (do ((i start (+ i 1)))
-            ((= i end))
-          (bytevector-u8-set! to (+ (- i start) at)
-                              (bytevector-u8-ref from i)))))
+      ;; (define (bytevector-copy-partial! from start end to at)
+      ;;   (do ((i start (+ i 1)))
+      ;;       ((= i end))
+      ;;     (bytevector-u8-set! to (+ (- i start) at)
+      ;;                         (bytevector-u8-ref from i))))
+
+      (define (bytevector-copy-partial! src src-start src-end dst dst-start)
+        ;; Copy direction must be selected in case src and dst
+        ;; are the same vector.
+        ;; This is from snow's homovector -- snow-subu8vector-move!
+        (if (< src-start dst-start)
+            (let loop1 ((i (- src-end 1))
+                        (j (- (+ dst-start (- src-end src-start)) 1)))
+              (if (< i src-start)
+                  dst
+                  (begin
+                    (bytevector-u8-set! dst j (bytevector-u8-ref src i))
+                    (loop1 (- i 1)
+                           (- j 1)))))
+            (let loop2 ((i src-start)
+                        (j dst-start))
+              (if (< i src-end)
+                  (begin
+                    (bytevector-u8-set! dst j (bytevector-u8-ref src i))
+                    (loop2 (+ i 1)
+                           (+ j 1)))
+                  dst))))
+      )
      (else))
 
-    ;; (cond-expand (chicken (register-feature! 'seth.bytevector)) (else))
+
+    (define bytevector-u16-set! vector-set!)
+    (define bytevector-u16-ref vector-ref)
+    (define bytevector-u16-length vector-length)
+    (define make-u16-bytevector make-vector)
+
     ))

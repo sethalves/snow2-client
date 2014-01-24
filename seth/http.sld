@@ -9,7 +9,7 @@
    (gauche (import (rfc uri) (rfc http) (seth port-extras)))
    (sagittarius
     (import (scheme write) (rfc uri) (srfi 1) (srfi 13) (srfi 14))
-    (import (seth port-extras) (seth bytevector) (seth network-socket)))
+    (import (seth port-extras) (snow bytevector) (seth network-socket)))
    )
   (begin
     (cond-expand

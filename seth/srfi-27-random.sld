@@ -16,14 +16,13 @@
 
     (cond-expand
 
-     ((or chibi sagittarius))
-
-     (chicken
-      ;; (use srfi-27)
-      )
+     ((or chibi chicken sagittarius))
 
      (gauche
       (define random-integer random-integer)
       (define random-source-randomize! random-source-randomize!)
       (define default-random-source default-random-source)
-      ))))
+      ))
+
+    (random-source-randomize! default-random-source)
+    ))

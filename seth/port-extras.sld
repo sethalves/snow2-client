@@ -16,11 +16,11 @@
           )
   (import (scheme base))
   (cond-expand
-   (chibi (import (chibi io) (scheme write) (scheme char) (seth bytevector)))
-   (chicken (import (scheme char) (seth bytevector)
+   (chibi (import (chibi io) (scheme write) (scheme char) (snow bytevector)))
+   (chicken (import (scheme char) (snow bytevector)
                     (scheme read) (scheme write)
                     (seth string-read-write)))
-   ((or gauche sagittarius) (import (scheme char) (seth bytevector)))
+   ((or gauche sagittarius) (import (scheme char) (snow bytevector)))
    )
   (begin
 
