@@ -86,7 +86,7 @@
     (cond-expand
 
      ;; these have srfi-33 or srfi-60 available
-     ((or chicken racket kawa mosh))
+     ((or chibi chicken racket kawa mosh))
 
      (bigloo
       (define (arithmetic-shift n sft)
@@ -108,21 +108,6 @@
           (if (null? args) v
               (loop (bit-xor v (car args))
                     (cdr args))))))
-
-     (chibi
-      ;; (define arithmetic-shift arithmetic-shift)
-      (define (arithmetic-shift v n)
-        (cond ((< n 0)
-               (floor (/ v (vector-ref powers-of-two
-                                       (- (vector-length powers-of-two)
-                                          (- 0 n) 1)))))
-              ((> n 0)
-               (* v (vector-ref powers-of-two
-                                (- (vector-length powers-of-two) n 1))))
-              (else v))
-        ;;   #xffffffffffffffff)
-        )
-      )
 
      (guile
       (define arithmetic-shift ash)
@@ -199,11 +184,23 @@
 
 
     (cond-expand
-     ((or chibi chicken))
+     (chicken)
      (gauche
       (define arithmetic-shift arithmetic-shift))
      (sagittarius
       (define arithmetic-shift bitwise-arithmetic-shift))
+     (chibi
+      ;; work around a bug?  difference?  in chibi's arithmetic-shift
+      (define (arithmetic-shift v n)
+        (cond ((< n 0)
+               (floor (/ v (vector-ref powers-of-two
+                                       (- (vector-length powers-of-two)
+                                          (- 0 n) 1)))))
+              ((> n 0)
+               (* v (vector-ref powers-of-two
+                                (- (vector-length powers-of-two) n 1))))
+              (else v))
+        ))
      (else
       ;; (define (arithmetic-shift v n)
       ;;   (cond ((= n 0) v)
