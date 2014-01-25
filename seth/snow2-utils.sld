@@ -23,7 +23,10 @@
                    (scheme file)
                    (srfi 1)
                    (scheme process-context)))
-   (sagittarius (import (scheme file) (scheme write) (srfi 1))))
+   (sagittarius (import (scheme file)
+                        (scheme write)
+                        (srfi 1)
+                        (scheme process-context))))
   (import (seth srfi-13-strings))
   (import (seth srfi-69-hash-tables))
   (import (snow filesys) (snow binio) (snow genport) (snow zlib) (snow tar))
@@ -279,7 +282,7 @@
 
            (let ((lib-name (snow2-library-name library)))
              (let ((package (find-package-with-library repositories lib-name)))
-               (hash-table-set! lib-name-ht lib-name #t)
+               (hash-table-set! lib-name-ht lib-name library)
                (hash-table-set! package-url-ht (snow2-package-url package)
                                 package))
 
@@ -301,15 +304,22 @@
               (snow2-library-depends library))))
          libraries)
 
-        (let* ((result-names (hash-table-keys lib-name-ht))
-               (result (map (lambda (library-name)
-                              (library-from-name repositories library-name))
-                            result-names)))
-          (cond ((= (length result) (length libraries))
-                 ;; (hash-table-keys package-url-ht)
-                 (hash-table-values package-url-ht))
-                (else
-                 (gather-depends repositories result))))))
+        (if (= (length (hash-table-keys lib-name-ht)) (length libraries))
+            ;; nothing new added this pass, so we've finished.
+            (hash-table-values package-url-ht)
+            ;; we found more, go around again.
+            (gather-depends repositories (hash-table-values lib-name-ht)))
+
+        ;; (let* ((result-names (hash-table-keys lib-name-ht))
+        ;;        (result (map (lambda (library-name)
+        ;;                       (library-from-name repositories library-name))
+        ;;                     result-names)))
+        ;;   (cond ((= (length result) (length libraries))
+        ;;          ;; (hash-table-keys package-url-ht)
+        ;;          (hash-table-values package-url-ht))
+        ;;         (else
+        ;;          (gather-depends repositories result))))
+        ))
 
 
     (define (get-repository repository-url)
@@ -389,7 +399,6 @@
               (else
                (let* ((libraries (snow2-package-libraries package))
                       (packages (gather-depends repositories libraries)))
-
                  (for-each
                   (lambda (package)
                     (let ((package-repo (snow2-package-repository package))
