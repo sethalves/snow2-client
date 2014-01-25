@@ -11,7 +11,11 @@
           )
   (import (scheme base) (scheme read))
   (cond-expand
-   (chibi (import (scheme write) (chibi filesystem)))
+   (chibi (import (scheme write)
+                  (scheme file)
+                  (only (srfi 1) filter)
+                  (chibi filesystem)
+                  (scheme process-context)))
    (chicken (import (scheme read) (scheme write)
                     (scheme file) (srfi 1)
                     (scheme process-context)))
@@ -213,6 +217,10 @@
         (cond ((null? libraries) #f)
               (else
                (let ((library (car libraries)))
+                 ;; (write (snow2-library-name library))
+                 ;; (display " VS ")
+                 ;; (write library-name)
+                 ;; (newline)
                  (if (equal? (snow2-library-name library) library-name)
                      #t
                      (loop (cdr libraries))))))))
@@ -225,8 +233,7 @@
         (cond
          ((null? repositories)
           (cond ((null? candidate-packages)
-                 (error "couldn't find library" library-name)
-                 #f)
+                 (error "couldn't find library" library-name))
                 ;; XXX rather than just taking the last one,
                 ;; select one based on version requirements, etc
                 (else (car candidate-packages))))
@@ -481,7 +488,7 @@
                    (values operand repos libs verbose)))
              #f ;; initial value of operation
              ;; initial value of repos
-             '(;; "http://snow2.s3-website-us-east-1.amazonaws.com/"
+             '("http://snow2.s3-website-us-east-1.amazonaws.com/"
                "http://snow-repository.s3-website-us-east-1.amazonaws.com/")
              '() ;; initial value of libs
              #f ;; initial value of verbose

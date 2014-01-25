@@ -23,6 +23,7 @@
           (snow random))
   (cond-expand
    (chibi
+    ;; http://synthcode.com/scheme/chibi/lib/chibi/filesystem.html
     (import (only (srfi 1) filter)
             (chibi filesystem)))
    (chicken
@@ -34,6 +35,7 @@
    (gauche
     (import (gauche fileutil) (file util)))
    (sagittarius
+    ;; http://ktakashi.github.io/sagittarius-ref.html#G1146
     (import (sagittarius) (srfi 1) (util file)))
    (else))
 
@@ -150,10 +152,10 @@
         (file-directory? filename))
 
       (define (snow-file-regular? filename)
-        (error "write snow-file-regular?"))
+        (file-regular? filename))
 
       (define (snow-file-symbolic-link? filename)
-        (error "write snow-file-symbolic-link?"))
+        (file-link? filename))
 
       (define (snow-delete-file filename)
         (delete-file filename))

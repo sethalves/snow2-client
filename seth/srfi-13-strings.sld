@@ -78,8 +78,8 @@
                  (make-string (- n orig-length) pad-char)
                  str)))))
 
-      (define (string-map proc s . maybe-start+end)
-        (list->string (map proc (string->list s))))
+      ;; (define (string-map proc s . maybe-start+end)
+      ;;   (list->string (map proc (string->list s))))
 
       ;;
       ;; string trim
