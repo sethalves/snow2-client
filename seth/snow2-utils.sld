@@ -20,6 +20,7 @@
                    (srfi 1)
                    (scheme process-context)))
    (sagittarius (import (scheme file) (scheme write) (srfi 1))))
+  (import (seth srfi-13-strings))
   (import (seth srfi-69-hash-tables))
   (import (snow filesys) (snow binio) (snow genport) (snow zlib) (snow tar))
   (import (prefix (seth http) http-))
@@ -29,24 +30,29 @@
   (begin
 
     (define-record-type <snow2-repository>
-      (make-snow2-repository packages)
+      (make-snow2-repository packages local url)
       snow2-repository?
-      (packages snow2-repository-packages set-snow2-repository-packages!))
+      (packages snow2-repository-packages set-snow2-repository-packages!)
+      (local snow2-repository-local set-snow2-repository-local!)
+      (url snow2-repository-url set-snow2-repository-url!))
+
 
     (define-record-type <snow2-package>
-      (make-snow2-package name url libraries)
+      (make-snow2-package name url libraries repo)
       snow2-package?
       (name snow2-package-name set-snow2-package-name!)
       (url snow2-package-url set-snow2-package-url!)
-      (libraries snow2-package-libraries set-snow2-package-libraries!))
+      (libraries snow2-package-libraries set-snow2-package-libraries!)
+      (repo snow2-package-repository set-snow2-package-repository!))
 
 
     (define-record-type <snow2-library>
-      (make-snow2-library name path depends)
+      (make-snow2-library name path depends package)
       snow2-library?
       (name snow2-library-name set-snow2-library-name!)
       (path snow2-library-path set-snow2-library-path!)
-      (depends snow2-library-depends set-snow2-library-depends!))
+      (depends snow2-library-depends set-snow2-library-depends!)
+      (package snow2-library-package set-snow2-library-package!))
 
     (define (get-tag child)
       ;; extract the tag from an element that is assumed to be shaped like:
@@ -150,8 +156,8 @@
         (cond ((not name) #f)
               ((not path) #f)
               (else
-               (make-snow2-library name path
-                                   (map depend-from-sexp depends-sexps))))))
+               (make-snow2-library
+                name path (map depend-from-sexp depends-sexps) #f)))))
 
 
     (define (package-from-sexp package-sexp)
@@ -162,11 +168,17 @@
         (cond ((not url) #f)
               ((not name) #f)
               (else
-               (let ((libraries (map library-from-sexp library-sexps)))
-                 (make-snow2-package name url libraries))))))
+               (let* ((libraries (map library-from-sexp library-sexps))
+                      (package (make-snow2-package name url libraries #f)))
+                 ;; backlink to packages
+                 (for-each
+                  (lambda (library)
+                    (set-snow2-library-package! library package))
+                  libraries)
+                 package)))))
 
 
-    (define (repository-from-sexp repository-sexp)
+    (define (repository-from-sexp repository-sexp local url)
       ;; convert an s-exp into a repository record
       (cond ((not (list? repository-sexp))
              (error "repository definition isn't a list."))
@@ -177,15 +189,21 @@
             (else
              (let* ((package-sexps
                      (get-children-by-type repository-sexp 'package))
-                    (packages (map package-from-sexp package-sexps)))
-               (make-snow2-repository packages)))))
+                    (packages (map package-from-sexp package-sexps))
+                    (repo (make-snow2-repository packages local url)))
+               ;; backlink package to repository
+               (for-each
+                (lambda (package)
+                  (set-snow2-package-repository! package repo))
+                packages)
+               repo))))
 
 
-    (define (read-repository in-port)
+    (define (read-repository in-port local url)
       ;; read an s-exp from (current-input-port) and convert it to
       ;; a repository record
       (let* ((repository-sexp (read in-port))
-             (repository (repository-from-sexp repository-sexp)))
+             (repository (repository-from-sexp repository-sexp local url)))
         repository))
 
 
@@ -216,17 +234,20 @@
           (let loop ((packages (snow2-repository-packages (car repositories)))
                      (candidate-packages candidate-packages))
             (cond ((null? packages)
-                   (r-loop (cdr repositories) candidate-packages))
+                   (r-loop (cdr repositories)
+                           candidate-packages))
                   (else
                    (let ((package (car packages)))
-                     (loop (cdr packages)
-                           (if (package-contains-library? package library-name)
-                               (cons package candidate-packages)
+                     (if (package-contains-library? package library-name)
+                         (loop (cdr packages)
+                               (cons package candidate-packages))
+                         (loop (cdr packages)
                                candidate-packages))))))))))
 
 
+
     (define (library-from-name repositories library-name)
-      (let ((package (find-package-with-library repositories library-name)))
+      (let* ((package (find-package-with-library repositories library-name)))
         (cond ((not package)
                (error
                 "can't find package that contains ~S\n" library-name)
@@ -241,26 +262,36 @@
 
 
     (define (gather-depends repositories libraries)
+      ;;
+      ;; returns a list of snow2-packages
+      ;;
       (let ((lib-name-ht (make-hash-table))
             (package-url-ht (make-hash-table)))
         (for-each
          (lambda (library)
 
-           (let* ((lib-name (snow2-library-name library))
-                  (package (find-package-with-library repositories lib-name)))
-             (hash-table-set! lib-name-ht lib-name #t)
-             (hash-table-set! package-url-ht (snow2-package-url package) #t))
+           (let ((lib-name (snow2-library-name library)))
+             (let ((package (find-package-with-library repositories lib-name)))
+               (hash-table-set! lib-name-ht lib-name #t)
+               (hash-table-set! package-url-ht (snow2-package-url package)
+                                package))
 
-           (for-each
-            (lambda (depend)
-              (let* ((package (find-package-with-library repositories depend))
-                     (libs (snow2-package-libraries package)))
-                (hash-table-set! package-url-ht (snow2-package-url package) #t)
-                (for-each
-                 (lambda (lib)
-                   (hash-table-set! lib-name-ht (snow2-library-name lib) #t))
-                 libs)))
-            (snow2-library-depends library)))
+             (for-each
+              (lambda (depend)
+                (let* ((package (find-package-with-library repositories depend))
+                       (libs (snow2-package-libraries package)))
+                  (hash-table-set! package-url-ht
+                                   (snow2-package-url package)
+                                   package)
+                  ;; XXX if the same lib is in more than one
+                  ;; package there should be some reason to pick one
+                  ;; over the other?
+                  (for-each
+                   (lambda (lib)
+                     (hash-table-set! lib-name-ht
+                                      (snow2-library-name lib) lib))
+                   libs)))
+              (snow2-library-depends library))))
          libraries)
 
         (let* ((result-names (hash-table-keys lib-name-ht))
@@ -268,13 +299,28 @@
                               (library-from-name repositories library-name))
                             result-names)))
           (cond ((= (length result) (length libraries))
-                 (hash-table-keys package-url-ht))
+                 ;; (hash-table-keys package-url-ht)
+                 (hash-table-values package-url-ht))
                 (else
                  (gather-depends repositories result))))))
 
 
     (define (get-repository repository-url)
-      (http-call-with-request-body repository-url read-repository))
+      (cond ((and (> (string-length repository-url) 8)
+                  (or (equal? (string-take repository-url 7) "http://")
+                      (equal? (string-take repository-url 8) "https://")))
+             ;; get repository over http
+             (http-call-with-request-body
+              repository-url
+              (lambda (in-port) (read-repository in-port #f repository-url))))
+            (else
+             ;; read from local filesystem
+             (let* ((index-path (snow-make-filename repository-url "index.scm"))
+                    (in-port (open-input-file index-path))
+                    (repo (read-repository in-port #t repository-url)))
+               (close-input-port in-port)
+               repo))))
+
 
     (define (write-tar-recs-to-disk tar-recs)
       (let loop ((tar-recs tar-recs))
@@ -304,33 +350,64 @@
 
     (define (install repositories library-name)
 
+      (define (install-from-tgz repo local-package-filename)
+        (let* ((bin-port (binio-open-input-file
+                          local-package-filename))
+               (zipped-p (genport-native-input-port->genport bin-port))
+               (unzipped-p (gunzip-genport zipped-p))
+               (tar-recs (tar-unpack-genport unzipped-p)))
+          (genport-close-input-port unzipped-p)
+          (write-tar-recs-to-disk tar-recs)))
+
+      (define (install-from-http repo url)
+        (let-values (((write-port local-package-filename)
+                      (temporary-file)))
+          (http-download-file url write-port)
+          (install-from-tgz repo local-package-filename)
+          (delete-file local-package-filename)))
+
+
+      (define (install-from-directory repo url)
+        (let* ((package-file (snow-filename-strip-directory url))
+               (local-package-filename (snow-make-filename
+                                        (snow2-repository-url repo)
+                                        package-file)))
+          (install-from-tgz repo local-package-filename)))
+
+
       (let ((package (find-package-with-library repositories library-name)))
         (cond ((not package)
                (error "didn't find a package with library: ~S\n"
                       library-name))
               (else
                (let* ((libraries (snow2-package-libraries package))
-                      (urls (gather-depends repositories libraries)))
+                      (packages (gather-depends repositories libraries)))
 
                  (for-each
-                  (lambda (url)
-                    (display "installing ")
-                    (display url)
-                    (newline)
+                  (lambda (package)
+                    (let ((package-repo (snow2-package-repository package))
+                          (url (snow2-package-url package))
+                          )
+                      (display "installing ")
+                      (display
+                       (if (not (null? (snow2-package-name package)))
+                           (snow2-package-name package)
+                           (snow-filename-strip-directory
+                            (snow2-package-url package))))
+                      (display " from ")
+                      (display (snow2-repository-url package-repo))
+                      (newline)
+                      (cond
+                       ((snow2-repository-local package-repo)
+                        (install-from-directory package-repo url))
+                       (else
+                        (install-from-http package-repo url)))))
+                  packages))))))
 
-                    (let-values (((write-port local-package-filename)
-                                  (temporary-file)))
-                      (http-download-file url write-port)
-                      (let* ((bin-port (binio-open-input-file
-                                        local-package-filename))
-                             (zipped-p
-                              (genport-native-input-port->genport bin-port))
-                             (unzipped-p (gunzip-genport zipped-p))
-                             (tar-recs (tar-unpack-genport unzipped-p)))
-                        (genport-close-input-port unzipped-p)
-                        (write-tar-recs-to-disk tar-recs))
-                      (delete-file local-package-filename)))
-                  urls))))))
+
+    (define (link-install repositories library-name)
+      (error "write link-install"))
+
 
     (define (uninstall repositories library-name)
       #f)
@@ -338,18 +415,23 @@
 
     (define (client repository-urls operation library-name)
       (let ((repositories (map get-repository repository-urls)))
-        (cond ((equal? operation "install")
+        (cond ((equal? operation "link-install")
+               (link-install repositories library-name))
+              ((equal? operation "install")
                (install repositories library-name))
               ((equal? operation "uninstall")
                (uninstall repositories library-name))
-              )))
+              (else
+               (error "unknown snow2 client operation" operation)))))
 
 
     (define options
       (list
        (option '(#\r "repo") #t #f
                (lambda (option name arg operation repos libs verbose)
-                 (values operation (cons arg repos) libs verbose)))
+                 (values operation
+                         (reverse (cons arg (reverse repos)))
+                         libs verbose)))
 
        (option '(#\v "verbose") #f #f
                (lambda (option name arg operation repos libs verbose)
@@ -399,13 +481,15 @@
                    (values operand repos libs verbose)))
              #f ;; initial value of operation
              ;; initial value of repos
-             '("http://snow2.s3-website-us-east-1.amazonaws.com/"
+             '(;; "http://snow2.s3-website-us-east-1.amazonaws.com/"
                "http://snow-repository.s3-website-us-east-1.amazonaws.com/")
              '() ;; initial value of libs
              #f ;; initial value of verbose
              )))
         (cond ((not operation) (usage ""))
-              ((not (member operation '("install" "uninstall")))
+              ((not (member operation '("link-install"
+                                        "install"
+                                        "uninstall")))
                (usage (string-append "Unknown operation: " operation "\n\n")))
               (else
                (for-each

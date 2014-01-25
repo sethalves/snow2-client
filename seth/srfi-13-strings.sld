@@ -11,6 +11,8 @@
    string-trim
    string-trim-right
    string-trim-both
+   string-take
+   string-take-right
    ;; XXX the rest...
    )
   (import (scheme base))
@@ -132,4 +134,11 @@
                          (cond ((string-trim-decider s (- ei 1) criterion)
                                 (eloop (- ei 1)))
                                (else (substring s si ei)))))))))
+
+      (define (string-take s n)
+        (substring s 0 n))
+
+      (define (string-take-right s n)
+        (substring s (- (string-length s) n) (string-length s)))
+
       ))))

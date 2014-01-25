@@ -18,6 +18,7 @@ exec csi -include-path /usr/local/share/scheme -s $0 "$@"
 (include "snow/genport.sld")
 (include "snow/zlib.sld")
 (include "snow/tar.sld")
+(include "seth/srfi-13-strings.sld")
 (include "seth/srfi-37-argument-processor.sld")
 (include "seth/srfi-69-hash-tables.sld")
 (include "seth/temporary-file.sld")
