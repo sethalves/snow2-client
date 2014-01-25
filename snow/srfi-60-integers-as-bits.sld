@@ -184,23 +184,24 @@
 
 
     (cond-expand
-     (chicken)
+     ((or chicken chibi))
      (gauche
       (define arithmetic-shift arithmetic-shift))
      (sagittarius
       (define arithmetic-shift bitwise-arithmetic-shift))
-     (chibi
-      ;; work around a bug?  difference?  in chibi's arithmetic-shift
-      (define (arithmetic-shift v n)
-        (cond ((< n 0)
-               (floor (/ v (vector-ref powers-of-two
-                                       (- (vector-length powers-of-two)
-                                          (- 0 n) 1)))))
-              ((> n 0)
-               (* v (vector-ref powers-of-two
-                                (- (vector-length powers-of-two) n 1))))
-              (else v))
-        ))
+     ;; (chibi
+     ;;  ;; work around a bug?  difference?  in chibi's arithmetic-shift
+     ;;  ;; https://code.google.com/p/chibi-scheme/issues/detail?id=208
+     ;;  (define (arithmetic-shift v n)
+     ;;    (cond ((< n 0)
+     ;;           (floor (/ v (vector-ref powers-of-two
+     ;;                                   (- (vector-length powers-of-two)
+     ;;                                      (- 0 n) 1)))))
+     ;;          ((> n 0)
+     ;;           (* v (vector-ref powers-of-two
+     ;;                            (- (vector-length powers-of-two) n 1))))
+     ;;          (else v))
+     ;;    ))
      (else
       ;; (define (arithmetic-shift v n)
       ;;   (cond ((= n 0) v)
