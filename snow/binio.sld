@@ -133,6 +133,15 @@
       (define (binio-open-output-file filename)
         (open-output-file filename "8859_1")))
 
+     (sagittarius
+
+      (define (binio-open-input-file filename)
+        (open-binary-input-file filename))
+
+      (define (binio-open-output-file filename)
+        (if (file-exists? filename) (delete-file filename))
+        (open-binary-output-file filename)))
+
      (else
 
       (define (binio-open-input-file filename)

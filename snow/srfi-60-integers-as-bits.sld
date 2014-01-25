@@ -86,7 +86,7 @@
     (cond-expand
 
      ;; these have srfi-33 or srfi-60 available
-     ((or chibi chicken racket kawa mosh))
+     ((or chibi chicken gauche kawa mosh racket sagittarius))
 
      (bigloo
       (define (arithmetic-shift n sft)
