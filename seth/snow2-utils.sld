@@ -354,7 +354,7 @@
                  (loop (cdr tar-recs)))))))
 
 
-    (define (install repositories library-name)
+    (define (install repositories library-name use-symlinks)
 
       (define (install-from-tgz repo local-package-filename)
         (let* ((bin-port (binio-open-input-file
@@ -372,13 +372,39 @@
           (install-from-tgz repo local-package-filename)
           (delete-file local-package-filename)))
 
+      (define (install-symlinks repo package-local-directory)
+        (let ((repo-local-name (snow-filename-strip-directory
+                                (snow2-repository-url repo))))
+          (for-each
+           (lambda (filename)
+             (cond ((and (> (string-length filename) 4)
+                         (equal? ".sld" (string-take-right filename 4)))
+                    (let ((link-name (snow-make-filename
+                                      repo-local-name filename)))
+                      (cond ((snow-file-exists? link-name)
+                             (snow-delete-file link-name)))
+                      (snow-create-symbolic-link
+                       (snow-make-filename package-local-directory filename)
+                       link-name)))))
+           (snow-directory-files package-local-directory))))
 
       (define (install-from-directory repo url)
         (let* ((package-file (snow-filename-strip-directory url))
-               (local-package-filename (snow-make-filename
-                                        (snow2-repository-url repo)
-                                        package-file)))
-          (install-from-tgz repo local-package-filename)))
+               (package-name (snow-filename-strip-extension package-file))
+               (package-local-directory (snow-make-filename
+                                         (snow2-repository-url repo)
+                                         package-name)))
+          (cond ((and use-symlinks
+                      (snow-file-directory? package-local-directory)
+                      (snow-file-exists? (snow-make-filename
+                                          package-local-directory
+                                          (string-append package-name ".sld"))))
+                 (install-symlinks repo package-local-directory))
+                (else
+                 (let ((local-package-filename (snow-make-filename
+                                                (snow2-repository-url repo)
+                                                package-file)))
+                   (install-from-tgz repo local-package-filename))))))
 
 
       (let ((package (find-package-with-library repositories library-name)))
@@ -410,20 +436,14 @@
                   packages))))))
 
 
-    (define (link-install repositories library-name)
-      (error "write link-install"))
-
-
     (define (uninstall repositories library-name)
       #f)
 
 
-    (define (client repository-urls operation library-name)
+    (define (client repository-urls operation library-name use-symlinks)
       (let ((repositories (map get-repository repository-urls)))
-        (cond ((equal? operation "link-install")
-               (link-install repositories library-name))
-              ((equal? operation "install")
-               (install repositories library-name))
+        (cond ((equal? operation "install")
+               (install repositories library-name use-symlinks))
               ((equal? operation "uninstall")
                (uninstall repositories library-name))
               (else
@@ -433,19 +453,26 @@
     (define options
       (list
        (option '(#\r "repo") #t #f
-               (lambda (option name arg operation repos libs verbose)
+               (lambda (option name arg operation repos
+                               use-symlinks libs verbose)
                  (values operation
                          (reverse (cons arg (reverse repos)))
-                         libs verbose)))
+                         use-symlinks libs verbose)))
+
+       (option '(#\s "symlink") #f #f
+               (lambda (option name arg operation repos
+                               use-symlinks libs verbose)
+                 (values operation repos #t libs verbose)))
 
        (option '(#\v "verbose") #f #f
-               (lambda (option name arg operation repos libs verbose)
-                 (values operation repos libs #t)))
+               (lambda (option name arg operation repos
+                               use-symlinks libs verbose)
+                 (values operation repos use-symlinks libs #t)))
 
        (option '(#\h "help") #f #f
-               (lambda (option name arg operation repos libs verbose)
-                 (usage "")))
-       ))
+               (lambda (option name arg operation repos
+                               use-symlinks libs verbose)
+                 (usage "")))))
 
 
     (define (usage msg)
@@ -460,6 +487,8 @@
         (display "  -r --repo <url>      " (current-error-port))
         (display "Prepend to list of snow2 repositories.\n"
                  (current-error-port))
+        (display "  -s --symlink         " (current-error-port))
+        (display "Make symlinks to a repo's source files.\n")
         (display "  -v --verbose         " (current-error-port))
         (display "Print more.\n" (current-error-port))
         (display "  -h --help            " (current-error-port))
@@ -469,7 +498,7 @@
 
     (define (main-program)
       (let-values
-          (((operation repository-urls libs verbose)
+          (((operation repository-urls use-symlinks libs verbose)
             (args-fold
              (cdr (command-line))
              options
@@ -480,14 +509,16 @@
                                      (if (string? name) name (string name))
                                      "\n\n")))
              ;; operand (arguments that don't start with a hyphen)
-             (lambda (operand operation repos libs verbose)
+             (lambda (operand operation repos use-symlinks libs verbose)
                (if operation
-                   (values operation repos (cons operand libs) verbose)
-                   (values operand repos libs verbose)))
+                   (values operation repos use-symlinks
+                           (cons operand libs) verbose)
+                   (values operand repos use-symlinks libs verbose)))
              #f ;; initial value of operation
              ;; initial value of repos
              '("http://snow2.s3-website-us-east-1.amazonaws.com/"
                "http://snow-repository.s3-website-us-east-1.amazonaws.com/")
+             #f ;; initial value of use-symlinks
              '() ;; initial value of libs
              #f ;; initial value of verbose
              )))
@@ -500,6 +531,6 @@
                (for-each
                 (lambda (library-name-argument)
                   (let ((library-name (read-from-string library-name-argument)))
-                    (client repository-urls operation library-name)))
-                libs)))))
-    ))
+                    (client repository-urls operation
+                            library-name use-symlinks)))
+                libs)))))))
