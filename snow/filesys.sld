@@ -16,7 +16,8 @@
           snow-make-filename
           ;; snow-make-temp-filename
           snow-directory-subfiles
-          snow-create-directory-recursive)
+          snow-create-directory-recursive
+          snow-create-symbolic-link)
   (import (scheme base)
           (scheme file)
           (snow bytevector)
@@ -33,6 +34,8 @@
     ;; (import (directory-utils))
     )
    (gauche
+    ;; (import (only (gauche) symlink))
+    (import (snow gauche-filesys-utils))
     (import (gauche fileutil) (file util)))
    (sagittarius
     ;; http://ktakashi.github.io/sagittarius-ref.html#G1146
@@ -76,7 +79,11 @@
             (snow-raise "could not create directory")))
 
       (define (snow-delete-directory dir)
-        (delete-directory dir)))
+        (delete-directory dir))
+
+      (define (snow-create-symbolic-link filename linkname)
+        (error "write snow-create-symbolic-link"))
+      )
 
      (chez
 
@@ -134,7 +141,11 @@
 
       (define (snow-delete-directory dir)
         (if (not (= 0 (system (string-append "rmdir \"" dir "\" 2> /dev/null"))))
-            (snow-raise "could not delete directory"))))
+            (snow-raise "could not delete directory")))
+
+      (define (snow-create-symbolic-link filename linkname)
+        (error "write snow-create-symbolic-link"))
+      )
 
 
      (chibi
@@ -167,7 +178,13 @@
         (create-directory* dir))
 
       (define (snow-delete-directory dir)
-        (delete-directory dir)))
+        (delete-directory dir))
+
+      (define (snow-create-symbolic-link filename linkname)
+        (if (symbolic-link-file filename linkname)
+            #t
+            (error "snow-create-symbolic-link failed" filename linkname)))
+      )
 
 
      (chicken
@@ -197,7 +214,11 @@
         (create-directory dir))
 
       (define (snow-delete-directory dir)
-        (delete-directory dir)))
+        (delete-directory dir))
+
+      (define (snow-create-symbolic-link filename linkname)
+        (create-symbolic-link filename linkname))
+      )
 
      (gambit
 
@@ -226,7 +247,11 @@
         (create-directory dir))
 
       (define (snow-delete-directory dir)
-        (delete-directory dir)))
+        (delete-directory dir))
+
+      (define (snow-create-symbolic-link filename linkname)
+        (error "write snow-create-symbolic-link"))
+      )
 
      (gauche
 
@@ -249,6 +274,7 @@
         (eq? (file-type filename) 'regular))
 
       (define (snow-file-symbolic-link? filename)
+        ;; file-is-symlink?
         (eq? (file-type filename :follow-link? #f) 'symlink))
 
       (define (snow-delete-file filename)
@@ -265,7 +291,13 @@
 
       (define (snow-delete-directory dir)
         ;; (sys-rmdir dir)
-        (remove-directory* dir)))
+        (remove-directory* dir))
+
+      (define (snow-create-symbolic-link filename linkname)
+        (sys-symlink filename linkname)
+        ;; (symlink filename linkname)
+        )
+      )
 
      (guile
 
@@ -303,7 +335,11 @@
         (mkdir dir))
 
       (define (snow-delete-directory dir)
-        (rmdir dir)))
+        (rmdir dir))
+
+      (define (snow-create-symbolic-link filename linkname)
+        (error "write snow-create-symbolic-link"))
+      )
 
      (kawa
 
@@ -336,7 +372,11 @@
       (define (snow-delete-directory dir)
         (if (not (file-exists? dir))
             (snow-raise "could not delete directory")
-            (delete-file dir))))
+            (delete-file dir)))
+
+      (define (snow-create-symbolic-link filename linkname)
+        (error "write snow-create-symbolic-link"))
+      )
 
      (larceny
 
@@ -370,7 +410,11 @@
 
       (define (snow-delete-directory dir)
         (if (not (= 0 (system (string-append "rmdir \"" dir "\" 2> /dev/null"))))
-            (snow-raise "could not delete directory"))))
+            (snow-raise "could not delete directory")))
+
+      (define (snow-create-symbolic-link filename linkname)
+        (error "write snow-create-symbolic-link"))
+      )
 
      (mit
 
@@ -402,7 +446,11 @@
         (make-directory dir))
 
       (define (snow-delete-directory dir)
-        (delete-directory dir)))
+        (delete-directory dir))
+
+      (define (snow-create-symbolic-link filename linkname)
+        (error "write snow-create-symbolic-link"))
+      )
 
      (mzscheme
 
@@ -433,7 +481,11 @@
         (make-directory dir))
 
       (define (snow-delete-directory dir)
-        (delete-directory dir)))
+        (delete-directory dir))
+
+      (define (snow-create-symbolic-link filename linkname)
+        (error "write snow-create-symbolic-link"))
+      )
 
 
      (sagittarius
@@ -466,8 +518,12 @@
         (create-directory dir))
 
       (define (snow-delete-directory dir)
-        (delete-directory dir)))
+        (delete-directory dir))
 
+      (define (snow-create-symbolic-link filename linkname)
+        (create-symbolic-link filename linkname)
+        )
+      )
 
 
      (scheme48
@@ -500,7 +556,11 @@
 
       (define (snow-delete-directory dir)
         (if (not (= 0 (system (string-append "rmdir \"" dir "\" 2> /dev/null"))))
-            (snow-raise "could not delete directory"))))
+            (snow-raise "could not delete directory")))
+
+      (define (snow-create-symbolic-link filename linkname)
+        (error "write snow-create-symbolic-link"))
+      )
 
      (scm
 
@@ -549,7 +609,11 @@
 
       (define (snow-delete-directory dir)
         (if (not (= 0 (system (string-append "rmdir \"" dir "\" 2> /dev/null"))))
-            (snow-raise "could not delete directory"))))
+            (snow-raise "could not delete directory")))
+
+      (define (snow-create-symbolic-link filename linkname)
+        (error "write snow-create-symbolic-link"))
+      )
 
      (scsh
 
@@ -578,7 +642,11 @@
         (create-directory dir))
 
       (define (snow-delete-directory dir)
-        (delete-directory dir)))
+        (delete-directory dir))
+
+      (define (snow-create-symbolic-link filename linkname)
+        (error "write snow-create-symbolic-link"))
+      )
 
      (sisc
 
@@ -612,7 +680,11 @@
 
       (define^ (snow-delete-directory dir)
         (if (not (file-delete! dir))
-            (snow-raise "could not delete directory"))))
+            (snow-raise "could not delete directory")))
+
+      (define (snow-create-symbolic-link filename linkname)
+        (error "write snow-create-symbolic-link"))
+      )
 
      (stklos
 
@@ -643,12 +715,18 @@
         (rename-file orig-filename new-filename))
 
       (define (snow-create-directory dir)
-        (if (not (= 0 (system (string-append "mkdir \"" dir "\" 2> /dev/null"))))
+        (if (not (= 0 (system
+                       (string-append "mkdir \"" dir "\" 2> /dev/null"))))
             (snow-raise "could not create directory")))
 
       (define (snow-delete-directory dir)
-        (if (not (= 0 (system (string-append "rmdir \"" dir "\" 2> /dev/null"))))
-            (snow-raise "could not delete directory")))))
+        (if (not (= 0 (system
+                       (string-append "rmdir \"" dir "\" 2> /dev/null"))))
+            (snow-raise "could not delete directory")))
+
+      (define (snow-create-symbolic-link filename linkname)
+        (error "write snow-create-symbolic-link"))
+      ))
 
 ;;;----------------------------------------------------------------------------
 
@@ -723,6 +801,8 @@
     ;;           filename))))
 
     ;; (define* (snow-directory-subfiles filename (types '(regular directory)))
+
+
     (define (snow-directory-subfiles filename . maybe-types)
       (let ((types (if (null? maybe-types)
                        '(regular directory)

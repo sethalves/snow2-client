@@ -308,18 +308,7 @@
             ;; nothing new added this pass, so we've finished.
             (hash-table-values package-url-ht)
             ;; we found more, go around again.
-            (gather-depends repositories (hash-table-values lib-name-ht)))
-
-        ;; (let* ((result-names (hash-table-keys lib-name-ht))
-        ;;        (result (map (lambda (library-name)
-        ;;                       (library-from-name repositories library-name))
-        ;;                     result-names)))
-        ;;   (cond ((= (length result) (length libraries))
-        ;;          ;; (hash-table-keys package-url-ht)
-        ;;          (hash-table-values package-url-ht))
-        ;;         (else
-        ;;          (gather-depends repositories result))))
-        ))
+            (gather-depends repositories (hash-table-values lib-name-ht)))))
 
 
     (define (get-repository repository-url)
