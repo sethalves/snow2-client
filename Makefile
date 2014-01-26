@@ -35,6 +35,8 @@ build: build-$(SCHEME)
 install: build install-libs install-$(SCHEME)
 
 install-libs:
+	sudo mkdir -p $(PACKAGE_DIR)/snow
+	sudo cp snow/*.sld $(PACKAGE_DIR)/snow/
 	sudo mkdir -p $(PACKAGE_DIR)/seth
 	sudo cp seth/*.sld $(PACKAGE_DIR)/seth/
 
