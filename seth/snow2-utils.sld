@@ -563,7 +563,8 @@
         (display " " (current-error-port))
         (display "[arguments] <operation> '(library name)' ...\n"
                  (current-error-port))
-        (display "  <operation> can be \"install\" or \"uninstall\" or \"list-depends\"\n"
+        (display "  <operation> can be \"install\" or " (current-error-port))
+        (display "\"uninstall\" or \"list-depends\" or \"search\"\n"
                  (current-error-port))
         (display "  -r --repo <url>      " (current-error-port))
         (display "Prepend to list of snow2 repositories.\n"

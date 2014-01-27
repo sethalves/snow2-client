@@ -37,10 +37,10 @@ Building
 ========
 
 ```
-sudo make SCHEME=<scheme> install
+sudo make SCHEME=*scheme* install
 ```
 
-<scheme> can be any of chibi, chicken, gauche, sagittarius.  For example:
+*scheme* can be any of chibi, chicken, gauche, sagittarius.  For example:
 
 ```
 sudo make SCHEME=chicken install
@@ -55,8 +55,27 @@ Running
 =======
 
 ```
+$ snow2 -h
+snow2 [arguments] <operation> '(library name)' ...
+  <operation> can be "install" or "uninstall" or "list-depends" or "search"
+  -r --repo <url>      Prepend to list of snow2 repositories.
+  -s --symlink         Make symlinks to a repo's source files.
+  -v --verbose         Print more.
+  -h --help            Print usage message.
+```
+
+
+```
 $ snow2 search hello
 (snow hello)
+```
+
+```
+$ snow2 list-depends '(snow hello)'
+(snow pi)
+(snow hello)
+(snow bignum)
+(snow bytevector)
 ```
 
 ```
@@ -68,3 +87,4 @@ downloading pi.tgz from http://snow-repository.s3-website-us-east-1.amazonaws.co
 $ ls snow
 bignum.sld  bytevector.sld  hello.sld  pi.sld
 ```
+
