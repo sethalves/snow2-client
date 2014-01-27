@@ -328,8 +328,8 @@
 
     (define (get-repository repository-url)
       (cond ((and (> (string-length repository-url) 8)
-                  (or (equal? (string-take repository-url 7) "http://")
-                      (equal? (string-take repository-url 8) "https://")))
+                  (or (string-prefix? "http://" repository-url)
+                      (string-prefix? "https://" repository-url)))
              ;; get repository over http
              (http-call-with-request-body
               repository-url
@@ -396,8 +396,7 @@
         (let ((repo-local-name (get-snow2-repo-name package)))
           (for-each
            (lambda (filename)
-             (cond ((and (> (string-length filename) 4)
-                         (equal? ".sld" (string-take-right filename 4)))
+             (cond ((string-suffix? ".sld" filename)
                     (let ((link-name
                            (snow-make-filename repo-local-name filename))
                           (libfile-name
@@ -416,7 +415,7 @@
                              (snow-delete-file link-name)))
                       (snow-create-symbolic-link
                        (cond ((and (> (string-length libfile-name) 3)
-                                   (equal? (string-take libfile-name 2) ".."))
+                                   (string-prefix? libfile-name ".."))
                               (snow-make-filename ".." libfile-name))
                              (else libfile-name))
                        link-name)))))
@@ -486,6 +485,39 @@
                   packages))))))
 
 
+    (define (filter-libraries libs search-term)
+      (let loop ((libs libs)
+                 (results '()))
+        (cond ((null? libs) (reverse results))
+              (else
+               (let* ((lib (car libs))
+                      (name-as-string
+                       (write-to-string (snow2-library-name lib))))
+                 (loop (cdr libs)
+                       (if (string-contains-ci name-as-string search-term)
+                           (cons lib results)
+                           results)))))))
+
+
+    (define (all-libraries repositories)
+      ;; make a list of all libraries in all repositories
+      (let repo-loop ((repositories repositories)
+                      (results '()))
+        (cond ((null? repositories) results)
+              (else
+               (let pkg-loop ((packages (snow2-repository-packages
+                                         (car repositories)))
+                              (results results))
+                 (cond ((null? packages)
+                        (repo-loop (cdr repositories)
+                                   results))
+                       (else
+                        (pkg-loop
+                         (cdr packages)
+                         (append results
+                                 (snow2-package-libraries
+                                  (car packages)))))))))))
+
 
     (define (client repository-urls operation library-name use-symlinks)
       (let ((repositories (map get-repository repository-urls)))
@@ -547,7 +579,7 @@
 
     (define (main-program)
       (let-values
-          (((operation repository-urls use-symlinks libs verbose)
+          (((operation repository-urls use-symlinks libs-or-st verbose)
             (args-fold
              (cdr (command-line))
              options
@@ -572,6 +604,33 @@
              #f ;; initial value of verbose
              )))
         (cond ((not operation) (usage ""))
+              ((member operation '("search"))
+               (let ((repositories (map get-repository repository-urls)))
+
+                 (for-each
+                  (lambda (result)
+                    (display (snow2-library-name result))
+                    (newline))
+                  (let loop ((search-terms libs-or-st)
+                             (libs (all-libraries repositories)))
+                    (if (null? search-terms) libs
+                        (loop (cdr search-terms)
+                              (filter-libraries libs (car search-terms))))))
+
+
+
+                 ;; (for-each
+                 ;;  (lambda (search-term)
+                 ;;    (for-each
+                 ;;     (lambda (result)
+                 ;;       (display (snow2-library-name result))
+                 ;;       (newline))
+                 ;;     (filter-libraries
+                 ;;      (all-libraries repositories)
+                 ;;      search-term)))
+                 ;;  libs-or-st)
+
+                 ))
               ((not (member operation '("link-install"
                                         "install"
                                         "uninstall"
@@ -583,5 +642,7 @@
                 (lambda (library-name-argument)
                   (let ((library-name (read-from-string library-name-argument)))
                     (client repository-urls operation
-                            library-name use-symlinks)))
-                libs)))))))
+                            library-name use-symlinks))
+
+                  )
+                libs-or-st)))))))

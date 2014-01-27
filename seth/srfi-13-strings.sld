@@ -18,6 +18,8 @@
    string-prefix-ci?
    string-suffix?
    string-suffix-ci?
+   string-contains
+   string-contains-ci
    ;; XXX the rest...
    )
   (import (scheme base))
@@ -86,9 +88,6 @@
       ;; (define (string-map proc s . maybe-start+end)
       ;;   (list->string (map proc (string->list s))))
 
-      ;;
-      ;; string trim
-      ;;
 
       (define (string-trim-decider s i criterion)
         (or (and (procedure? criterion)
@@ -196,5 +195,23 @@
 
       (define (string-suffix-ci? s1 s2 . opt-args)
         (string-suffix-worker? s1 s2 char-ci=? opt-args))
+
+
+      (define (string-contains-worker s1 s2 prefix? opt-args)
+        (let* ((olen (length opt-args))
+               (start1 (if (> olen 0) (list-ref opt-args 0) 0))
+               (end1 (if (> olen 1) (list-ref opt-args 1) (string-length s1)))
+               (start2 (if (> olen 2) (list-ref opt-args 2) 0))
+               (end2 (if (> olen 3) (list-ref opt-args 3) (string-length s2))))
+          (let loop ((i1 start1))
+            (cond ((= i1 end1) #f)
+                  ((prefix? s2 s1 start2 end2 i1 end1) i1)
+                  (else (loop (+ i1 1)))))))
+
+      (define (string-contains s1 s2 . opt-args)
+        (string-contains-worker s1 s2 string-prefix? opt-args))
+
+      (define (string-contains-ci s1 s2 . opt-args)
+        (string-contains-worker s1 s2 string-prefix-ci? opt-args))
 
       ))))
