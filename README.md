@@ -1,7 +1,9 @@
 snow2-client
 ============
 
-Client for snow2 repositories
+Client for snow2 repositories.
+
+This is alpha-quality software.  It might delete your files!
 
 See:
 
@@ -32,6 +34,8 @@ svn co https://code.call-cc.org/svn/chicken-eggs/release/4/r7rs/trunk r7rs
 cd r7rs
 sudo chicken-install
 ```
+
+Additionally, some of the snow2 packages assume you have certain chicken eggs installed.
 
 
 Building
