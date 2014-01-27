@@ -6,8 +6,8 @@ Client for snow2 repositories.
 This is alpha-quality software.  It might delete your files!
 
 snow2-client is experimental software for finding and installing
-portable scheme libraries.  The libraries are stored in repositories
-which are described in:
+scheme libraries which are portable between r7rs schemes.  The
+libraries are stored in repositories which are described in:
 
   http://trac.sacrideo.us/wg/wiki/Snow
 
