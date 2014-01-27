@@ -88,3 +88,4 @@ $ ls snow
 bignum.sld  bytevector.sld  hello.sld  pi.sld
 ```
 
+See <a href="https://github.com/sethalves/snow2-test-chicken">snow2-test-chicken</a> or <a href="https://github.com/sethalves/snow2-test-chibi">snow2-test-chibi</a> for more examples.
