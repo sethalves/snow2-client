@@ -1,7 +1,7 @@
 snow2-client
 ============
 
-clients for a snow2 repository
+Client for snow2 repositories
 
 See:
 
