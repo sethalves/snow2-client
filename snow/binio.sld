@@ -1,3 +1,14 @@
+;;;============================================================================
+
+;;; File: "binio.scm", Time-stamp: <2007-09-03 13:21:13 feeley>
+
+;;; Copyright (c) 2006-2007 by Marc Feeley, All Rights Reserved.
+
+;;;============================================================================
+
+;;; Provides procedures to do binary I/O, including a subset of SRFI 91.
+
+
 (define-library (snow binio)
   (export binio-input-port?
           binio-output-port?

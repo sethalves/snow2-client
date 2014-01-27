@@ -1,3 +1,14 @@
+;;;============================================================================
+
+;;; File: "tar.scm", Time-stamp: <2007-04-05 00:54:26 feeley>
+
+;;; Copyright (c) 2006-2007 by Marc Feeley, All Rights Reserved.
+
+;;;============================================================================
+
+;;; Contains procedures to pack and unpack tar files.
+
+
 (define-library (snow tar)
   (export make-tar-condition
           tar-condition?

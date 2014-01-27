@@ -1,3 +1,15 @@
+;;;============================================================================
+
+;;; File: "bignum.scm", Time-stamp: <2007-04-05 00:50:01 feeley>
+
+;;; Copyright (c) 2006-2007 by Marc Feeley, All Rights Reserved.
+
+;;;============================================================================
+
+;;; Provides operations on bignums.  The implementation relies only
+;;; on operations on fixnums.
+
+
 (define-library (snow bignum)
   (export bignum=
           bignum<

@@ -1,3 +1,14 @@
+;;;=============================================================================
+
+;;; File: "random.scm", Time-stamp: <2007-04-05 00:52:42 feeley>
+
+;;; Copyright (c) 2006-2007 by Marc Feeley, All Rights Reserved.
+
+;;;=============================================================================
+
+;;; Provides procedures to get random bits of high quality.
+
+
 (define-library (snow random)
   (export make-random-u8vector
           random-bignum

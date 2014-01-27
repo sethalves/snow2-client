@@ -413,12 +413,13 @@
                       (cond ((or (snow-file-exists? link-name)
                                  (snow-file-symbolic-link? link-name))
                              (snow-delete-file link-name)))
+
                       (snow-create-symbolic-link
-                       (cond ((and (> (string-length libfile-name) 3)
-                                   (string-prefix? libfile-name ".."))
-                              (snow-make-filename ".." libfile-name))
-                             (else libfile-name))
+                       (if (string-prefix? ".." libfile-name)
+                           (snow-make-filename ".." libfile-name)
+                           libfile-name)
                        link-name)))))
+
            (snow-directory-files package-local-directory))))
 
       (define (install-from-directory repo package url)

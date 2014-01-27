@@ -1,3 +1,14 @@
+;;;============================================================================
+
+;;; File: "filesys.scm", Time-stamp: <2007-09-01 22:23:06 feeley>
+
+;;; Copyright (c) 2006-2007 by Marc Feeley, All Rights Reserved.
+
+;;;============================================================================
+
+;;; Provides procedures to access the file system.
+
+
 (define-library (snow filesys)
   (export snow-directory-files
           snow-file-exists?

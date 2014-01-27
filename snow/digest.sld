@@ -1,3 +1,15 @@
+;;;============================================================================
+
+;;; File: "digest.scm", Time-stamp: <2007-04-05 00:51:05 feeley>
+
+;;; Copyright (c) 2006-2007 by Marc Feeley, All Rights Reserved.
+
+;;;============================================================================
+
+;;; Contains procedures to compute message digests.
+
+
+
 (define-library (snow digest)
   (export open-digest
           close-digest

@@ -1,3 +1,14 @@
+;;;============================================================================
+
+;;; File: "genport.scm", Time-stamp: <2007-04-05 00:51:44 feeley>
+
+;;; Copyright (c) 2006-2007 by Marc Feeley, All Rights Reserved.
+
+;;;============================================================================
+
+;;; Provides a procedural representation of I/O ports.
+
+
 (define-library (snow genport)
   (export make-genport
           genport?

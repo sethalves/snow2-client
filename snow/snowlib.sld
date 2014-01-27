@@ -1,3 +1,14 @@
+;;;============================================================================
+
+;;; File: "snowlib.scm", Time-stamp: <2007-09-03 12:21:22 feeley>
+
+;;; Copyright (c) 2006-2007 by Marc Feeley, All Rights Reserved.
+
+;;;============================================================================
+
+;;; Runtime library for Scheme Now! package system.
+
+
 (define-library (snow snowlib)
   (export snow-cleanup
           snow-cleanup-handler-push!
