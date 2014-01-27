@@ -27,20 +27,20 @@
 
     (cond-expand
      (chicken
-      (define u8-ready? char-ready?)
+      ;; (define u8-ready? char-ready?)
 
-      (define (peek-u8 . opt)
-        (let ((c (apply peek-char opt)))
-          (if (eof-object? c) c
-              (char->integer c))))
+      ;; (define (peek-u8 . opt)
+      ;;   (let ((c (apply peek-char opt)))
+      ;;     (if (eof-object? c) c
+      ;;         (char->integer c))))
 
-      (define (read-u8 . opt)
-        (let ((c (apply read-char opt)))
-          (if (eof-object? c) c
-              (char->integer c))))
+      ;; (define (read-u8 . opt)
+      ;;   (let ((c (apply read-char opt)))
+      ;;     (if (eof-object? c) c
+      ;;         (char->integer c))))
 
-      (define (write-u8 data . opt)
-        (apply write-char (cons (integer->char data) opt)))
+      ;; (define (write-u8 data . opt)
+      ;;   (apply write-char (cons (integer->char data) opt)))
       )
      (else))
 

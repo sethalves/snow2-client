@@ -8,7 +8,10 @@
           binio-read-byte
           binio-write-byte
           binio-read-subu8vector
-          binio-write-subu8vector)
+          binio-write-subu8vector
+          binio-write-latin-1-string
+          binio-read-latin-1-line
+          )
   (import (scheme base) (scheme file))
   (cond-expand
    (chibi)
@@ -165,5 +168,25 @@
       (close-output-port port))
 
 ;;;============================================================================
+
+    (define (binio-write-latin-1-string str bin-port)
+      (let ((bv (string->latin-1 str)))
+        (binio-write-subu8vector
+         bv 0 (bytevector-length bv) bin-port)))
+
+
+    (define (binio-read-latin-1-line bin-port)
+      (let loop ((ret (list)))
+        (let ((c (binio-read-byte bin-port)))
+          (cond ((or (eof-object? c) (= c 10))
+                 ;; drop any \r's off the end
+                 (let loop ((ret ret))
+                   (cond ((or (null? ret)
+                              (not (= (car ret) 13)))
+                          (list->string (map integer->char (reverse ret))))
+                         (else (loop (cdr ret))))))
+                (else
+                 (loop (cons c ret)))))))
+
 
     ))

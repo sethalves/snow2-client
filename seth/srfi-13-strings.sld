@@ -13,6 +13,11 @@
    string-trim-both
    string-take
    string-take-right
+   string-join
+   string-prefix?
+   string-prefix-ci?
+   string-suffix?
+   string-suffix-ci?
    ;; XXX the rest...
    )
   (import (scheme base))
@@ -140,5 +145,56 @@
 
       (define (string-take-right s n)
         (substring s (- (string-length s) n) (string-length s)))
+
+      (define (string-join items delim)
+        (if (null? items)
+            ""
+            (let loop ((result '())
+                       (items items))
+              (if (null? items)
+                  (apply string-append (reverse (cdr result)))
+                  (loop (cons delim (cons (car items) result))
+                        (cdr items))))))
+
+
+      (define (string-prefix-worker? s1 s2 tester opt-args)
+        (let* ((olen (length opt-args))
+               (start1 (if (> olen 0) (list-ref opt-args 0) 0))
+               (end1 (if (> olen 1) (list-ref opt-args 1) (string-length s1)))
+               (start2 (if (> olen 2) (list-ref opt-args 2) 0))
+               (end2 (if (> olen 3) (list-ref opt-args 3) (string-length s2))))
+          (let loop ((i1 start1)
+                     (i2 start2))
+            (cond ((= i1 end1) #t)
+                  ((= i2 end2) #f)
+                  ((not (tester (string-ref s1 i1) (string-ref s2 i2))) #f)
+                  (else
+                   (loop (+ i1 1) (+ i2 1)))))))
+
+      (define (string-prefix? s1 s2 . opt-args)
+        (string-prefix-worker? s1 s2 char=? opt-args))
+
+      (define (string-prefix-ci? s1 s2 . opt-args)
+        (string-prefix-worker? s1 s2 char-ci=? opt-args))
+
+      (define (string-suffix-worker? s1 s2 tester opt-args)
+        (let* ((olen (length opt-args))
+               (start1 (if (> olen 0) (list-ref opt-args 0) 0))
+               (end1 (if (> olen 1) (list-ref opt-args 1) (string-length s1)))
+               (start2 (if (> olen 2) (list-ref opt-args 2) 0))
+               (end2 (if (> olen 3) (list-ref opt-args 3) (string-length s2))))
+          (let loop ((i1 (- end1 1))
+                     (i2 (- end2 1)))
+            (cond ((< i1 start1) #t)
+                  ((< i2 start2) #f)
+                  ((not (tester (string-ref s1 i1) (string-ref s2 i2))) #f)
+                  (else
+                   (loop (- i1 1) (- i2 1)))))))
+
+      (define (string-suffix? s1 s2 . opt-args)
+        (string-suffix-worker? s1 s2 char=? opt-args))
+
+      (define (string-suffix-ci? s1 s2 . opt-args)
+        (string-suffix-worker? s1 s2 char-ci=? opt-args))
 
       ))))

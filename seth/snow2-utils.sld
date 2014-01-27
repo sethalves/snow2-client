@@ -214,6 +214,21 @@
         repository))
 
 
+    (define (get-snow2-repo-name package)
+      (cond ((and (list? (snow2-package-name package))
+                  (not (null? (snow2-package-name package))))
+             (snow2-package-name package))
+            ((not (null? snow2-package-libraries))
+             (let* ((lib (car (snow2-package-libraries package)))
+                    (lib-name (snow2-library-name lib)))
+               (cond ((and (list? lib-name)
+                           (not (null? lib-name)))
+                      (symbol->string (car lib-name)))
+                     (else '()))))
+            (else
+             '())))
+
+
     (define (package-contains-library? package library-name)
       ;; return #t if a package contains any libraries with the given name
       (let loop ((libraries (snow2-package-libraries package)))
@@ -365,45 +380,67 @@
           (genport-close-input-port unzipped-p)
           (write-tar-recs-to-disk tar-recs)))
 
-      (define (install-from-http repo url)
+      (define (install-from-http repo package url)
         (let-values (((write-port local-package-filename)
                       (temporary-file)))
+          (display "downloading ")
+          (display (snow-filename-strip-directory url))
+          (display " from ")
+          (display (snow2-repository-url repo))
+          (newline)
           (http-download-file url write-port)
           (install-from-tgz repo local-package-filename)
           (delete-file local-package-filename)))
 
-      (define (install-symlinks repo package-local-directory)
-        (let ((repo-local-name (snow-filename-strip-directory
-                                (snow2-repository-url repo))))
+      (define (install-symlinks repo package package-local-directory)
+        (let ((repo-local-name (get-snow2-repo-name package)))
           (for-each
            (lambda (filename)
              (cond ((and (> (string-length filename) 4)
                          (equal? ".sld" (string-take-right filename 4)))
-                    (let ((link-name (snow-make-filename
-                                      repo-local-name filename)))
-                      (cond ((snow-file-exists? link-name)
+                    (let ((link-name
+                           (snow-make-filename repo-local-name filename))
+                          (libfile-name
+                           (snow-make-filename
+                            package-local-directory filename)))
+
+                      (display "linking ")
+                      (display libfile-name)
+                      (display " to ")
+                      (display link-name)
+                      (newline)
+
+                      (snow-create-directory-recursive repo-local-name)
+                      (cond ((or (snow-file-exists? link-name)
+                                 (snow-file-symbolic-link? link-name))
                              (snow-delete-file link-name)))
                       (snow-create-symbolic-link
-                       (snow-make-filename package-local-directory filename)
+                       (cond ((and (> (string-length libfile-name) 3)
+                                   (equal? (string-take libfile-name 2) ".."))
+                              (snow-make-filename ".." libfile-name))
+                             (else libfile-name))
                        link-name)))))
            (snow-directory-files package-local-directory))))
 
-      (define (install-from-directory repo url)
+      (define (install-from-directory repo package url)
         (let* ((package-file (snow-filename-strip-directory url))
                (package-name (snow-filename-strip-extension package-file))
                (package-local-directory (snow-make-filename
                                          (snow2-repository-url repo)
-                                         package-name)))
+                                         package-name))
+               )
           (cond ((and use-symlinks
-                      (snow-file-directory? package-local-directory)
-                      (snow-file-exists? (snow-make-filename
-                                          package-local-directory
-                                          (string-append package-name ".sld"))))
-                 (install-symlinks repo package-local-directory))
+                      (snow-file-directory? package-local-directory))
+                 (install-symlinks repo package package-local-directory))
                 (else
                  (let ((local-package-filename (snow-make-filename
                                                 (snow2-repository-url repo)
                                                 package-file)))
+                   (display "extracting ")
+                   (display package-file)
+                   (display " from ")
+                   (display (snow2-repository-url repo))
+                   (newline)
                    (install-from-tgz repo local-package-filename))))))
 
 
@@ -417,27 +454,37 @@
                  (for-each
                   (lambda (package)
                     (let ((package-repo (snow2-package-repository package))
-                          (url (snow2-package-url package))
-                          )
-                      (display "installing ")
-                      (display
-                       (if (not (null? (snow2-package-name package)))
-                           (snow2-package-name package)
-                           (snow-filename-strip-directory
-                            (snow2-package-url package))))
-                      (display " from ")
-                      (display (snow2-repository-url package-repo))
-                      (newline)
+                          (url (snow2-package-url package)))
                       (cond
                        ((snow2-repository-local package-repo)
-                        (install-from-directory package-repo url))
+                        (install-from-directory package-repo package url))
                        (else
-                        (install-from-http package-repo url)))))
+                        (install-from-http package-repo package url)))))
                   packages))))))
 
 
     (define (uninstall repositories library-name)
       #f)
+
+
+    (define (list-depends repositories library-name)
+      ;; print out what library-name depends on
+      (let ((package (find-package-with-library repositories library-name)))
+        (cond ((not package)
+               (error "didn't find a package with library: ~S\n"
+                      library-name))
+              (else
+               (let* ((libraries (snow2-package-libraries package))
+                      (packages (gather-depends repositories libraries)))
+                 (for-each
+                  (lambda (package)
+                    (for-each
+                     (lambda (library)
+                       (display (snow2-library-name library))
+                       (newline))
+                     (snow2-package-libraries package)))
+                  packages))))))
+
 
 
     (define (client repository-urls operation library-name use-symlinks)
@@ -446,6 +493,8 @@
                (install repositories library-name use-symlinks))
               ((equal? operation "uninstall")
                (uninstall repositories library-name))
+              ((equal? operation "list-depends")
+               (list-depends repositories library-name))
               (else
                (error "unknown snow2 client operation" operation)))))
 
@@ -482,7 +531,7 @@
         (display " " (current-error-port))
         (display "[arguments] <operation> '(library name)' ...\n"
                  (current-error-port))
-        (display "  <operation> can be \"install\" or \"uninstall\"\n"
+        (display "  <operation> can be \"install\" or \"uninstall\" or \"list-depends\"\n"
                  (current-error-port))
         (display "  -r --repo <url>      " (current-error-port))
         (display "Prepend to list of snow2 repositories.\n"
@@ -525,7 +574,9 @@
         (cond ((not operation) (usage ""))
               ((not (member operation '("link-install"
                                         "install"
-                                        "uninstall")))
+                                        "uninstall"
+                                        "list-depends"
+                                        )))
                (usage (string-append "Unknown operation: " operation "\n\n")))
               (else
                (for-each
