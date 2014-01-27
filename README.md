@@ -5,11 +5,15 @@ Client for snow2 repositories.
 
 This is alpha-quality software.  It might delete your files!
 
-See:
+snow2-client is experimental software for finding and installing
+portable scheme libraries.  The libraries are stored in repositories
+which are described in:
 
-  http://trac.sacrideo.us/wg/wiki/Snow <br>
-  http://snow.iro.umontreal.ca/ <br>
-  https://github.com/sethalves <br>
+  http://trac.sacrideo.us/wg/wiki/Snow
+
+Inspiration and some packages are taken from the first snow system:
+
+  http://snow.iro.umontreal.ca/
 
 Supported schemes are:
 
@@ -29,10 +33,10 @@ supported schemes.
 Chicken requires that several eggs be installed, one from svn.
 
 ```
-sudo chicken-install srfi-27 srfi-37 http-client
+chicken-install srfi-27 srfi-37 http-client
 svn co https://code.call-cc.org/svn/chicken-eggs/release/4/r7rs/trunk r7rs
 cd r7rs
-sudo chicken-install
+chicken-install
 ```
 
 Additionally, some of the snow2 packages assume you have certain chicken eggs installed.
@@ -42,13 +46,13 @@ Building
 ========
 
 ```
-sudo make SCHEME=scheme install
+make SCHEME=scheme install
 ```
 
 *scheme* can be any of chibi, chicken, gauche, sagittarius.  For example:
 
 ```
-sudo make SCHEME=chicken install
+make SCHEME=chicken install
 ```
 
 snow2 will be placed in /usr/local/bin/
