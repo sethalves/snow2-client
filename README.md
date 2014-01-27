@@ -16,6 +16,7 @@ Supported schemes are:
 <a href="http://practical-scheme.net/gauche/">Gauche</a>,
 <a href="https://bitbucket.org/ktakashi/sagittarius-scheme/wiki/Home">Sagittarius</a>
 
+Other schemes will be supported when they support r7rs-style libraries.
 
 Requirements
 ============
