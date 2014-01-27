@@ -37,7 +37,7 @@ Building
 ========
 
 ```
-sudo make SCHEME=*scheme* install
+sudo make SCHEME=scheme install
 ```
 
 *scheme* can be any of chibi, chicken, gauche, sagittarius.  For example:
