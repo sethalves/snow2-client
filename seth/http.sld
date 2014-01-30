@@ -16,8 +16,7 @@
 
      (chicken
       (define (call-with-request-body url consumer)
-        (with-input-from-request
-         url #f (lambda () (consumer (current-input-port)))))
+        (call-with-input-request url #f consumer))
 
       (define (download-file url write-port)
         (call-with-request-body
