@@ -19,13 +19,27 @@ BIN_DIR=$(TOP)/bin
 CHICKEN_COMPILER=csc -X r7rs -I $(PACKAGE_DIR)
 endif
 
-
 ifeq "$(SCHEME)" "chibi"
 SHARE=/usr/local/share
 TOP=$(shell dirname $(SHARE))
 PACKAGE_DIR=$(SHARE)/scheme
 BIN_DIR=$(TOP)/bin
 endif
+
+ifeq "$(SCHEME)" "gauche"
+SHARE=/usr/local/share
+TOP=$(shell dirname $(SHARE))
+PACKAGE_DIR=$(SHARE)/scheme
+BIN_DIR=$(TOP)/bin
+endif
+
+ifeq "$(SCHEME)" "sagittarius"
+SHARE=/usr/local/share
+TOP=$(shell dirname $(SHARE))
+PACKAGE_DIR=$(SHARE)/scheme
+BIN_DIR=$(TOP)/bin
+endif
+
 
 
 all:
@@ -45,6 +59,9 @@ uninstall: uninstall-$(SCHEME) uninstall-libs
 uninstall-libs:
 	sudo rm -f $(PACKAGE_DIR)/seth/*.sld
 	- sudo rmdir $(PACKAGE_DIR)/seth
+	sudo rm -f $(PACKAGE_DIR)/snow/*.sld
+	- sudo rmdir $(PACKAGE_DIR)/snow
+
 
 clean: clean-$(SCHEME)
 	rm -f *~
