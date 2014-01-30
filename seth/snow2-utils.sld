@@ -27,6 +27,7 @@
                         (scheme write)
                         (srfi 1)
                         (scheme process-context))))
+  (import (snow snowlib))
   (import (seth srfi-13-strings))
   (import (seth srfi-69-hash-tables))
   (import (snow filesys) (snow binio) (snow genport) (snow zlib) (snow tar))
@@ -372,13 +373,20 @@
     (define (install repositories library-name use-symlinks)
 
       (define (install-from-tgz repo local-package-filename)
-        (let* ((bin-port (binio-open-input-file
-                          local-package-filename))
-               (zipped-p (genport-native-input-port->genport bin-port))
-               (unzipped-p (gunzip-genport zipped-p))
-               (tar-recs (tar-unpack-genport unzipped-p)))
-          (genport-close-input-port unzipped-p)
-          (write-tar-recs-to-disk tar-recs)))
+        (snow-with-exception-catcher
+         (lambda (err)
+           (display "Error: " (current-error-port))
+           (display (snow-error-condition-msg err) (current-error-port))
+           (newline)
+           #f)
+         (lambda ()
+           (let* ((bin-port (binio-open-input-file
+                             local-package-filename))
+                  (zipped-p (genport-native-input-port->genport bin-port))
+                  (unzipped-p (gunzip-genport zipped-p))
+                  (tar-recs (tar-unpack-genport unzipped-p)))
+             (genport-close-input-port unzipped-p)
+             (write-tar-recs-to-disk tar-recs)))))
 
       (define (install-from-http repo package url)
         (let-values (((write-port local-package-filename)
@@ -389,8 +397,9 @@
           (display (snow2-repository-url repo))
           (newline)
           (http-download-file url write-port)
-          (install-from-tgz repo local-package-filename)
-          (delete-file local-package-filename)))
+          (let ((success (install-from-tgz repo local-package-filename)))
+            (delete-file local-package-filename)
+            success)))
 
       (define (install-symlinks repo package package-local-directory)
         (let ((repo-local-name (get-snow2-repo-name package)))
@@ -415,6 +424,7 @@
                              (snow-delete-file link-name)))
 
                       (snow-create-symbolic-link
+                       ;; XXX should split path.  also, what about ./ ...
                        (if (string-prefix? ".." libfile-name)
                            (snow-make-filename ".." libfile-name)
                            libfile-name)
@@ -453,13 +463,23 @@
                       (packages (gather-depends repositories libraries)))
                  (for-each
                   (lambda (package)
-                    (let ((package-repo (snow2-package-repository package))
-                          (url (snow2-package-url package)))
+                    (let* ((package-repo (snow2-package-repository package))
+                           (url (snow2-package-url package))
+                           (success
+                            (cond
+                             ((snow2-repository-local package-repo)
+                              (install-from-directory package-repo package url))
+                             (else
+                              (install-from-http package-repo package url)))))
                       (cond
-                       ((snow2-repository-local package-repo)
-                        (install-from-directory package-repo package url))
-                       (else
-                        (install-from-http package-repo package url)))))
+                       ((not success)
+                        (display "Failed to install " (current-error-port))
+                        (display (snow2-package-name package)
+                                 (current-error-port))
+                        (display ", " (current-error-port))
+                        (display (snow2-package-url package)
+                                 (current-error-port))
+                        (newline (current-error-port))))))
                   packages))))))
 
 

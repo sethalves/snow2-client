@@ -59,6 +59,7 @@
     ;; (import (only (scheme) string->keyword)) ;; XXX
     ;; (import (only (scheme) keyword->string)) ;; XXX
     ;; (import (only (scheme) keyword?)) ;; XXX
+    (import (only (chicken) condition-property-accessor))
     )
    (gauche)
    (sagittarius))
@@ -151,26 +152,11 @@
                                  (lambda () (apply values results))))))))))))
 
      (chibi
-
       (define (snow-raise exc)
-        (error (snow-error-condition-msg exc)))
-
-
+        (raise exc))
       (define (snow-with-exception-catcher catcher thunk)
-        ((call-with-current-continuation
-          (lambda (unwind-and-call)
-            (lambda ()
-              (with-exception-handler
-               (lambda (exc)
-                 (unwind-and-call (lambda () (catcher exc))))
-               (lambda ()
-                 (call-with-values
-                     thunk
-                   (lambda results
-                     (unwind-and-call
-                      (lambda () (apply values results))))))))))))
-
-      )
+        (guard (condition (else (catcher condition)))
+               (thunk))))
 
      (chicken
 
@@ -185,7 +171,10 @@
             (lambda ()
               (with-exception-handler
                (lambda (exc)
-                 (unwind-and-call (lambda () (catcher exc))))
+                 (unwind-and-call
+                  (lambda ()
+                    (catcher
+                     ((condition-property-accessor 'exn 'message) exc)))))
                (lambda ()
                  (call-with-values
                      thunk
