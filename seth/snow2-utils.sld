@@ -38,11 +38,20 @@
   (begin
 
     (define-record-type <snow2-repository>
-      (make-snow2-repository packages local url)
+      (make-snow2-repository siblings packages local url)
       snow2-repository?
+      (siblings snow2-repository-siblings set-snow2-repository-siblings!)
       (packages snow2-repository-packages set-snow2-repository-packages!)
       (local snow2-repository-local set-snow2-repository-local!)
       (url snow2-repository-url set-snow2-repository-url!))
+
+
+    (define-record-type <snow2-sibling>
+      (make-snow2-sibling name url trust)
+      snow2-sibling?
+      (name snow2-sibling-name set-snow2-sibling-name!)
+      (url snow2-sibling-url set-snow2-sibling-url!)
+      (trust snow2-sibling-trust set-snow2-sibling-trust!))
 
 
     (define-record-type <snow2-package>
@@ -116,6 +125,28 @@
                         result)))))))
 
 
+    (define (get-number-by-type obj child-type default)
+      ;; return the number from a child with the form
+      ;; '(child-type 1.0)
+      ;; if no such child is found and default isn't #f, return default
+      (let ((child (get-child-by-type obj child-type default)))
+        (cond ((and (not child) default) default)
+              ((and (null? child) default) default)
+              ((not child) #f)
+              ((null? child) #f)
+              ((not (= (length child) 2))
+               (error "~A has malformed ~A: ~A\n"
+                      (get-tag obj) child-type child))
+              (else
+               (let ((result (cadr child)))
+                 (cond ((not (number? result))
+                        (error
+                         "value of ~A in ~A isn't a number\n"
+                         child-type (get-tag obj)))
+                       (else
+                        result)))))))
+
+
 
     (define (get-list-by-type obj child-type default)
       ;; return the list from a child with the form
@@ -156,6 +187,13 @@
       depend-sexp)
 
 
+    (define (sibling-from-sexp sibling-sexp)
+      (let ((name (get-string-by-type sibling-sexp 'name #f))
+            (url (get-string-by-type sibling-sexp 'url #f))
+            (trust (get-number-by-type sibling-sexp 'trust 0.5)))
+        (make-snow2-sibling name url trust)))
+
+
     (define (library-from-sexp library-sexp)
       ;; convert an s-exp into a library record
       (let ((name (get-list-by-type library-sexp 'name #f))
@@ -191,14 +229,17 @@
       (cond ((not (list? repository-sexp))
              (error "repository definition isn't a list."))
             ((null? repository-sexp)
-             (error "repository is empty."))
+             (error "repository s-exp is empty."))
             ((not (eq? (car repository-sexp) 'repository))
              (error "this doesn't look like a repository."))
             (else
              (let* ((package-sexps
                      (get-children-by-type repository-sexp 'package))
                     (packages (map package-from-sexp package-sexps))
-                    (repo (make-snow2-repository packages local url)))
+                    (sibling-sexps
+                     (get-children-by-type repository-sexp 'sibling))
+                    (siblings (map sibling-from-sexp sibling-sexps))
+                    (repo (make-snow2-repository siblings packages local url)))
                ;; backlink package to repository
                (for-each
                 (lambda (package)
@@ -342,6 +383,28 @@
                     (repo (read-repository in-port #t repository-url)))
                (close-input-port in-port)
                repo))))
+
+
+    (define (get-repositories-and-siblings repositories repository-urls)
+      (define (make-repo-has-url? url)
+        (lambda (repository)
+          (equal? (snow2-repository-url repository) url)))
+      (define (get-sibling-urls repository)
+        (map snow2-sibling-url (snow2-repository-siblings repository)))
+      (cond ((null? repository-urls) repositories)
+            (else
+             (let ((repository-url (car repository-urls)))
+               (cond ((any (make-repo-has-url? repository-url) repositories)
+                      ;; we've already loaded this one.
+                      (get-repositories-and-siblings
+                       repositories (cdr repository-urls)))
+                     (else
+                      ;; this was previously unloaded
+                      (let* ((repository (get-repository repository-url))
+                             (sibling-urls (get-sibling-urls repository)))
+                        (get-repositories-and-siblings
+                         (cons repository repositories)
+                         (append (cdr repository-urls) sibling-urls)))))))))
 
 
     (define (write-tar-recs-to-disk tar-recs)
@@ -520,6 +583,18 @@
                            results)))))))
 
 
+    (define (search-for-libraries repositories search-terms)
+      (for-each
+       (lambda (result)
+         (display (snow2-library-name result))
+         (newline))
+       (let loop ((search-terms search-terms)
+                  (libs (all-libraries repositories)))
+         (if (null? search-terms) libs
+             (loop (cdr search-terms)
+                   (filter-libraries libs (car search-terms)))))))
+
+
     (define (all-libraries repositories)
       ;; make a list of all libraries in all repositories
       (let repo-loop ((repositories repositories)
@@ -540,8 +615,9 @@
                                   (car packages)))))))))))
 
 
+
     (define (client repository-urls operation library-name use-symlinks)
-      (let ((repositories (map get-repository repository-urls)))
+      (let ((repositories (get-repositories-and-siblings '() repository-urls)))
         (cond ((equal? operation "install")
                (install repositories library-name use-symlinks))
               ((equal? operation "uninstall")
@@ -618,53 +694,39 @@
                            (cons operand libs) verbose)
                    (values operand repos use-symlinks libs verbose)))
              #f ;; initial value of operation
-             ;; initial value of repos
-             '("http://snow2.s3-website-us-east-1.amazonaws.com/"
-               "http://snow-repository.s3-website-us-east-1.amazonaws.com/")
+             '() ;; initial value of repos
              #f ;; initial value of use-symlinks
              '() ;; initial value of libs
              #f ;; initial value of verbose
              )))
-        (cond ((not operation) (usage ""))
-              ((member operation '("search"))
-               (let ((repositories (map get-repository repository-urls)))
-
+        (let ((repository-urls
+               (if (null? repository-urls)
+                   '("http://snow2.s3-website-us-east-1.amazonaws.com/")
+                   repository-urls)))
+          (cond ((not operation) (usage ""))
+                ;; search operation
+                ((member operation '("search"))
+                 (let ((repositories (get-repositories-and-siblings
+                                      '() repository-urls)))
+                   (search-for-libraries repositories libs-or-st)))
+                ;; other operations
+                ((not (member operation '("link-install"
+                                          "install"
+                                          "uninstall"
+                                          "list-depends"
+                                          )))
+                 (usage (string-append "Unknown operation: "
+                                       operation "\n\n")))
+                (else
                  (for-each
-                  (lambda (result)
-                    (display (snow2-library-name result))
-                    (newline))
-                  (let loop ((search-terms libs-or-st)
-                             (libs (all-libraries repositories)))
-                    (if (null? search-terms) libs
-                        (loop (cdr search-terms)
-                              (filter-libraries libs (car search-terms))))))
+                  (lambda (library-name-argument)
+                    (let ((library-name
+                           (read-from-string library-name-argument)))
+                      ;; XXX this risks installing the same library
+                      ;; more than once.
+                      (client repository-urls operation
+                              library-name use-symlinks)))
+                  libs-or-st))))))))
 
-
-
-                 ;; (for-each
-                 ;;  (lambda (search-term)
-                 ;;    (for-each
-                 ;;     (lambda (result)
-                 ;;       (display (snow2-library-name result))
-                 ;;       (newline))
-                 ;;     (filter-libraries
-                 ;;      (all-libraries repositories)
-                 ;;      search-term)))
-                 ;;  libs-or-st)
-
-                 ))
-              ((not (member operation '("link-install"
-                                        "install"
-                                        "uninstall"
-                                        "list-depends"
-                                        )))
-               (usage (string-append "Unknown operation: " operation "\n\n")))
-              (else
-               (for-each
-                (lambda (library-name-argument)
-                  (let ((library-name (read-from-string library-name-argument)))
-                    (client repository-urls operation
-                            library-name use-symlinks))
-
-                  )
-                libs-or-st)))))))
+;; "http://snow2.s3-website-us-east-1.amazonaws.com/"
+;; "http://snow-repository.s3-website-us-east-1.amazonaws.com/"
