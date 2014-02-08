@@ -25,6 +25,8 @@
           snow-filename-strip-directory
           snow-filename-strip-trailing-directory-separator
           snow-make-filename
+          snow-unmake-filename
+          snow-filename-relative?
           ;; snow-make-temp-filename
           snow-directory-subfiles
           snow-create-directory-recursive
@@ -32,7 +34,8 @@
   (import (scheme base)
           (scheme file)
           (snow bytevector)
-          (snow random))
+          (snow random)
+          (snow srfi-13-strings))
   (cond-expand
    (chibi
     ;; http://synthcode.com/scheme/chibi/lib/chibi/filesystem.html
@@ -797,12 +800,23 @@
 
     (define (snow-make-filename part1 . parts)
       (let loop ((filename part1) (lst parts))
-        (if (pair? lst)
-            (loop (string-append filename
-                                 (string (directory-separator))
-                                 (car lst))
-                  (cdr lst))
-            filename)))
+        (cond ((and (pair? lst) (> (string-length (car lst)) 0))
+               (loop (string-append filename
+                                    (string (directory-separator))
+                                    (car lst))
+                     (cdr lst)))
+              ((pair? lst)
+               (loop filename (cdr lst)))
+              (else
+               filename))))
+
+    (define (snow-unmake-filename filename)
+      (string-tokenize
+       filename (lambda (c) (not (eqv? c (directory-separator))))))
+
+
+    (define (snow-filename-relative? filename)
+      (not (string-prefix? (string (directory-separator)) filename)))
 
     ;; (define (snow-make-temp-filename)
     ;;   (let loop ()

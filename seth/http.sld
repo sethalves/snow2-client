@@ -4,7 +4,7 @@
   (cond-expand
    (chibi
     (import (chibi io) (chibi process) (scheme file) (chibi net http))
-    (import (seth srfi-13-strings)))
+    (import (snow srfi-13-strings)))
    (chicken (import (chicken) (extras) (posix) (http-client)))
    (gauche (import (rfc uri) (rfc http) (seth port-extras)))
    (sagittarius

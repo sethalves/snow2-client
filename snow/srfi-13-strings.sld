@@ -3,7 +3,7 @@
 ;; http://srfi.schemers.org/srfi-13/srfi-13.html
 ;; http://wiki.call-cc.org/man/4/Unit%20srfi-13
 
-(define-library (seth srfi-13-strings)
+(define-library (snow srfi-13-strings)
   (export
    string-tokenize
    string-pad

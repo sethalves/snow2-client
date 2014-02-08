@@ -13,7 +13,7 @@
   (cond-expand
    (chibi (import (scheme write)
                   (scheme file)
-                  (only (srfi 1) filter)
+                  (only (srfi 1) filter make-list any)
                   (chibi filesystem)
                   (scheme process-context)))
    (chicken (import (scheme read) (scheme write)
@@ -28,7 +28,7 @@
                         (srfi 1)
                         (scheme process-context))))
   (import (snow snowlib))
-  (import (seth srfi-13-strings))
+  (import (snow srfi-13-strings))
   (import (seth srfi-69-hash-tables))
   (import (snow filesys) (snow binio) (snow genport) (snow zlib) (snow tar))
   (import (prefix (seth http) http-))
@@ -373,9 +373,18 @@
                   (or (string-prefix? "http://" repository-url)
                       (string-prefix? "https://" repository-url)))
              ;; get repository over http
-             (http-call-with-request-body
-              repository-url
-              (lambda (in-port) (read-repository in-port #f repository-url))))
+             (snow-with-exception-catcher
+              (lambda (exn)
+                (display "unable to fetch repository index: "
+                         (current-error-port))
+                (display repository-url (current-error-port))
+                (newline (current-error-port))
+                #f)
+              (lambda ()
+                (http-call-with-request-body
+                 repository-url
+                 (lambda (in-port)
+                   (read-repository in-port #f repository-url))))))
             (else
              ;; read from local filesystem
              (let* ((index-path (snow-make-filename repository-url "index.scm"))
@@ -400,11 +409,14 @@
                        repositories (cdr repository-urls)))
                      (else
                       ;; this was previously unloaded
-                      (let* ((repository (get-repository repository-url))
-                             (sibling-urls (get-sibling-urls repository)))
-                        (get-repositories-and-siblings
-                         (cons repository repositories)
-                         (append (cdr repository-urls) sibling-urls)))))))))
+                      (let ((repository (get-repository repository-url)))
+                        (if repository
+                            (let ((sibling-urls (get-sibling-urls repository)))
+                              (get-repositories-and-siblings
+                               (cons repository repositories)
+                               (append (cdr repository-urls) sibling-urls)))
+                            (get-repositories-and-siblings
+                             repositories (cdr repository-urls))))))))))
 
 
     (define (write-tar-recs-to-disk tar-recs)
@@ -433,7 +445,7 @@
                  (loop (cdr tar-recs)))))))
 
 
-    (define (install repositories library-name use-symlinks)
+    (define (install repositories library-name use-symlinks verbose)
 
       (define (install-from-tgz repo local-package-filename)
         (snow-with-exception-catcher
@@ -464,16 +476,76 @@
             (delete-file local-package-filename)
             success)))
 
+
       (define (install-symlinks repo package package-local-directory)
-        (let ((repo-local-name (get-snow2-repo-name package)))
+        (let ((repo-local-name (get-snow2-repo-name package))
+              (package-local-name
+               (snow-filename-strip-directory package-local-directory)))
+
+          (define (local-repo-sld-files repo)
+            ;; drop repo path from the start of each filename, skip test
+            ;; directory.
+            (filter
+             (lambda (filename)
+               (let ((parts (snow-unmake-filename filename)))
+                 (or (< (length parts) 2)
+                     (not (equal? (car parts) package-local-name))
+                     (not (equal? (cadr parts) "test")))))
+             (map
+              (lambda (filename)
+                (substring filename
+                           (+ 1 (string-length ;; + 1 eats extra /
+                                 (snow-filename-strip-extension
+                                  (snow2-repository-url repo))))
+                           (string-length filename)))
+              (snow-directory-subfiles package-local-directory '(regular)))))
+
+
           (for-each
            (lambda (filename)
              (cond ((string-suffix? ".sld" filename)
-                    (let ((link-name
-                           (snow-make-filename repo-local-name filename))
-                          (libfile-name
-                           (snow-make-filename
-                            package-local-directory filename)))
+                    (let* ((link-name
+                            (snow-make-filename
+                             repo-local-name
+                             (snow-filename-strip-trailing-directory-separator
+                              (snow-filename-directory
+                               (snow-filename-strip-trailing-directory-separator
+                                (snow-filename-directory filename))))
+                             (snow-filename-strip-directory filename)))
+                           (link-dir (snow-filename-directory link-name))
+                           (libfile-name
+                            (snow-make-filename
+                             (snow2-repository-url repo) filename)))
+
+                      ;; (display "filename: ")
+                      ;; (write filename)
+                      ;; (newline)
+
+                      ;; (display "repo-local-name: ")
+                      ;; (write repo-local-name)
+                      ;; (newline)
+
+                      ;; (display "link-name: ")
+                      ;; (write link-name)
+                      ;; (newline)
+
+                      ;; (display "link-dir: ")
+                      ;; (write link-dir)
+                      ;; (newline)
+
+                      ;; (display "libfile-name: ")
+                      ;; (write libfile-name)
+                      ;; (newline)
+
+                      ;; (display "package-local-directory: ")
+                      ;; (write package-local-directory)
+                      ;; (newline)
+
+                      ;; (display "snow2-repository-url: ")
+                      ;; (write (snow-filename-strip-extension
+                      ;;         (snow2-repository-url repo)))
+                      ;; (newline)
+
 
                       (display "linking ")
                       (display libfile-name)
@@ -481,19 +553,28 @@
                       (display link-name)
                       (newline)
 
-                      (snow-create-directory-recursive repo-local-name)
+                      (snow-create-directory-recursive link-dir)
                       (cond ((or (snow-file-exists? link-name)
                                  (snow-file-symbolic-link? link-name))
                              (snow-delete-file link-name)))
 
                       (snow-create-symbolic-link
-                       ;; XXX should split path.  also, what about ./ ...
-                       (if (string-prefix? ".." libfile-name)
-                           (snow-make-filename ".." libfile-name)
-                           libfile-name)
-                       link-name)))))
+                       (cond ((snow-filename-relative? link-name)
+                              ;; we are making a link in a subdirectory,
+                              ;; so prepend the required number of ../
+                              (let* ((link-parts
+                                      (snow-unmake-filename link-name))
+                                     (depth (length link-parts))
+                                     (dots (make-list (- depth 1) "..")))
+                                (apply snow-make-filename
+                                       (reverse (cons libfile-name dots)))))
+                             (else libfile-name))
 
-           (snow-directory-files package-local-directory))))
+                       link-name)
+
+                      ))))
+           (local-repo-sld-files repo))))
+
 
       (define (install-from-directory repo package url)
         (let* ((package-file (snow-filename-strip-directory url))
@@ -616,10 +697,21 @@
 
 
 
-    (define (client repository-urls operation library-name use-symlinks)
+    (define (client repository-urls operation library-name use-symlinks verbose)
       (let ((repositories (get-repositories-and-siblings '() repository-urls)))
+
+        (cond (verbose
+               (display "repositories:\n" (current-error-port))
+               (for-each
+                (lambda (repository)
+                  (display "  " (current-error-port))
+                  (display (snow2-repository-url repository)
+                           (current-error-port))
+                  (newline (current-error-port)))
+                repositories)))
+
         (cond ((equal? operation "install")
-               (install repositories library-name use-symlinks))
+               (install repositories library-name use-symlinks verbose))
               ((equal? operation "uninstall")
                (uninstall repositories library-name))
               ((equal? operation "list-depends")
@@ -725,7 +817,7 @@
                       ;; XXX this risks installing the same library
                       ;; more than once.
                       (client repository-urls operation
-                              library-name use-symlinks)))
+                              library-name use-symlinks verbose)))
                   libs-or-st))))))))
 
 ;; "http://snow2.s3-website-us-east-1.amazonaws.com/"
