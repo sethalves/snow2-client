@@ -500,10 +500,25 @@
           (display " from ")
           (display (snow2-repository-url repo))
           (newline)
-          (http-download-file url write-port)
-          (let ((success (install-from-tgz repo local-package-filename)))
-            (delete-file local-package-filename)
-            success)))
+
+          (let ((download-success
+                 (snow-with-exception-catcher
+                  (lambda (exn)
+                    (display "unable to install package: "
+                             (current-error-port))
+                    (display url (current-error-port))
+                    (newline (current-error-port))
+                    (display exn (current-error-port))
+                    (newline (current-error-port))
+                    #f)
+                  (lambda ()
+                    (http-download-file url write-port)))))
+
+            (cond (download-success
+                   (let ((success
+                          (install-from-tgz repo local-package-filename)))
+                     (delete-file local-package-filename)
+                     success))))))
 
 
       (define (install-symlinks repo package package-local-directory)
@@ -545,37 +560,6 @@
                            (libfile-name
                             (snow-make-filename
                              (snow2-repository-url repo) filename)))
-
-                      ;; (display "filename: ")
-                      ;; (write filename)
-                      ;; (newline)
-
-                      ;; (display "repo-local-name: ")
-                      ;; (write repo-local-name)
-                      ;; (newline)
-
-                      ;; (display "link-name: ")
-                      ;; (write link-name)
-                      ;; (newline)
-
-                      ;; (display "link-dir: ")
-                      ;; (write link-dir)
-                      ;; (newline)
-
-                      ;; (display "libfile-name: ")
-                      ;; (write libfile-name)
-                      ;; (newline)
-
-                      ;; (display "package-local-directory: ")
-                      ;; (write package-local-directory)
-                      ;; (newline)
-
-                      ;; (display "snow2-repository-url: ")
-                      ;; (write (snow-filename-strip-extension
-                      ;;         (snow2-repository-url repo)))
-                      ;; (newline)
-
-
                       (display "linking ")
                       (display libfile-name)
                       (display " to ")
