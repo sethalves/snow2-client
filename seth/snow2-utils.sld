@@ -271,6 +271,14 @@
              '())))
 
 
+    (define (snow2-packages-libraries packages)
+      (fold
+       (lambda (package lst)
+         (append (snow2-package-libraries package) lst))
+       '()
+       packages))
+
+
     (define (package-contains-library? package library-name)
       ;; return #t if a package contains any libraries with the given name
       (let loop ((libraries (snow2-package-libraries package)))
@@ -311,6 +319,21 @@
                          (loop (cdr packages)
                                candidate-packages))))))))))
 
+
+    (define (find-packages-with-libraries repositories library-names)
+      (let ((package-url-ht (make-hash-table)))
+        (for-each
+         (lambda (library-name)
+           (let ((package
+                  (find-package-with-library repositories library-name)))
+             (cond ((not package)
+                    (error "didn't find a package with library: ~S\n"
+                           library-name))
+                   (else
+                    (hash-table-set!
+                     package-url-ht (snow2-package-url package) package)))))
+         library-names)
+        (hash-table-values package-url-ht)))
 
 
     (define (library-from-name repositories library-name)
@@ -445,14 +468,20 @@
                  (loop (cdr tar-recs)))))))
 
 
-    (define (install repositories library-name use-symlinks verbose)
+    (define (install repositories library-names use-symlinks verbose)
 
       (define (install-from-tgz repo local-package-filename)
         (snow-with-exception-catcher
          (lambda (err)
-           (display "Error: " (current-error-port))
-           (display (snow-error-condition-msg err) (current-error-port))
-           (newline)
+           (display "Error -- " (current-error-port))
+           (display local-package-filename (current-error-port))
+           (display " " (current-error-port))
+           (cond
+            ((snow-error-condition? err)
+             (display (snow-error-condition-msg err) (current-error-port)))
+            (else
+             (display err)))
+           (newline (current-error-port))
            #f)
          (lambda ()
            (let* ((bin-port (binio-open-input-file
@@ -559,7 +588,7 @@
                              (snow-delete-file link-name)))
 
                       (snow-create-symbolic-link
-                       (cond ((snow-filename-relative? link-name)
+                       (cond ((snow-filename-relative? libfile-name)
                               ;; we are making a link in a subdirectory,
                               ;; so prepend the required number of ../
                               (let* ((link-parts
@@ -597,57 +626,48 @@
                    (newline)
                    (install-from-tgz repo local-package-filename))))))
 
-
-      (let ((package (find-package-with-library repositories library-name)))
-        (cond ((not package)
-               (error "didn't find a package with library: ~S\n"
-                      library-name))
-              (else
-               (let* ((libraries (snow2-package-libraries package))
-                      (packages (gather-depends repositories libraries)))
-                 (for-each
-                  (lambda (package)
-                    (let* ((package-repo (snow2-package-repository package))
-                           (url (snow2-package-url package))
-                           (success
-                            (cond
-                             ((snow2-repository-local package-repo)
-                              (install-from-directory package-repo package url))
-                             (else
-                              (install-from-http package-repo package url)))))
-                      (cond
-                       ((not success)
-                        (display "Failed to install " (current-error-port))
-                        (display (snow2-package-name package)
-                                 (current-error-port))
-                        (display ", " (current-error-port))
-                        (display (snow2-package-url package)
-                                 (current-error-port))
-                        (newline (current-error-port))))))
-                  packages))))))
+      (let* ((pkgs (find-packages-with-libraries repositories library-names))
+             (libraries (snow2-packages-libraries pkgs))
+             (packages (gather-depends repositories libraries)))
+        (for-each
+         (lambda (package)
+           (let* ((package-repo (snow2-package-repository package))
+                  (url (snow2-package-url package))
+                  (success
+                   (cond
+                    ((snow2-repository-local package-repo)
+                     (install-from-directory package-repo package url))
+                    (else
+                     (install-from-http package-repo package url)))))
+             (cond
+              ((not success)
+               (display "Failed to install " (current-error-port))
+               (display (snow2-package-name package)
+                        (current-error-port))
+               (display ", " (current-error-port))
+               (display (snow2-package-url package)
+                        (current-error-port))
+               (newline (current-error-port))))))
+         packages)))
 
 
-    (define (uninstall repositories library-name)
+    (define (uninstall repositories library-names)
       #f)
 
 
-    (define (list-depends repositories library-name)
+    (define (list-depends repositories library-names)
       ;; print out what library-name depends on
-      (let ((package (find-package-with-library repositories library-name)))
-        (cond ((not package)
-               (error "didn't find a package with library: ~S\n"
-                      library-name))
-              (else
-               (let* ((libraries (snow2-package-libraries package))
-                      (packages (gather-depends repositories libraries)))
-                 (for-each
-                  (lambda (package)
-                    (for-each
-                     (lambda (library)
-                       (display (snow2-library-name library))
-                       (newline))
-                     (snow2-package-libraries package)))
-                  packages))))))
+      (let* ((pkgs (find-packages-with-libraries repositories library-names))
+             (libraries (snow2-packages-libraries pkgs))
+             (packages (gather-depends repositories libraries)))
+        (for-each
+         (lambda (package)
+           (for-each
+            (lambda (library)
+              (display (snow2-library-name library))
+              (newline))
+            (snow2-package-libraries package)))
+         packages)))
 
 
     (define (filter-libraries libs search-term)
@@ -697,7 +717,8 @@
 
 
 
-    (define (client repository-urls operation library-name use-symlinks verbose)
+    (define (client repository-urls operation library-names
+                    use-symlinks verbose)
       (let ((repositories (get-repositories-and-siblings '() repository-urls)))
 
         (cond (verbose
@@ -711,11 +732,11 @@
                 repositories)))
 
         (cond ((equal? operation "install")
-               (install repositories library-name use-symlinks verbose))
+               (install repositories library-names use-symlinks verbose))
               ((equal? operation "uninstall")
-               (uninstall repositories library-name))
+               (uninstall repositories library-names))
               ((equal? operation "list-depends")
-               (list-depends repositories library-name))
+               (list-depends repositories library-names))
               (else
                (error "unknown snow2 client operation" operation)))))
 
@@ -810,15 +831,20 @@
                  (usage (string-append "Unknown operation: "
                                        operation "\n\n")))
                 (else
-                 (for-each
-                  (lambda (library-name-argument)
-                    (let ((library-name
-                           (read-from-string library-name-argument)))
-                      ;; XXX this risks installing the same library
-                      ;; more than once.
-                      (client repository-urls operation
-                              library-name use-symlinks verbose)))
-                  libs-or-st))))))))
+                 (let ((library-names
+                        (map
+                         (lambda (library-name-argument)
+                           (read-from-string library-name-argument))
+                         libs-or-st)))
+                   (cond (verbose
+                          (display "libraries to install:\n"
+                                   (current-error-port))
+                          (write library-names)
+                          (newline)))
+                   (client repository-urls operation
+                           library-names use-symlinks verbose))
+
+                 )))))))
 
 ;; "http://snow2.s3-website-us-east-1.amazonaws.com/"
 ;; "http://snow-repository.s3-website-us-east-1.amazonaws.com/"

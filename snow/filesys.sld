@@ -30,7 +30,11 @@
           ;; snow-make-temp-filename
           snow-directory-subfiles
           snow-create-directory-recursive
-          snow-create-symbolic-link)
+          snow-create-symbolic-link
+
+          current-directory
+          change-directory
+          )
   (import (scheme base)
           (scheme file)
           (snow bytevector)
@@ -311,6 +315,10 @@
         (sys-symlink filename linkname)
         ;; (symlink filename linkname)
         )
+
+      (define current-directory sys-getcwd)
+      (define change-directory sys-chdir)
+
       )
 
      (guile

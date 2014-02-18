@@ -56,9 +56,6 @@
     (import (only (scheme) vector-length)) ;; XXX
     (import (only (scheme) vector?)) ;; XXX
     (import (only (scheme) signal?)) ;; XXX
-    ;; (import (only (scheme) string->keyword)) ;; XXX
-    ;; (import (only (scheme) keyword->string)) ;; XXX
-    ;; (import (only (scheme) keyword?)) ;; XXX
     (import (only (chicken) condition-property-accessor))
     )
    (gauche)

@@ -20,6 +20,16 @@
    string-suffix-ci?
    string-contains
    string-contains-ci
+   substring/shared
+   string-concatenate
+   string-concatenate/shared
+   string-append/shared
+   string-concatenate-reverse
+   string-concatenate-reverse/shared
+   string-index
+   string-index-right
+   string-skip
+   string-skip-right
    ;; XXX the rest...
    )
   (import (scheme base))
@@ -43,6 +53,9 @@
 
      (else
       ;; XXX has anyone ported srfi-13 to chibi?
+
+      ;; here is a partially and poorly implemented and less-macro'ed
+      ;; version of srfi-13
 
       (define (string-tokenize s . token-chars+start+end)
         (let* ((args-len (length token-chars+start+end))
@@ -214,4 +227,83 @@
       (define (string-contains-ci s1 s2 . opt-args)
         (string-contains-worker s1 s2 string-prefix-ci? opt-args))
 
+
+
+      (define substring/shared substring)
+
+      (define (string-concatenate args)
+        (apply string-append args))
+
+      (define string-concatenate/shared string-concatenate)
+
+      (define string-append/shared string-append)
+
+      (define (string-concatenate-reverse string-list . oa)
+        (let* ((oa-len (length oa))
+               (final-string-0 (if (> oa-len 0) (car oa) #f))
+               (end (if (> oa-len 1) (cadr oa) #f))
+               (final-string-1
+                (cond ((not final-string-0) #f)
+                      ((not end) final-string-0)
+                      (else
+                       (substring/shared final-string-0 0 end))))
+               (string-list
+                (cond (final-string-1
+                       (cons final-string-1 string-list))
+                      (else string-list))))
+          (string-concatenate (reverse string-list))))
+
+      (define string-concatenate-reverse/shared string-concatenate-reverse)
+
+
+
+      (define (string-index/skip-tester char/char-set/pred)
+        (cond ((procedure? char/char-set/pred) char/char-set/pred)
+              ((char-set? char/char-set/pred)
+               (lambda (c) (char-set-contains? char/char-set/pred c)))
+              (else (lambda (c) (eqv? c char/char-set/pred)))))
+
+      (define (string-index/skip-start-end s start+end)
+        (let* ((args-len (length start+end))
+               (start (if (> args-len 0)
+                          (list-ref start+end 0)
+                          0))
+               (end (if (> args-len 1)
+                        (list-ref start+end 1)
+                        (string-length s))))
+          (values start end)))
+
+      (define (string-index s char/char-set/pred . start+end)
+        (let-values (((start end) (string-index/skip-start-end s start+end)))
+          (let ((tester (string-index/skip-tester char/char-set/pred)))
+            (let loop ((i start))
+              (cond ((>= i end) #f)
+                    ((tester (string-ref s i)) i)
+                    (else (loop (+ i 1))))))))
+
+      (define (string-index-right s char/char-set/pred . start+end)
+        (let-values (((start end) (string-index/skip-start-end s start+end)))
+          (let ((tester (string-index/skip-tester char/char-set/pred)))
+            (let loop ((i (- end 1)))
+              (cond ((< i start) #f)
+                    ((tester (string-ref s i)) i)
+                    (else (loop (- i 1))))))))
+
+      (define (string-skip s char/char-set/pred . start+end)
+        (let-values (((start end) (string-index/skip-start-end s start+end)))
+          (let* ((tester (string-index/skip-tester char/char-set/pred))
+                 (stester (lambda (c) (not (tester c)))))
+            (let loop ((i start))
+              (cond ((>= i end) #f)
+                    ((stester (string-ref s i)) i)
+                    (else (loop (+ i 1))))))))
+
+      (define (string-skip-right s char/char-set/pred . start+end)
+        (let-values (((start end) (string-index/skip-start-end s start+end)))
+          (let* ((tester (string-index/skip-tester char/char-set/pred))
+                 (stester (lambda (c) (not (tester c)))))
+            (let loop ((i (- end 1)))
+              (cond ((< i start) #f)
+                    ((stester (string-ref s i)) i)
+                    (else (loop (- i 1))))))))
       ))))
