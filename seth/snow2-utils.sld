@@ -7,34 +7,24 @@
           install
           uninstall
           client
-          main-program
-          )
-  (import (scheme base) (scheme read))
+          main-program)
+
+  (import (scheme base) (scheme read) (scheme write)
+          (scheme file) (scheme process-context))
   (cond-expand
-   (chibi (import (scheme write)
-                  (scheme file)
-                  (only (srfi 1) filter make-list any)
-                  (chibi filesystem)
-                  (scheme process-context)))
-   (chicken (import (scheme read) (scheme write)
-                    (scheme file) (srfi 1)
-                    (scheme process-context)))
-   (gauche (import (scheme write)
-                   (scheme file)
-                   (srfi 1)
-                   (scheme process-context)))
-   (sagittarius (import (scheme file)
-                        (scheme write)
-                        (srfi 1)
-                        (scheme process-context))))
-  (import (snow snowlib))
-  (import (snow srfi-13-strings))
-  (import (seth srfi-69-hash-tables))
-  (import (snow filesys) (snow binio) (snow genport) (snow zlib) (snow tar))
-  (import (prefix (seth http) http-))
-  (import (seth temporary-file))
-  (import (seth string-read-write))
-  (import (seth srfi-37-argument-processor))
+   (chibi (import (only (srfi 1) filter make-list any fold)))
+   (else (import (srfi 1))))
+  (cond-expand
+   (chibi (import (chibi filesystem)))
+   (else))
+  (import (snow snowlib)
+          (snow srfi-13-strings)
+          (seth srfi-69-hash-tables)
+          (snow filesys) (snow binio) (snow genport) (snow zlib) (snow tar)
+          (prefix (seth http) http-)
+          (seth temporary-file)
+          (seth string-read-write)
+          (seth srfi-37-argument-processor))
   (begin
 
     (define-record-type <snow2-repository>
@@ -401,6 +391,8 @@
                 (display "unable to fetch repository index: "
                          (current-error-port))
                 (display repository-url (current-error-port))
+                (newline (current-error-port))
+                (display exn)
                 (newline (current-error-port))
                 #f)
               (lambda ()
@@ -769,7 +761,20 @@
         (display "Print more.\n" (current-error-port))
         (display "  -h --help            " (current-error-port))
         (display "Print usage message.\n" (current-error-port))
+        (display "\nExample: snow2 install '(snow srfi-13-strings)'\n")
         (exit 1)))
+
+
+    (define (read-library-name library-name-argument)
+      (snow-with-exception-catcher
+       (lambda (exn)
+         (usage
+          (string-append
+           "\nincorrectly formatted library-name argument: \""
+           library-name-argument
+           "\"\n\n")))
+       (lambda ()
+         (read-from-string library-name-argument))))
 
 
     (define (main-program)
@@ -815,11 +820,7 @@
                  (usage (string-append "Unknown operation: "
                                        operation "\n\n")))
                 (else
-                 (let ((library-names
-                        (map
-                         (lambda (library-name-argument)
-                           (read-from-string library-name-argument))
-                         libs-or-st)))
+                 (let ((library-names (map read-library-name libs-or-st)))
                    (cond (verbose
                           (display "libraries to install:\n"
                                    (current-error-port))
@@ -827,7 +828,6 @@
                           (newline)))
                    (client repository-urls operation
                            library-names use-symlinks verbose))
-
                  )))))))
 
 ;; "http://snow2.s3-website-us-east-1.amazonaws.com/"
