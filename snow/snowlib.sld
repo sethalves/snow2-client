@@ -52,12 +52,7 @@
   (import (scheme base) (scheme write))
   (cond-expand
    (chibi)
-   (chicken
-    (import (only (scheme) vector-length)) ;; XXX
-    (import (only (scheme) vector?)) ;; XXX
-    (import (only (scheme) signal?)) ;; XXX
-    (import (only (chicken) condition-property-accessor))
-    )
+   (chicken (import (only (chicken) handle-exceptions)))
    (gauche)
    (sagittarius))
   (begin
@@ -159,25 +154,28 @@
 
       (define (snow-raise exc)
         ;; (signal exc)
-        (error exc)
-        )
+        (error exc))
 
       (define (snow-with-exception-catcher catcher thunk)
-        ((call-with-current-continuation
-          (lambda (unwind-and-call)
-            (lambda ()
-              (with-exception-handler
-               (lambda (exc)
-                 (unwind-and-call
-                  (lambda ()
-                    (catcher
-                     ((condition-property-accessor 'exn 'message) exc)))))
-               (lambda ()
-                 (call-with-values
-                     thunk
-                   (lambda results
-                     (unwind-and-call
-                      (lambda () (apply values results)))))))))))))
+        (handle-exceptions exn (catcher exn) (thunk)))
+
+      ;; (define (snow-with-exception-catcher catcher thunk)
+      ;;   ((call-with-current-continuation
+      ;;     (lambda (unwind-and-call)
+      ;;       (lambda ()
+      ;;         (with-exception-handler
+      ;;          (lambda (exc)
+      ;;            (unwind-and-call
+      ;;             (lambda ()
+      ;;               (catcher
+      ;;                ((condition-property-accessor 'exn 'message) exc)))))
+      ;;          (lambda ()
+      ;;            (call-with-values
+      ;;                thunk
+      ;;              (lambda results
+      ;;                (unwind-and-call
+      ;;                 (lambda () (apply values results))))))))))))
+      )
 
      (guile
 
@@ -543,10 +541,10 @@
 
     (define (snow-error msg . args)
 
-      (display "*** SNOW ERROR -- ")
-      (display msg)
-      (for-each (lambda (x) (display " ") (write x)) args)
-      (newline)
+      ;; (display "*** SNOW ERROR -- ")
+      ;; (display msg)
+      ;; (for-each (lambda (x) (display " ") (write x)) args)
+      ;; (newline)
 
       (snow-raise (make-snow-error-condition msg args)))
 

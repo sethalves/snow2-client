@@ -8,6 +8,8 @@
 
 ;;; Contains procedures to pack and unpack tar files.
 
+;; http://ktakashi.github.io/sagittarius-ref.html#archive
+
 
 (define-library (snow tar)
   (export make-tar-condition

@@ -44,6 +44,15 @@
    (sagittarius))
   (begin
 
+    ;; http://wiki.call-cc.org/man/4/Unit%20ports
+
+    ;; http://practical-scheme.net/gauche/man/gauche-refe_107.html#Virtual-ports
+
+    ;; chibi has make-custom-input-port and make-custom-output-port and
+    ;; make-generated-input-port in (chibi io)
+
+    ;; sagittarius has make-custom-input-port ?  only shows up in a test
+
     (define-record-type <genport>
       (make-genport end read write)
       genport?

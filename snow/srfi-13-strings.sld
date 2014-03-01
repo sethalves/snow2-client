@@ -30,6 +30,7 @@
    string-index-right
    string-skip
    string-skip-right
+   reverse-list->string
    ;; XXX the rest...
    )
   (import (scheme base))
@@ -306,4 +307,23 @@
               (cond ((< i start) #f)
                     ((stester (string-ref s i)) i)
                     (else (loop (- i 1))))))))
-      ))))
+
+      ))
+
+
+    (cond-expand
+     ((or chibi chicken)
+      ;; XXX remove this when chicken's (srfi 13) has it
+      (define (reverse-list->string char-list)
+        (let* ((len (length char-list))
+               (s (make-string len)))
+          (let loop ((i (- len 1))
+                     (char-list char-list))
+            (cond ((null? char-list) s)
+                  (else
+                   (string-set! s i (car char-list))
+                   (loop (- i 1)
+                         (cdr char-list))))))))
+     (else))
+
+    ))

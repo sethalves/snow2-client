@@ -174,10 +174,19 @@
 
 
     (define (depend-from-sexp depend-sexp)
+      ;; depend-sexp will be a library name, like (snow snowlib)
       depend-sexp)
 
 
     (define (sibling-from-sexp sibling-sexp)
+      ;; siblings look like
+      ;;
+      ;; (sibling
+      ;;  (name "Snow Base Repository")
+      ;;  (url "http://snow-repository.s3-website-us-east-1.amazonaws.com/")
+      ;;  (trust 1.0))
+      ;;
+      ;; we save the trust value, but don't currently do anything with it.
       (let ((name (get-string-by-type sibling-sexp 'name #f))
             (url (get-string-by-type sibling-sexp 'url #f))
             (trust (get-number-by-type sibling-sexp 'trust 0.5)))
@@ -214,7 +223,7 @@
                  package)))))
 
 
-    (define (repository-from-sexp repository-sexp local url)
+    (define (repository-from-sexp repository-sexp)
       ;; convert an s-exp into a repository record
       (cond ((not (list? repository-sexp))
              (error "repository definition isn't a list."))
@@ -229,7 +238,7 @@
                     (sibling-sexps
                      (get-children-by-type repository-sexp 'sibling))
                     (siblings (map sibling-from-sexp sibling-sexps))
-                    (repo (make-snow2-repository siblings packages local url)))
+                    (repo (make-snow2-repository siblings packages #f #f)))
                ;; backlink package to repository
                (for-each
                 (lambda (package)
@@ -238,12 +247,10 @@
                repo))))
 
 
-    (define (read-repository in-port local url)
-      ;; read an s-exp from (current-input-port) and convert it to
-      ;; a repository record
-      (let* ((repository-sexp (read in-port))
-             (repository (repository-from-sexp repository-sexp local url)))
-        repository))
+    (define (read-repository in-port)
+      ;; read an s-exp from in-port and convert it to a repository record.
+      (let* ((repository-sexp (read in-port)))
+        (repository-from-sexp repository-sexp)))
 
 
     (define (get-snow2-repo-name package)
@@ -392,21 +399,25 @@
                          (current-error-port))
                 (display repository-url (current-error-port))
                 (newline (current-error-port))
-                (display exn)
+                (display exn (current-error-port))
                 (newline (current-error-port))
                 #f)
               (lambda ()
-                (http-call-with-request-body
-                 repository-url
-                 (lambda (in-port)
-                   (read-repository in-port #f repository-url))))))
+                (let ((repository
+                       (http-call-with-request-body
+                        repository-url read-repository)))
+                  (set-snow2-repository-local! repository #f)
+                  (set-snow2-repository-url! repository repository-url)
+                  repository))))
             (else
              ;; read from local filesystem
              (let* ((index-path (snow-make-filename repository-url "index.scm"))
                     (in-port (open-input-file index-path))
-                    (repo (read-repository in-port #t repository-url)))
+                    (repository (read-repository in-port)))
+               (set-snow2-repository-local! repository #t)
+               (set-snow2-repository-url! repository repository-url)
                (close-input-port in-port)
-               repo))))
+               repository))))
 
 
     (define (get-repositories-and-siblings repositories repository-urls)
