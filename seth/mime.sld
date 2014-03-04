@@ -1,5 +1,6 @@
 (define-library (seth mime)
-  (export assq-ref mime-header-fold mime-headers->list
+  (export assq-ref assq-set
+          mime-header-fold mime-headers->list
           mime-parse-content-type mime-decode-header
           mime-message-fold mime-message->sxml mime-write-headers)
   (import (scheme base)
@@ -21,52 +22,43 @@
    (sagittarius
     (import (rfc mime)
             (snow srfi-13-strings)
+            (snow extio)
             )
     ))
 
   (begin
-    (cond-expand
-     (sagittarius
-      ;; Sagittarius' read-line doesn't accept an upper length.
-      ;; These are from chibi.
-      (define (%read-line n in)
-        (let ((out (open-output-string)))
-          (let lp ()
-            (let ((ch (read-char in)))
-              (cond
-               ((eof-object? ch)
-                (let ((res (get-output-string out)))
-                  (and (not (equal? res "")) res)))
-               (else
-                (write-char ch out)
-                (cond
-                 ((eqv? ch #\newline)
-                  (get-output-string out))
-                 ((eqv? ch #\return)
-                  (if (eqv? #\newline (peek-char in))
-                      (read-char in))
-                  (get-output-string out))
-                 (else
-                  (lp)))))))))
 
-      (define (read-line . o)
-        (let ((in (if (pair? o) (car o) (current-input-port)))
-              (n (if (and (pair? o) (pair? (cdr o))) (car (cdr o)) 8192)))
-          (let ((res (%read-line n in)))
-            (if (not res)
-                (eof-object)
-                (let ((len (string-length res)))
-                  (cond
-                   ((and (> len 0) (eqv? #\newline (string-ref res (- len 1))))
-                    (if (and (> len 1)
-                             (eqv? #\return (string-ref res (- len 2))))
-                        (substring res 0 (- len 2))
-                        (substring res 0 (- len 1))))
-                   ((and (> len 0) (eqv? #\return (string-ref res (- len 1))))
-                    (substring res 0 (- len 1)))
-                   (else
-                    res))))))))
-     (else))
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; association lists
+
+    ;;> \procedure{(assq-ref ls key [default])}
+    ;;> Returns the \scheme{cdr} of the cell in \var{ls} whose
+    ;;> \scheme{car} is \scheme{eq?} to \var{key}, or \var{default}
+    ;;> if not found.  Useful for retrieving values associated with
+    ;;> MIME headers.
+
+    (define (assq-ref ls key . o)
+      (cond ((assq key ls) => cdr) (else (and (pair? o) (car o)))))
+
+    (define (assq-set ls key value)
+      (let loop ((ls ls)
+                 (result '())
+                 (found #f))
+        (cond ((null? ls)
+               (if found
+                   (reverse result)
+                   (reverse (cons (cons key value) result))))
+              (found
+               ;; only change the first instance we find.
+               (loop (cdr ls) (cons (car ls) result) found))
+              (else
+               (let ((ls-key (caar ls))
+                     (ls-value (cdr (car ls))))
+                 (if (eq? ls-key key)
+                     (loop (cdr ls) (cons (cons ls-key value) result) #t)
+                     (loop (cdr ls) (cons (car ls) result) found)))))))
+
+
 
 
     (cond-expand
@@ -104,18 +96,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define mime-line-length-limit 4096)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; association lists
-
-;;> \procedure{(assq-ref ls key [default])}
-;;> Returns the \scheme{cdr} of the cell in \var{ls} whose
-;;> \scheme{car} is \scheme{eq?} to \var{key}, or \var{default}
-;;> if not found.  Useful for retrieving values associated with
-;;> MIME headers.
-
-(define (assq-ref ls key . o)
-  (cond ((assq key ls) => cdr) (else (and (pair? o) (car o)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; simple matching instead of regexps

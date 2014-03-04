@@ -83,6 +83,12 @@
     ;; http://ktakashi.github.io/sagittarius-ref.html#lib.sagittarius.socket
     (import (scheme read)
             (scheme write)
+            (only (rnrs)
+                  transcoded-port
+                  make-transcoder
+                  ;; utf-8-codec
+                  latin-1-codec
+                  eol-style)
             (sagittarius socket)
             (snow bytevector)
             (seth port-extras)))
@@ -248,11 +254,31 @@
         (cadr sock))
       (define (socket:inbound-read-port sock)
         (car sock)))
-     ((or gauche sagittarius)
+     (gauche
       (define (socket:outbound-write-port sock)
         (socket-output-port sock))
       (define (socket:inbound-read-port sock)
-        (socket-input-port sock))))
+        (socket-input-port sock)))
+
+     (sagittarius
+      (define (bin->textual port)
+        (transcoded-port port (make-transcoder
+                               (latin-1-codec)
+                               ;; (eol-style lf)
+                               (eol-style none)
+                               )))
+
+      (define (socket:outbound-write-port sock)
+        (bin->textual (socket-output-port sock)))
+
+      (define (socket:inbound-read-port sock)
+        (bin->textual (socket-input-port sock))))
+
+
+      ;; (define (socket:inbound-read-port sock)
+      ;;   (socket-input-port sock)))
+
+     )
 
     (cond-expand
      (chibi

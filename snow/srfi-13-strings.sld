@@ -62,7 +62,8 @@
         (let* ((args-len (length token-chars+start+end))
                (token-chars (if (> args-len 0)
                                 (list-ref token-chars+start+end 0)
-                                char-set:graphic))
+                                (lambda (c)
+                                  (char-set-contains? char-set:graphic c))))
                (start (if (> args-len 1)
                           (list-ref token-chars+start+end 1)
                           0))
@@ -82,9 +83,10 @@
                     (let ((current-char (string-ref s 0))
                           (s (substring s 1 (string-length s))))
                       (cond ((token-chars current-char)
-                             (loop (tokens
-                                    (string-append current-token current-char)
-                                    s)))
+                             (loop tokens
+                                   (string-append
+                                    current-token (string current-char))
+                                   s))
                             (else
                              (loop (cons current-token tokens)
                                    ""

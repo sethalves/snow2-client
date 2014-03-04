@@ -12,7 +12,6 @@
           read-word
           read-words
           port-find-byte
-          generate-eof-object
           )
   (import (scheme base))
   (cond-expand
@@ -154,31 +153,8 @@
               ((= c byte) #t)
               (else (port-find-byte port byte)))))
 
+    ;; (define (generate-eof-object)
+    ;;   ;; in racket, there's eof
+    ;;   (read-char (open-input-string "")))
 
-    ;; (define (make-line-splitter line-received-func)
-    ;;   (define buffer (list))
-    ;;   (lambda (conn data)
-    ;;     (cond
-    ;;      ((eof-object? data)
-    ;;       ;; xxx what if buffer isn't empty?
-    ;;       (line-received-func conn data))
-    ;;      (else
-    ;;       (set! buffer (append buffer (string->list data)))
-    ;;       (let loop ((in-line (list))
-    ;;                  (after-line buffer))
-    ;;         (cond ((null? after-line)
-    ;;                (set! buffer (reverse in-line)))
-    ;;               ((equal? (car after-line) #\newline)
-    ;;                (let ((line
-    ;;                       (list->string (reverse (cons #\newline in-line)))))
-    ;;                  (line-received-func conn line)
-    ;;                  (loop (list) (cdr after-line))))
-    ;;               (else
-    ;;                (loop (cons (car after-line) in-line)
-    ;;                      (cdr after-line)))))))))
-
-
-    (define (generate-eof-object)
-      ;; in racket, there's eof
-      (read-char (open-input-string "")))
     ))
