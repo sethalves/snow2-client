@@ -9,7 +9,15 @@
    (chicken
     (import (posix)))
    (gauche (import (scheme file) (file util) (seth srfi-27-random)))
-   (sagittarius (import (scheme file) (util file) (seth srfi-27-random)))
+   (sagittarius (import (scheme file)
+                        (util file)
+                        (only (rnrs)
+                              transcoded-port
+                              make-transcoder
+                              latin-1-codec
+                              eol-style)
+                        (seth srfi-27-random)
+                        ))
    )
   (begin
     (cond-expand
@@ -46,7 +54,11 @@
                               "."
                               (number->string
                                (+ 100000 (random-integer 899999))))))
-          (values (open-output-file temp-path :transcoder #f)
+          (values (open-output-file temp-path
+                                    ;; :transcoder #f
+                                    :transcoder (make-transcoder
+                                                 (latin-1-codec)
+                                                 (eol-style none)))
                   temp-path))
         ))
 

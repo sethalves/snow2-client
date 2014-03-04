@@ -392,8 +392,8 @@
                (cond ((eof-object? c)
                       (close-output-port write-port)
                       #t)
-                     ((> (char->integer c) 255)
-                      (snow-error "download-file OOPS"))
+;                     ((> (char->integer c) 255)
+;                      (snow-error "download-file OOPS"))
                      (else
-                      (write-u8 (char->integer c) write-port)
+                      (write-char c write-port)
                       (loop))))))))))))
