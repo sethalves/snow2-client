@@ -44,20 +44,26 @@
    (chibi
     ;; http://synthcode.com/scheme/chibi/lib/chibi/filesystem.html
     (import (only (srfi 1) filter)
-            (chibi filesystem)))
+            (chibi filesystem)
+            (chibi char-set)
+            (chibi char-set ascii)))
    (chicken
-    (import (chicken))
-    (import (posix))
     ;; (import (posix-extras))
     ;; (import (directory-utils))
-    )
+    (import (chicken)
+            (posix)
+            (srfi 14)))
    (gauche
     ;; (import (only (gauche) symlink))
-    (import (snow gauche-filesys-utils))
-    (import (gauche fileutil) (file util)))
+    (import (snow gauche-filesys-utils)
+            (gauche fileutil) (file util)
+            (srfi 14)))
    (sagittarius
     ;; http://ktakashi.github.io/sagittarius-ref.html#G1146
-    (import (sagittarius) (srfi 1) (util file)))
+    (import (sagittarius)
+            (srfi 1)
+            (util file)
+            (srfi 14)))
    (else))
 
   (begin
@@ -820,7 +826,10 @@
 
     (define (snow-unmake-filename filename)
       (string-tokenize
-       filename (lambda (c) (not (eqv? c (directory-separator))))))
+       filename
+       ;; (lambda (c) (not (eqv? c (directory-separator))))
+       (char-set-complement (string->char-set (string (directory-separator))))
+       ))
 
 
     (define (snow-filename-relative? filename)

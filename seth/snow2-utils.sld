@@ -24,7 +24,8 @@
           (prefix (seth http) http-)
           (seth temporary-file)
           (seth string-read-write)
-          (seth srfi-37-argument-processor))
+          (seth srfi-37-argument-processor)
+          (seth uri))
   (begin
 
     (define-record-type <snow2-repository>
@@ -173,6 +174,9 @@
                (cdr child)))))
 
 
+    (define uri->hashtable-key uri->string)
+
+
     (define (depend-from-sexp depend-sexp)
       ;; depend-sexp will be a library name, like (snow snowlib)
       depend-sexp)
@@ -190,7 +194,7 @@
       (let ((name (get-string-by-type sibling-sexp 'name #f))
             (url (get-string-by-type sibling-sexp 'url #f))
             (trust (get-number-by-type sibling-sexp 'trust 0.5)))
-        (make-snow2-sibling name url trust)))
+        (make-snow2-sibling name (uri-reference url) trust)))
 
 
     (define (library-from-sexp library-sexp)
@@ -214,7 +218,8 @@
               ((not name) #f)
               (else
                (let* ((libraries (map library-from-sexp library-sexps))
-                      (package (make-snow2-package name url libraries #f)))
+                      (package (make-snow2-package
+                                name (uri-reference url) libraries #f)))
                  ;; backlink to packages
                  (for-each
                   (lambda (library)
@@ -328,7 +333,9 @@
                            library-name))
                    (else
                     (hash-table-set!
-                     package-url-ht (snow2-package-url package) package)))))
+                     package-url-ht
+                     (uri->hashtable-key (snow2-package-url package))
+                     package)))))
          library-names)
         (hash-table-values package-url-ht)))
 
@@ -360,18 +367,21 @@
            (let ((lib-name (snow2-library-name library)))
              (let ((package (find-package-with-library repositories lib-name)))
                (hash-table-set! lib-name-ht lib-name library)
-               (hash-table-set! package-url-ht (snow2-package-url package)
-                                package))
+               (hash-table-set!
+                package-url-ht
+                (uri->hashtable-key (snow2-package-url package))
+                package))
 
              (for-each
               (lambda (depend)
                 (let* ((package (find-package-with-library repositories depend))
                        (libs (snow2-package-libraries package)))
-                  (hash-table-set! package-url-ht
-                                   (snow2-package-url package)
-                                   package)
+                  (hash-table-set!
+                   package-url-ht
+                   (uri->hashtable-key (snow2-package-url package))
+                   package)
                   ;; XXX if the same lib is in more than one
-                  ;; package there should be some reason to pick one
+                  ;; package, there should be some reason to pick one
                   ;; over the other?
                   (for-each
                    (lambda (lib)
@@ -389,15 +399,13 @@
 
 
     (define (get-repository repository-url)
-      (cond ((and (> (string-length repository-url) 8)
-                  (or (string-prefix? "http://" repository-url)
-                      (string-prefix? "https://" repository-url)))
+      (cond ((memq (uri-scheme repository-url) '(http https))
              ;; get repository over http
              (snow-with-exception-catcher
               (lambda (exn)
                 (display "unable to fetch repository index: "
                          (current-error-port))
-                (display repository-url (current-error-port))
+                (display (uri->string repository-url) (current-error-port))
                 (newline (current-error-port))
                 (display exn (current-error-port))
                 (newline (current-error-port))
@@ -405,13 +413,16 @@
               (lambda ()
                 (let ((repository
                        (http-call-with-request-body
-                        repository-url read-repository)))
+                        (uri->string repository-url)
+                        read-repository)))
                   (set-snow2-repository-local! repository #f)
                   (set-snow2-repository-url! repository repository-url)
                   repository))))
             (else
              ;; read from local filesystem
-             (let* ((index-path (snow-make-filename repository-url "index.scm"))
+             (let* ((index-path (snow-make-filename
+                                 (uri->string repository-url)
+                                 "index.scm"))
                     (in-port (open-input-file index-path))
                     (repository (read-repository in-port)))
                (set-snow2-repository-local! repository #t)
@@ -423,7 +434,7 @@
     (define (get-repositories-and-siblings repositories repository-urls)
       (define (make-repo-has-url? url)
         (lambda (repository)
-          (equal? (snow2-repository-url repository) url)))
+          (uri-equal? (snow2-repository-url repository) url)))
       (define (get-sibling-urls repository)
         (map snow2-sibling-url (snow2-repository-siblings repository)))
       (cond ((null? repository-urls) repositories)
@@ -499,9 +510,9 @@
         (let-values (((write-port local-package-filename)
                       (temporary-file)))
           (display "downloading ")
-          (display (snow-filename-strip-directory url))
+          (display (snow-filename-strip-directory (uri->string url)))
           (display " from ")
-          (display (snow2-repository-url repo))
+          (display (uri->string (snow2-repository-url repo)))
           (newline)
 
           (let ((download-success
@@ -509,13 +520,13 @@
                   (lambda (exn)
                     (display "unable to install package: "
                              (current-error-port))
-                    (display url (current-error-port))
+                    (display (uri->string url) (current-error-port))
                     (newline (current-error-port))
                     (display exn (current-error-port))
                     (newline (current-error-port))
                     #f)
                   (lambda ()
-                    (http-download-file url write-port)))))
+                    (http-download-file (uri->string url) write-port)))))
 
             (cond (download-success
                    (let ((success
@@ -532,20 +543,21 @@
           (define (local-repo-sld-files repo)
             ;; drop repo path from the start of each filename, skip test
             ;; directory.
-            (filter
-             (lambda (filename)
-               (let ((parts (snow-unmake-filename filename)))
-                 (or (< (length parts) 2)
-                     (not (equal? (car parts) package-local-name))
-                     (not (equal? (cadr parts) "test")))))
-             (map
-              (lambda (filename)
-                (substring filename
-                           (+ 1 (string-length ;; + 1 eats extra /
-                                 (snow-filename-strip-extension
-                                  (snow2-repository-url repo))))
-                           (string-length filename)))
-              (snow-directory-subfiles package-local-directory '(regular)))))
+            (let ((repo-path (uri->string (snow2-repository-url repo))))
+              (filter
+               (lambda (filename)
+                 (let ((parts (snow-unmake-filename filename)))
+                   (or (< (length parts) 2)
+                       (not (equal? (car parts) package-local-name))
+                       (not (equal? (cadr parts) "test")))))
+               (map
+                (lambda (filename)
+                  (substring filename
+                             (+ 1 (string-length ;; + 1 eats extra /
+                                   (snow-filename-strip-extension
+                                    repo-path)))
+                             (string-length filename)))
+                (snow-directory-subfiles package-local-directory '(regular))))))
 
 
           (for-each
@@ -560,9 +572,9 @@
                                 (snow-filename-directory filename))))
                              (snow-filename-strip-directory filename)))
                            (link-dir (snow-filename-directory link-name))
+                           (repo-path (uri->string (snow2-repository-url repo)))
                            (libfile-name
-                            (snow-make-filename
-                             (snow2-repository-url repo) filename)))
+                            (snow-make-filename repo-path filename)))
                       (display "linking ")
                       (display libfile-name)
                       (display " to ")
@@ -593,23 +605,22 @@
 
 
       (define (install-from-directory repo package url)
-        (let* ((package-file (snow-filename-strip-directory url))
+        (let* ((url-path (uri->string url))
+               (repo-path (uri->string (snow2-repository-url repo)))
+               (package-file (snow-filename-strip-directory url-path))
                (package-name (snow-filename-strip-extension package-file))
-               (package-local-directory (snow-make-filename
-                                         (snow2-repository-url repo)
-                                         package-name))
-               )
+               (package-local-directory
+                (snow-make-filename repo-path package-name)))
           (cond ((and use-symlinks
                       (snow-file-directory? package-local-directory))
                  (install-symlinks repo package package-local-directory))
                 (else
-                 (let ((local-package-filename (snow-make-filename
-                                                (snow2-repository-url repo)
-                                                package-file)))
+                 (let ((local-package-filename
+                        (snow-make-filename repo-path package-file)))
                    (display "extracting ")
                    (display package-file)
                    (display " from ")
-                   (display (snow2-repository-url repo))
+                   (display repo-path)
                    (newline)
                    (install-from-tgz repo local-package-filename))))))
 
@@ -632,7 +643,7 @@
                (display (snow2-package-name package)
                         (current-error-port))
                (display ", " (current-error-port))
-               (display (snow2-package-url package)
+               (display (uri->string (snow2-package-url package))
                         (current-error-port))
                (newline (current-error-port))))))
          packages)))
@@ -734,7 +745,7 @@
                (lambda (option name arg operation repos
                                use-symlinks libs verbose)
                  (values operation
-                         (reverse (cons arg (reverse repos)))
+                         (reverse (cons (uri-reference arg) (reverse repos)))
                          use-symlinks libs verbose)))
 
        (option '(#\s "symlink") #f #f
@@ -814,7 +825,9 @@
              )))
         (let ((repository-urls
                (if (null? repository-urls)
-                   '("http://snow2.s3-website-us-east-1.amazonaws.com/")
+                   (list
+                    (uri-reference
+                     "http://snow2.s3-website-us-east-1.amazonaws.com/"))
                    repository-urls)))
           (cond ((not operation) (usage ""))
                 ;; search operation
