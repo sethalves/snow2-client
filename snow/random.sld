@@ -53,7 +53,7 @@
         (let* ((in (binio-open-input-file (random-bits-file)))
                (u8vect (make-bytevector len))
                (n (binio-read-subu8vector u8vect 0 len in)))
-          (binio-close-input-port in)
+          (close-input-port in)
           (if (= n len)
               u8vect
               (error "random bits file ended prematurely"))))))

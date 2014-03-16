@@ -10,65 +10,29 @@
 
 
 (define-library (snow binio)
-  (export binio-input-port?
-          binio-output-port?
-          binio-open-input-file
+  (export binio-open-input-file
           binio-open-output-file
-          binio-close-input-port
-          binio-close-output-port
-          binio-read-byte
-          binio-write-byte
           binio-read-subu8vector
           binio-write-subu8vector
-          binio-write-latin-1-string
-          binio-read-latin-1-line
+          read-latin-1-string
+          write-latin-1-string
+          write-latin-1-char
+          latin-1-char-ready?
+          read-latin-1-char
+          peek-latin-1-char
+          read-latin-1-line
           )
-  (import (scheme base) (scheme file))
+  (import (scheme base)
+          (scheme write)
+          (scheme file))
   (cond-expand
    (chibi)
    (chicken)
    (gauche (import (binary io)))
    (sagittarius))
-  (import (snow bytevector))
+  (import (snow snowlib)
+          (snow bytevector))
   (begin
-
-    (cond-expand
-
-     (srfi-91
-
-      (define binio-read-byte read-byte)
-      (define binio-write-byte write-byte))
-
-     (gambit
-
-      (define binio-read-byte read-u8)
-      (define binio-write-byte write-u8))
-
-     (gauche
-
-      (define binio-read-byte read-binary-uint8)
-      (define binio-write-byte write-binary-uint8))
-
-     (mzscheme
-
-      (define binio-read-byte read-byte)
-      (define binio-write-byte write-byte))
-
-     (else
-
-      (define (binio-read-byte . args)
-        (let* ((args-len (length args))
-               (port (if (> args-len 0)
-                         (list-ref args 0)
-                         (current-input-port))))
-          (read-u8 port)))
-
-      (define (binio-write-byte n . args)
-        (let* ((args-len (length args))
-               (port (if (> args-len 0)
-                         (list-ref args 0)
-                         (current-output-port))))
-          (write-u8 n port)))))
 
     (cond-expand
 
@@ -87,7 +51,7 @@
                          (current-input-port))))
           (let loop ((i start))
             (if (< i end)
-                (let ((n (binio-read-byte port)))
+                (let ((n (read-u8 port)))
                   (if (eof-object? n)
                       (- i start)
                       (begin
@@ -103,7 +67,7 @@
           (let loop ((i start))
             (if (< i end)
                 (begin
-                  (binio-write-byte (bytevector-u8-ref u8vect i) port)
+                  (write-u8 (bytevector-u8-ref u8vect i) port)
                   (loop (+ i 1)))
                 (- i start)))))))
 
@@ -164,40 +128,108 @@
       (define (binio-open-output-file filename)
         (open-binary-output-file filename))))
 
-;;;----------------------------------------------------------------------------
 
-    (define (binio-input-port? port)
-      (input-port? port))
-
-    (define (binio-output-port? port)
-      (output-port? port))
-
-    (define (binio-close-input-port port)
-      (close-input-port port))
-
-    (define (binio-close-output-port port)
-      (close-output-port port))
-
-;;;============================================================================
-
-    (define (binio-write-latin-1-string str bin-port)
+    (define (write-latin-1-string str bin-port)
       (let ((bv (string->latin-1 str)))
         (binio-write-subu8vector
          bv 0 (bytevector-length bv) bin-port)))
 
 
-    (define (binio-read-latin-1-line bin-port)
-      (let loop ((ret (list)))
-        (let ((c (binio-read-byte bin-port)))
-          (cond ((or (eof-object? c) (= c 10))
-                 ;; drop any \r's off the end
-                 (let loop ((ret ret))
-                   (cond ((or (null? ret)
-                              (not (= (car ret) 13)))
-                          (list->string (map integer->char (reverse ret))))
-                         (else (loop (cdr ret))))))
+    (define (read-latin-1-string k . maybe-port)
+      (let ((port (if (pair? maybe-port)
+                      (car maybe-port)
+                      (current-input-port)))
+            (result (make-string k)))
+        (let loop ((i 0))
+          (cond ((= i k) result)
                 (else
-                 (loop (cons c ret)))))))
+                 (let ((c (read-latin-1-char port)))
+                   (cond ((eof-object? c)
+                          (substring result 0 i))
+                         (else
+                          (string-set! result i c)
+                          (loop (+ i 1))))))))))
 
+
+    (define (write-latin-1-char c out)
+      (let ((i (char->integer c)))
+        (cond ((> i 255) (snow-error "write-latin-1-char got unicode"))
+              ((binary-port? out)
+               (write-u8 i out))
+              (else
+               (write-char c out)))))
+
+    (define (latin-1-char-ready? in)
+      (cond ((binary-port? in)
+             (u8-ready? in))
+            (else
+             (char-ready? in))))
+
+    (define (read-latin-1-char in)
+      (cond ((binary-port? in)
+             (let ((i (read-u8 in)))
+               (cond ((eof-object? i) i)
+                     (else (integer->char i)))))
+            (else
+             (let ((c (read-char in)))
+               (cond ((eof-object? c) c)
+                     ((> (char->integer c) 255)
+                      (snow-error "read-latin-1-char got unicode."))
+                     (else c))))))
+
+
+    (define (peek-latin-1-char in)
+      (cond ((binary-port? in)
+             (let ((i (peek-u8 in)))
+               (cond ((eof-object? i) i)
+                     (else (integer->char i)))))
+            (else
+             (let ((c (peek-char in)))
+               (cond ((eof-object? c) c)
+                     ((> (char->integer c) 255)
+                      (snow-error "peek-latin-1-char got unicode."))
+                     (else c))))))
+
+
+    ;; These are adapted from chibi's io.scm.
+    (define (%read-line n in)
+      (let ((out (open-output-string)))
+        (let lp ((i 0))
+          (let ((ch (peek-latin-1-char in)))
+            (cond
+             ((eof-object? ch)
+              (let ((res (get-output-string out)))
+                (and (not (equal? res "")) res)))
+             ((eqv? ch #\newline)
+              (read-latin-1-char in)
+              (get-output-string out))
+             ((eqv? ch #\return)
+              (read-latin-1-char in)
+              (if (eqv? #\newline (peek-latin-1-char in))
+                  (read-latin-1-char in))
+              (get-output-string out))
+             ((and n (>= i n))
+              (get-output-string out))
+             (else
+              (write-char (read-latin-1-char in) out)
+              (lp (+ i 1))))))))
+
+    (define (read-latin-1-line . o)
+      (let* ((in (if (pair? o) (car o) (current-input-port)))
+             (n (if (and (pair? o) (pair? (cdr o))) (car (cdr o)) #f)))
+        (let ((res (%read-line n in)))
+          (if (not res)
+              (eof-object)
+              (let ((len (string-length res)))
+                (cond
+                 ((and (> len 0) (eqv? #\newline (string-ref res (- len 1))))
+                  (if (and (> len 1)
+                           (eqv? #\return (string-ref res (- len 2))))
+                      (substring res 0 (- len 2))
+                      (substring res 0 (- len 1))))
+                 ((and (> len 0) (eqv? #\return (string-ref res (- len 1))))
+                  (substring res 0 (- len 1)))
+                 (else
+                  res)))))))
 
     ))

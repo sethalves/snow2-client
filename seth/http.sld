@@ -18,7 +18,7 @@
                     (ports) ;; for make-input-port
                     (extras) (posix)
                     (http-client)
-                    ;; (uri-common)
+                    (uri-generic)
                     (intarweb)))
    (gauche (import (rfc uri)
                    (rfc http)
@@ -34,6 +34,7 @@
    )
   (import (snow snowlib)
           (snow bytevector)
+          (snow binio)
           (snow srfi-29-format)
           (snow srfi-13-strings)
           (snow extio)
@@ -74,7 +75,7 @@
           (cond ((> chunk-length 0) #t)
                 (saw-eof #t)
                 (else
-                 (let ((chunk-length-str (read-line port)))
+                 (let ((chunk-length-str (read-latin-1-line port)))
                    (cond ((eof-object? chunk-length-str)
                           (set! chunk-length 0)
                           (set! saw-eof #t))
@@ -89,11 +90,16 @@
           (cond (saw-eof (eof-object))
                 (else
                  (set! chunk-length (- chunk-length 1))
-                 (let ((c (read-char port)))
+                 (let ((c (read-latin-1-char port)))
                    (if (= 0 chunk-length)
-                       (read-line port))
+                       (read-latin-1-line port))
                    (update-chunk-length)
                    c))))
+
+        (define (chunked-read-u8)
+          (let ((c (chunked-read-char)))
+            (cond ((eof-object? c) c)
+                  (else (char->integer c)))))
 
         (define (chunked-char-ready?)
           (update-chunk-length)
@@ -104,7 +110,7 @@
           (cond (saw-eof (eof-object))
                 (else
                  (set! chunk-length (- chunk-length 1))
-                 (peek-char port))))
+                 (peek-latin-1-char port))))
 
         (cond-expand
 
@@ -128,9 +134,10 @@
 
          (gauche
           (make-virutal-input-port
-            :getc chunked-read-char
-            :ready chunked-char-ready?
-            :close (lambda () #t)))
+           :getb chunked-read-u8
+           :getc chunked-read-char
+           :ready chunked-char-ready?
+           :close (lambda () #t)))
 
          (else
           (let loop ((chars '()))
@@ -144,7 +151,7 @@
 
     (define (read-status-line read-port)
       ;; "HTTP/1.1 200 OK"
-      (let* ((first-line (read-line read-port))
+      (let* ((first-line (read-latin-1-line read-port))
              (parts (string-tokenize first-line)))
         (cond ((< (length parts) 3) #f)
               ((not (string-prefix-ci? "http/" (car parts))) #f)
@@ -217,7 +224,7 @@
                                (n-to-read (if (> n-to-read 1024)
                                               1024
                                               n-to-read))
-                               (data (read-string n-to-read src-port)))
+                               (data (read-latin-1-string n-to-read src-port)))
                           (if (eof-object? data)
                               (snow-error
                                "http -- not enough request body data"))
@@ -243,9 +250,6 @@
              (write-port (socket:outbound-write-port sock))
              (read-port (socket:inbound-read-port sock))
              ;; path and headers
-             ;; (path-part (uri-path-list->path (uri-path uri)))
-             ;; (path-part (encode-path (uri-path uri)))
-             ;; (path-part (uri-path-list->path (uri-path uri)))
              (path-part (uri->path-string uri))
              (user-headers (if (pair? maybe-user-headers+finalizer)
                                (car maybe-user-headers+finalizer)
@@ -300,9 +304,9 @@
           (cond ((not reader)
                  (let* ((response-body
                          (if content-length
-                             (read-n content-length body-port)
-                             (read-all-chars body-port)))
-                        (expect-eof (read-char body-port)))
+                             (read-latin-1-string content-length body-port)
+                             (read-all-latin-1-chars body-port)))
+                        (expect-eof (read-latin-1-char body-port)))
                    (cond ((not (eof-object? expect-eof))
                           (snow-raise "http -- extra data in response body"))
                          ((and content-length
@@ -326,35 +330,13 @@
 
     (cond-expand
 
+     ;; (chibi
+     ;;  (define (call-with-request-body url consumer)
+     ;;    (call-with-input-url url consumer)))
+
      (chicken
       (define (call-with-request-body url reader)
-        (call-with-input-request url #f reader))
-
-      (define (download-file url write-port)
-        (call-with-request-body
-         url
-         (lambda (inp)
-           (let ((data (read-string #f inp)))
-             (write-string data #f write-port)
-             (close-output-port write-port)
-             #t)))))
-
-     (chibi
-      (define (call-with-request-body url consumer)
-        (call-with-input-url url consumer))
-
-      (define (download-file url write-port)
-        (call-with-input-url
-         url
-         (lambda (inp)
-           (let loop ()
-             (let ((data (read-u8 inp)))
-               (cond ((eof-object? data)
-                      (close-output-port write-port)
-                      #t)
-                     (else
-                      (write-u8 data write-port)
-                      (loop)))))))))
+        (call-with-input-request url #f reader)))
 
      (gauche
       ;; http://practical-scheme.net/gauche/man/gauche-refe_149.html
@@ -364,36 +346,35 @@
                               path-part query-part fragment-part)
                       (uri-parse url)))
           (let-values (((status-code headers body)
-                        (http-get hostname path-part)))
-            (consumer (open-input-string body)))))
+                        (http-get
+                         (if port-number
+                             (string-append hostname ":"
+                                            (number->string port-number))
+                             hostname)
+                         path-part)))
+            (consumer (open-input-string body))))))
 
-
-      (define (download-file url write-port)
-        (call-with-request-body
-         url
-         (lambda (inp)
-           (let ((data (read-all-u8 inp)))
-             (write-bytevector data write-port)
-             (close-output-port write-port)
-             #t)))))
-
-     (sagittarius
+     (else
       (define (call-with-request-body url consumer)
         (http 'GET url #f
               (lambda (status-code headers response-body-port)
-                (consumer response-body-port))))
+                (consumer response-body-port))))))
 
-      (define (download-file url write-port)
-        (call-with-request-body
-         url
-         (lambda (inp)
-           (let loop ()
-             (let ((c (read-char inp)))
-               (cond ((eof-object? c)
-                      (close-output-port write-port)
-                      #t)
-;                     ((> (char->integer c) 255)
-;                      (snow-error "download-file OOPS"))
-                     (else
-                      (write-char c write-port)
-                      (loop))))))))))))
+
+    (define (download-file url write-port)
+      (http 'GET
+            url #f
+            (lambda (status-code headers response-body-port)
+              (let loop ()
+                (let ((c (read-latin-1-char response-body-port)))
+                  (cond ((eof-object? c)
+                         (close-output-port write-port)
+                         #t)
+                        ((> (char->integer c) 255)
+                         (display "OOPS\n")
+                         (snow-error "download-file OOPS"))
+                        (else
+                         (write-latin-1-char c write-port)
+                         (loop))))))))
+
+    ))

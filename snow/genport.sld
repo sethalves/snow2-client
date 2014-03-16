@@ -68,7 +68,7 @@
       (let ((port (binio-open-input-file filename)))
         (make-genport
          (lambda (genport)
-           (binio-close-input-port port))
+           (close-input-port port))
          (lambda (u8vect start end genport)
            (binio-read-subu8vector u8vect start end port))
          #f)))
@@ -133,7 +133,7 @@
       (let ((port (binio-open-output-file filename)))
         (make-genport
          (lambda (genport)
-           (binio-close-output-port port))
+           (close-output-port port))
          #f
          (lambda (u8vect start end genport)
            (binio-write-subu8vector u8vect start end port)))))

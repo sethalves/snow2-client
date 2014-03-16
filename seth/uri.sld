@@ -107,14 +107,17 @@
 ;;
 
 
+(define uri-error snow-error)
+
+
+
+;; ---- ;;
+
 
 ;; What to do with these?
 ;; #;(cond-expand
 ;;    (utf8-strings (use utf8-srfi-13 utf8-srfi-14))
 ;;    (else (use srfi-13 srfi-14)))
-
-;;(defstruct URI      scheme authority path query fragment)
-;; (defstruct URIAuth  username password host port)
 
 (define-record-type <URI>
   (make-URI scheme authority path query fragment)
@@ -124,6 +127,14 @@
   (path URI-path URI-path-set!)
   (query URI-query URI-query-set!)
   (fragment URI-fragment URI-fragment-set!))
+(define-record-type <URIAuth>
+  (make-URIAuth username password host port)
+  URIAuth?
+  (username URIAuth-username URIAuth-username-set!)
+  (password URIAuth-password URIAuth-password-set!)
+  (host URIAuth-host URIAuth-host-set!)
+  (port URIAuth-port URIAuth-port-set!))
+
 
 (define (update-URI uri . args)
   (let loop ((args args)
@@ -135,7 +146,7 @@
     (cond ((null? args)
            (make-URI new-scheme new-authority new-path new-query new-fragment))
           ((null? (cdr args))
-           (snow-error "malformed arguments to update-URI"))
+           (uri-error "malformed arguments to update-URI"))
           (else
            (let ((key (car args))
                  (value (cadr args)))
@@ -147,15 +158,6 @@
                    (if (eq? key 'fragment) value new-fragment)))))))
 
 
-(define-record-type <URIAuth>
-  (make-URIAuth username password host port)
-  URIAuth?
-  (username URIAuth-username URIAuth-username-set!)
-  (password URIAuth-password URIAuth-password-set!)
-  (host URIAuth-host URIAuth-host-set!)
-  (port URIAuth-port URIAuth-port-set!))
-
-
 (define (update-URIAuth uri-auth . args)
   (let loop ((args args)
              (new-username (URIAuth-username uri-auth))
@@ -165,7 +167,7 @@
     (cond ((null? args)
            (make-URIAuth new-username new-password new-host new-port))
           ((null? (cdr args))
-           (snow-error "malformed arguments to update-URIAuth"))
+           (uri-error "malformed arguments to update-URIAuth"))
           (else
            (let ((key (car args))
                  (value (cadr args)))
@@ -175,19 +177,6 @@
                    (if (eq? key 'host) value new-host)
                    (if (eq? key 'port) value new-port)))))))
 
-
-;; (define-record-printer (URI x out)
-;;   (fprintf out "#(URI scheme=~S authority=~A path=~S query=~S fragment=~S)"
-;;     (URI-scheme x)
-;;     (URI-authority x)
-;;     (URI-path x)
-;;     (URI-query x)
-;;     (URI-fragment x)))
-
-;; (define-record-printer (URIAuth x out)
-;;   (fprintf out "#(URIAuth host=~S port=~A)"
-;;     (URIAuth-host x)
-;;     (URIAuth-port x)))
 
 (define uri-reference? URI?)
 
@@ -223,6 +212,98 @@
 (define update-authority update-URIAuth)
 
 
+(define update-uri~
+  (let ((unset (list 'unset)))
+    (lambda (uri . args)
+      (let loop ((key/values args)
+                 (scheme (URI-scheme uri))
+                 (path (URI-path uri))
+                 (query (URI-query uri))
+                 (fragment (URI-fragment uri))
+                 (auth unset)
+                 (authority unset))
+        (cond
+         ((null? key/values)
+        (let* ((base-auth (or
+                           (cond
+                            ((not (eq? unset auth)) auth)
+                            ((not (eq? unset authority)) authority)
+                            (else (URI-authority uri)))
+                             (make-URIAuth #f #f #f #f)))
+                 (updated-auth (apply update-authority base-auth args))
+                 (final-auth (if (uri-auth-equal? (make-URIAuth #f #f #f #f)
+                                                  updated-auth)
+                               #f
+                               updated-auth)))
+            (make-URI scheme final-auth path query fragment)))
+         ((null? (cdr key/values))
+          (uri-error "malformed arguments to update-uri"))
+         ((not (memq (car key/values)
+                     '(scheme authority path query fragment
+                              username password host port)))
+          (uri-error "unknown argument to update-uri" (car key/values)))
+         (else
+          (let ((key (car key/values))
+                (value (cadr key/values)))
+            (loop (cddr key/values)
+                  (if (eq? key 'scheme) value scheme)
+                  (if (eq? key 'path) value path)
+                  (if (eq? key 'query) value query)
+                  (if (eq? key 'fragment) value fragment)
+                  (if (eq? key 'auth) value auth)
+                  (if (eq? key 'authority) value authority)))))))))
+
+
+(cond-expand
+
+ ;; (chicken-not-r7rs
+ ;;  (define update-uri
+ ;;    (let ((unset (list 'unset)))
+ ;;      (lambda (uri . key/values)
+ ;;        (apply
+ ;;         (lambda (#!key
+ ;;                  (scheme (URI-scheme uri)) (path (URI-path uri))
+ ;;                  (query (URI-query uri)) (fragment (URI-fragment uri))
+ ;;                  (auth unset) (authority unset)
+ ;;                  (username unset) (password unset)
+ ;;                  (host unset) (port unset))
+ ;;           (let* ((args (list 'scheme scheme
+ ;;                              'path path
+ ;;                              'query query
+ ;;                              'fragment fragment))
+ ;;                  (args (if (not (eq? auth unset))
+ ;;                            (append args (list 'auth auth)) args))
+ ;;                  (args (if (not (eq? authority unset))
+ ;;                            (append args (list 'authority authority)) args))
+ ;;                  (args (if (not (eq? username unset))
+ ;;                            (append args (list 'username username)) args))
+ ;;                  (args (if (not (eq? password unset))
+ ;;                            (append args (list 'password password)) args))
+ ;;                  (args (if (not (eq? host unset))
+ ;;                            (append args (list 'host host)) args))
+ ;;                  (args (if (not (eq? port unset))
+ ;;                            (append args (list 'port port)) args))
+ ;;                  )
+ ;;             (apply update-uri~ uri args)))
+ ;;         key/values)))))
+
+ (else
+  (define update-uri update-uri~)))
+
+
+(define (make-uri~ . key/values)
+  (apply update-uri~ (make-URI #f #f '() #f #f) key/values))
+
+(cond-expand
+
+ (chicken-not-r7rs
+(define (make-uri . key/values)
+    (apply update-uri (make-URI #f #f '() #f #f) key/values)))
+
+ (else
+  (define make-uri make-uri~)))
+
+
 (define (uri-equal? a b)
   (or (and (not a) (not b))
       (and (equal? (URI-scheme a) (URI-scheme b))
@@ -241,54 +322,8 @@
        (equal? (URIAuth-port a) (URIAuth-port b)))))
 
 
-(define update-uri
-  (let ((unset (list 'unset)))
-   (lambda (uri . args)
-     (let loop ((key/values args)
-                (scheme (URI-scheme uri))
-                (path (URI-path uri))
-                (query (URI-query uri))
-                (fragment (URI-fragment uri))
-                (auth unset)
-                (authority unset))
-       (cond
-        ((null? key/values)
-         (let* ((base-auth (or
-                            (cond
-                             ((not (eq? unset auth)) auth)
-                             ((not (eq? unset authority)) authority)
-                             (else (URI-authority uri)))
-                            (make-URIAuth #f #f #f #f)))
-                (updated-auth (apply update-authority base-auth args))
-                (final-auth (if (uri-auth-equal?
-                                 (make-URIAuth #f #f #f #f) updated-auth)
-                                #f
-                                updated-auth)))
-           (make-URI scheme final-auth path query fragment)))
-        ((null? (cdr key/values))
-         (snow-error "malformed arguments to update-uri"))
-        ((not (memq (car key/values)
-                    '(scheme authority path query fragment
-                             username password host port)))
-         (snow-error "unknown argument to update-uri" (car key/values)))
-        (else
-         (let ((key (car key/values))
-               (value (cadr key/values)))
-           (loop (cddr key/values)
-                 (if (eq? key 'scheme) value scheme)
-                 (if (eq? key 'path) value path)
-                 (if (eq? key 'query) value query)
-                 (if (eq? key 'fragment) value fragment)
-                 (if (eq? key 'auth) value auth)
-                 (if (eq? key 'authority) value authority)))))))))
-
-
-
-(define (make-uri . key/values)
-  (apply update-uri (cons (make-URI #f #f '() #f #f) key/values)))
-
 ;; Character classes
-
+ 
 (define (hexdigit-char? c)    (and (char? c) (char-set-contains? char-set:hex-digit c)))
 
 (define (unreserved-char? c)  (and (char? c) (char-set-contains? char-set:uri-unreserved c)))
@@ -300,84 +335,83 @@
 (define (alpha-char? c)       (and (char? c) (char-set-contains? char-set:letter c)))
 
 (define (pct-encoded? c)      (match c ((#\% h1 h2) (and (hexdigit-char? h1) (hexdigit-char? h2)))
-                     (else #f)))
+				     (else #f)))
 
 
 ;; Helper functions for character parsing
-
+  
 (define (uchar extras)
-  (let ((extras-set (or (and (char-set? extras) extras)
-                        (string->char-set extras))))
-    (lambda (c) (or (pct-encoded? c) (unreserved-char? c)
-            (char-set-contains? char-set:sub-delims c)
-            (char-set-contains? extras-set c) ))))
-
+  (let ((extras-set (or (and (char-set? extras) extras) (string->char-set extras))))
+    (lambda (c) (or (pct-encoded? c) (unreserved-char? c) 
+		    (char-set-contains? char-set:sub-delims c) 
+		    (char-set-contains? extras-set c) ))))
+  
 (define (many pred?)
   (lambda (s)
     (let loop ((lst (list)) (rst s))
       (cond ((null? rst)        (list (reverse lst) rst))
-        ((pred? (car rst))  (loop (cons (car rst) lst) (cdr rst)))
-        (else               (list (reverse lst) rst))))))
+	    ((pred? (car rst))  (loop (cons (car rst) lst) (cdr rst)))
+	    (else               (list (reverse lst) rst))))))
 
 (define (many1 pred?)
   (lambda (s)
     (let ((a1 (and (not (null? s)) (pred? (car s)) (car s))))
       (and a1 (match ((many pred?) (cdr s))
-             ((as rst)  (list (cons a1 as) rst))
-             (else #f))))))
+		     ((as rst)  (list (cons a1 as) rst))
+		     (else #f))))))
 
 
 (define (count-min-max m n pred?)
-  (lambda (s)
+  (lambda (s) 
     (let loop ((m m) (n n) (lst (list)) (rst s))
       (cond ((and (pair? rst) (positive? m))
-         (if (pred? (car rst))
-         (loop (- m 1) (- n 1) (cons (car rst) lst) (cdr rst)) #f))
-        ((or (<= n 0) (null? rst))   (list (reverse lst) rst))
-        (else
-         (if (pred? (car rst))
-         (loop 0 (- n 1) (cons (car rst) lst) (cdr rst))
-         (list (reverse lst) rst)))))))
+	     (if (pred? (car rst))
+		 (loop (- m 1) (- n 1) (cons (car rst) lst) (cdr rst)) #f))
+	    ((or (<= n 0) (null? rst))   (list (reverse lst) rst))
+	    (else 
+	     (if (pred? (car rst))
+		 (loop 0 (- n 1) (cons (car rst) lst) (cdr rst))
+		 (list (reverse lst) rst)))))))
 
 ;; Parser combinators
 
-(define (consume f)
+(define (consume f) 
   (lambda (s)
     (let loop ((lst (list)) (rst s))
       (match (f rst)
-         ((a rst)  (loop (cons a lst) rst))
-         (else  (list (reverse lst) rst))))))
+	     ((a rst)  (loop (cons a lst) rst))
+	     (else  (list (reverse lst) rst))))))
 
 
 (define (consume-count n f)
   (lambda (s)
     (let loop ((n n) (lst (list)) (rst s))
       (if (positive? n)
-      (match (or (f rst) (list #f s))
-         ((x rst)  (and x (loop (- n 1) (cons x lst) rst))))
-      (list (reverse lst) rst)))))
+	  (match (or (f rst) (list #f s))
+		 ((x rst)  (and x (loop (- n 1) (cons x lst) rst))))
+	  (list (reverse lst) rst)))))
 
 
 (define (consume-min-max m n f)
-  (lambda (s)
+  (lambda (s) 
     (let loop ((m m) (n n) (lst (list)) (rst s))
       (cond ((positive? m)
-         (match (f rst)
-            ((a1 rst) (loop (- m 1) (- n 1) (cons a1 lst) rst))
-            (else #f)))
-        ((<= n 0)   (list (reverse lst) rst))
-        (else
-         (match (f rst)
-            ((a1 rst) (loop 0 (- n 1) (cons a1 lst) rst))
-            (else #f)))))))
+	     (match (f rst)
+		    ((a1 rst) (loop (- m 1) (- n 1) (cons a1 lst) rst))
+		    (else #f)))
+	    ((<= n 0)   (list (reverse lst) rst))
+	    (else 
+	     (match (f rst)
+		    ((a1 rst) (loop 0 (- n 1) (cons a1 lst) rst))
+		    (else #f)))))))
 
 ;; Helper function for malformed ip address error messages
 
 (define (try-ip-literal->string s)
   (let loop ((lst (list))  (rst s))
     (match rst ((#\] . rst)  (uri-char-list->string (reverse lst)))
-       (()  (uri-char-list->string (reverse lst)))
-       (else (loop (cons (car rst) lst) (cdr rst))))))
+	   (()  (uri-char-list->string (reverse lst)))
+	   (else (loop (cons (car rst) lst) (cdr rst))))))
 
 ;; RFC 3986, section 2.1
 ;;
@@ -394,7 +428,7 @@
                               (h2 (hex-digit (remainder x 16))))
                          (cons `(#\% ,h1 ,h2) cl))
                        (cons c cl)))
-         (list) char-list)))
+		 (list) char-list)))
 
 ;; Inverse operation: 'pct-decode' a sequence of octets.
 
@@ -402,15 +436,15 @@
   (define (octet-decode h1 h2)
     (string->number (list->string (list h1 h2)) 16))
   (map (lambda (c)
-     (match c
-        ((#\% h1 h2)
-         (let ((dc (integer->char (octet-decode h1 h2))))
-           (if (char-set-contains? char-set dc) dc c)))
-        (else c)))
+	 (match c
+		((#\% h1 h2) 
+		 (let ((dc (integer->char (octet-decode h1 h2))))
+		   (if (char-set-contains? char-set dc) dc c)))
+		(else c)))
        char-list))
 
 
-;; RFC3986, section 2.2
+;; RFC3986, section 2.2 
 ;;
 ;; Reserved characters.
 ;;
@@ -425,7 +459,7 @@
 ;;  "Unreserved" characters.
 ;;
 
-(define char-set:uri-unreserved
+(define char-set:uri-unreserved 
   (char-set-union char-set:letter+digit (string->char-set "-_.~")))
 
 
@@ -444,19 +478,19 @@
 (define (uri s)
   (let ((s (if (string? s) (uri-string->normalized-char-list s) s)))
     (and s (match (scheme s)
-          ((us rst)
-           (match-let* (((ua up rst)   (hier-part rst))
-                ((uq rst)      (match rst ((#\? . rst) (query rst))
-                              (else (list #f rst))))
-                ((uf rst)      (match rst ((#\# . rst) (fragment rst))
-                              (else (list #f rst)))))
-                   (and (null? rst)
+		  ((us rst)
+		   (match-let* (((ua up rst)   (hier-part rst))
+				((uq rst)      (match rst ((#\? . rst) (query rst))
+						      (else (list #f rst))))
+				((uf rst)      (match rst ((#\# . rst) (fragment rst))
+						      (else (list #f rst)))))
+			       (and (null? rst)
                         (make-URI (string->symbol (list->string us))
                                   ua
                                   (uri-path-list->path up)
                                   (and uq (uri-char-list->string uq))
                                   (and uf (uri-char-list->string uf))))))
-          (else #f)))))
+		  (else #f)))))
 
 (define (uri? u)
   (and (uri-reference? u) (uri-scheme u) #t))
@@ -472,23 +506,23 @@
                       pcl)))))
 
 (define (hier-part s)
-  (match s ((#\/ #\/ . rst)
-        (match-let* (((ua rst)  (authority rst))
-             ((up rst)  (path-abempty rst)))
-            (list ua up rst)))
-     (else (match-let (((up rst) (or (path-abs s) (path-rootless s) (list '() s))))
-              (list #f up rst)))))
+  (match s ((#\/ #\/ . rst) 
+	    (match-let* (((ua rst)  (authority rst))
+			 ((up rst)  (path-abempty rst)))
+			(list ua up rst)))
+	 (else (match-let (((up rst) (or (path-abs s) (path-rootless s) (list '() s))))
+			  (list #f up rst)))))
 
 ;;  RFC3986, section 3.1
 
 (define scheme0 (many scheme-char?))
 (define (scheme s)
   (match s
-     (((and s0 (? alpha-char?)) . rst)
+	 (((and s0 (? alpha-char?)) . rst)
           (match (scheme0 rst)
                  ((ss (#\: . rst))  (list (cons s0 ss) rst))
                  (else #f)))
-     (else #f)))
+	 (else #f)))
 
 (define char-set:scheme
   (char-set-union char-set:letter+digit (string->char-set "+-.")))
@@ -500,15 +534,15 @@
 
 (define (authority s)
   (match-let* (((uu uw rst)   (or (userinfo s) (list #f #f s)))
-               ((uh rst)      (host rst))
-               ((up rst)      (or (port rst) (list #f rst))))
+	       ((uh rst)      (host rst))
+	       ((up rst)      (or (port rst) (list #f rst))))
               (list
                (make-URIAuth
                 (and uu (uri-char-list->string uu))
                 (and uw (uri-char-list->string uw))
                 (uri-char-list->string uh)
                 (and (pair? up) (string->number (list->string up))))
-               rst)))
+		    rst)))
 
 ;;  RFC3986, section 3.2.1
 ;;
@@ -533,11 +567,11 @@
 
 (define (userinfo s)
   (match (userinfo0 s)
-         ((uu ( #\: . rst))   (match (userinfo1 rst)
-                                     ((up ( #\@ . rst) ) (list uu up rst))
-                                     (else #f)))
-         ((uu ( #\@ . rst)) (list uu #f rst))
-         (else #f)))
+	 ((uu ( #\: . rst))   (match (userinfo1 rst)
+				     ((up ( #\@ . rst) ) (list uu up rst))
+				     (else #f)))
+	 ((uu ( #\@ . rst)) (list uu #f rst))
+	 (else #f)))
 
 
 ;;  RFC3986, section 3.2.2
@@ -549,20 +583,20 @@
 (define (host s)  (or (ip-literal s) (ipv4-address s) (reg-name s)))
 
 (define (ip-literal s)
-  (match s ((#\[ . rst)
-            (match (or (ipv6-address rst) (ipv-future rst))
-                   ((ua (#\] . rst))  (list ua rst))
-                   (else (error 'ip-literal "malformed ip literal"
+  (match s ((#\[ . rst) 
+	    (match (or (ipv6-address rst) (ipv-future rst))
+		   ((ua (#\] . rst))  (list ua rst))
+                   (else (uri-error 'ip-literal "malformed ip literal"
                                 (try-ip-literal->string rst)))))
-         (else #f)))
+	 (else #f)))
 
 (define ipv-future0  (many ipv-future-char?))
 
 (define (ipv-future s)
   (match s ((#\v (? hexdigit-char?) #\. . rst)  (ipv-future0 rst))
-     (else #f)))
+	 (else #f)))
 
-(define char-set:ipv-future
+(define char-set:ipv-future 
   (char-set-union char-set:uri-unreserved char-set:sub-delims (char-set #\;)))
 
 
@@ -587,113 +621,113 @@
 (define (ipv6-address s)
   (or (match (u6-h4c s) ;; 6( h16 ":" ) ls32
 
-         ((a2 rst)  (match (ls32 rst)
-                   ((a3 rst)  (list (append (concatenate a2) a3) rst))
-                   (else #f)))
-         (else #f))
+	     ((a2 rst)  (match (ls32 rst)
+			       ((a3 rst)  (list (append (concatenate a2) a3) rst))
+			       (else #f)))
+	     (else #f))
       (match s          ;; "::" 5( h16 ":" ) ls32
-         ((#\: #\: . rst)
-          (match (u5-h4c rst)
-             ((a2 rst)  (match (ls32 rst)
-                       ((a3 rst)  (list (append (list #\: #\:) (concatenate a2) a3) rst))
-                       (else #f)))))
-         (else #f))
+	     ((#\: #\: . rst)  
+	      (match (u5-h4c rst)
+		     ((a2 rst)  (match (ls32 rst)
+				       ((a3 rst)  (list (append (list #\: #\:) (concatenate a2) a3) rst))
+				       (else #f)))))
+	     (else #f))
       (match (u_opt_n_h4c_h4 0 s)
-         ((a1 rst) (match rst
-                  ((#\: #\: . rst)
-                   (match (u4-h4c rst)
-                      ((a2 rst)  (match (ls32 rst)
-                            ((a3 rst)
-                             (list (append (concatenate a1) (list #\: #\:)
-                                       (concatenate a2) a3) rst))
-                            (else #f)))
-                      (else #f)
-                      ))
-                  (else #f)))
-          (else #f))
+	     ((a1 rst) (match rst
+			      ((#\: #\: . rst)  
+			       (match (u4-h4c rst)
+				      ((a2 rst)  (match (ls32 rst)
+							((a3 rst)  
+							 (list (append (concatenate a1) (list #\: #\:) 
+								       (concatenate a2) a3) rst))
+							(else #f)))
+				      (else #f)
+				      ))
+			      (else #f)))
+	      (else #f))
       (match (u_opt_n_h4c_h4 1 s)
-         ((a1 rst)
-                  (match rst
-                  ((#\: #\: . rst)
-                   (match (u3-h4c rst)
-                      ((a2 rst)  (match (ls32 rst)
-                            ((a3 rst)
-                             (list (append (concatenate a1) (list #\: #\:)
-                                       (concatenate a2) a3) rst))
-                            (else #f)))
-                      (else #f)
-                      ))
-                  (else #f)))
-          (else #f))
+	     ((a1 rst) 
+        	      (match rst       
+			      ((#\: #\: . rst)  
+			       (match (u3-h4c rst)
+				      ((a2 rst)  (match (ls32 rst)
+							((a3 rst)  
+							 (list (append (concatenate a1) (list #\: #\:) 
+								       (concatenate a2) a3) rst))
+							(else #f)))
+				      (else #f)
+				      ))
+			      (else #f)))
+	      (else #f))
       (match (u_opt_n_h4c_h4 2 s)
-         ((a1 rst) (match rst
-                  ((#\: #\: . rst)
-                   (match (u2-h4c rst)
-                      ((a2 rst)  (match (ls32 rst)
-                            ((a3 rst)  (list (append (concatenate a1) (list #\: #\:)
-                                         (concatenate a2) a3) rst))
-                            (else #f)))
-                      (else #f)
-                      ))
-                  (else #f)))
-          (else #f))
+	     ((a1 rst) (match rst       
+			      ((#\: #\: . rst)  
+			       (match (u2-h4c rst)
+				      ((a2 rst)  (match (ls32 rst)
+							((a3 rst)  (list (append (concatenate a1) (list #\: #\:) 
+										 (concatenate a2) a3) rst))
+							(else #f)))
+				      (else #f)
+				      ))
+			      (else #f)))
+	      (else #f))
       (match (u_opt_n_h4c_h4 3 s)
-         ((a1 rst) (match rst
-                  ((#\: #\: . rst)
-                   (match (h4c rst)
-                      ((a2 rst)  (match (ls32 rst)
-                            ((a3 rst)  (list (append (concatenate a1) (list #\: #\:)
-                                         (concatenate a2) a3) rst))
-                            (else #f)))
-                      (else #f)
-                      ))
-                  (else #f)))
-          (else #f))
+	     ((a1 rst) (match rst       
+			      ((#\: #\: . rst)  
+			       (match (h4c rst)
+				      ((a2 rst)  (match (ls32 rst)
+							((a3 rst)  (list (append (concatenate a1) (list #\: #\:) 
+										 (concatenate a2) a3) rst))
+							(else #f)))
+				      (else #f)
+				      ))
+			      (else #f)))
+	      (else #f))
       (match (u_opt_n_h4c_h4 4 s)
-         ((a1 rst) (match rst
-                  ((#\: #\: . rst)
-                   (match (ls32 rst)
-                      ((a3 rst)  (list (append (concatenate a1) (list #\: #\:) a3) rst))
-                      (else #f)))
-                  (else #f)))
-          (else #f))
+	     ((a1 rst) (match rst       
+			      ((#\: #\: . rst)  
+			       (match (ls32 rst)
+				      ((a3 rst)  (list (append (concatenate a1) (list #\: #\:) a3) rst))
+				      (else #f)))
+			      (else #f)))
+	      (else #f))
       (match (u_opt_n_h4c_h4 5 s)
-         ((a1 rst) (match rst
-                  ((#\: #\: . rst)
-                   (match (h4 rst)
-                      ((a3 rst)  (list (append (concatenate a1) (list #\: #\:) a3) rst))
-                      (else #f)))
-                  (else #f)))
-          (else #f))
+	     ((a1 rst) (match rst       
+			      ((#\: #\: . rst)  
+			       (match (h4 rst)
+				      ((a3 rst)  (list (append (concatenate a1) (list #\: #\:) a3) rst))
+				      (else #f)))
+			      (else #f)))
+	      (else #f))
       (match (u_opt_n_h4c_h4 6 s)
-         ((a1 rst) (match rst
-                  ((#\: #\: . rst)
-                   (list (append (concatenate a1) (list #\: #\:)) rst))
-                  (else #f)))
-          (else #f))
-      (error 'ipv6-address "malformed ipv6 address" (try-ip-literal->string s))))
+	     ((a1 rst) (match rst       
+			      ((#\: #\: . rst)  
+			       (list (append (concatenate a1) (list #\: #\:)) rst))
+			      (else #f)))
+	      (else #f))
+      (uri-error 'ipv6-address "malformed ipv6 address" (try-ip-literal->string s))))
 
 
 
 (define (u_opt_n_h4c_h4 n s)
   (match ((consume-min-max 0 n h4c) s)
-     ((a1 rst)  (match (h4 rst)
-               ((a2 rst) (list (append a1 (list a2)) rst))
-               (else #f)))
-     (else #f)))
+	 ((a1 rst)  (match (h4 rst)
+			   ((a2 rst) (list (append a1 (list a2)) rst))
+			   (else #f)))
+	 (else #f)))
 
 (define (ls32 s)
   (match (h4c s)
-     ((a1 rst) (match (h4 rst)
-              ((a2 rst)  (list (append a1 a2) rst))
-              (else (ipv4-address s))))
-     (else (ipv4-address s))))
+	 ((a1 rst) (match (h4 rst)
+			  ((a2 rst)  (list (append a1 a2) rst))
+			  (else (ipv4-address s))))
+	 (else (ipv4-address s))))
 
 (define (h4c s)
   (match (h4 s)
-     ((a1 (#\: (and r1 (not #\:)) . rst))
-      (list (append a1 (list #\:)) (cons r1 rst)))
-     (else #f)))
+	 ((a1 (#\: (and r1 (not #\:)) . rst))
+	  (list (append a1 (list #\:)) (cons r1 rst)))
+	 (else #f)))
 
 (define u6-h4c (consume-count 6 h4c))
 (define u5-h4c (consume-count 5 h4c))
@@ -705,17 +739,17 @@
 
 (define (ipv4-address s)
   (match (dec-octet s)
-     ((a1 (#\. . rst))
-      (match (dec-octet rst)
-         ((a2 (#\. . rst))
-          (match (dec-octet rst)
-             ((a3 (#\. . rst))
-              (match (dec-octet rst)
-                 ((a4 rst)  (list (list a1 #\. a2 #\. a3 #\. a4) rst))
-                 (else #f)))
-             (else #f)))
-         (else #f)))
-     (else #f)))
+	 ((a1 (#\. . rst))
+	  (match (dec-octet rst)
+		 ((a2 (#\. . rst))
+		  (match (dec-octet rst)
+			 ((a3 (#\. . rst))
+			  (match (dec-octet rst)
+				 ((a4 rst)  (list (list a1 #\. a2 #\. a3 #\. a4) rst))
+				 (else #f)))
+			 (else #f)))
+		 (else #f)))
+	 (else #f)))
 
 (define (ipv4-octet? lst)
   (and (every (lambda (x) (char-set-contains? char-set:digit x)) lst)
@@ -724,13 +758,13 @@
 
 (define (dec-octet s)
   (match ((count-min-max 1 3 (lambda (c) (and (char? c) (char-numeric? c)))) s)
-     (((and a1 (? ipv4-octet?)) rst)  (list a1 rst))
-     (else #f)))
+	 (((and a1 (? ipv4-octet?)) rst)  (list a1 rst))
+	 (else #f)))
 
 (define reg-name
-  (count-min-max 0 255 (lambda (c) (or (pct-encoded? c)
-                       (unreserved-char? c)
-                       (char-set-contains? char-set:sub-delims c) ))))
+  (count-min-max 0 255 (lambda (c) (or (pct-encoded? c) 
+				       (unreserved-char? c) 
+				       (char-set-contains? char-set:sub-delims c) ))))
 
 ;;  RFC3986, section 3.2.3
 ;;
@@ -740,7 +774,7 @@
 
 (define (port s)
   (match s ((#\: . rst)  (port0 rst))
-     (else #f)))
+	 (else #f)))
 
 
 ;;
@@ -769,11 +803,11 @@
 
 (define (slash-segment s)
   (match s
-     ((#\/ . rst)
+	 ((#\/ . rst)
           (match (segment rst)
             ((ss rst)  (list ss rst))
             (else #f)))
-     (else  #f)))
+	 (else  #f)))
 
 (define pchar (uchar ":@"))
 
@@ -790,23 +824,23 @@
 
 (define (path-abs s)
   (match s
-     ((#\/)          (list (list '/ (list))  (list)))
-     ((#\/ . rst)    (match (path-rootless rst) ; optional
-                ((lst rst) (list (cons '/ lst) rst))
-                (else (list (list '/ (list)) rst))))
-     (else #f)))
+	 ((#\/)          (list (list '/ (list))  (list)))
+	 ((#\/ . rst)    (match (path-rootless rst) ; optional
+				((lst rst) (list (cons '/ lst) rst))
+				(else (list (list '/ (list)) rst))))
+	 (else #f)))
 
 (define (path-noscheme s)
   (match (segment-nzc s)
-     ((s1 rst)  (match ((consume slash-segment) rst)
-               ((ss rst) (list (cons s1 ss) rst))))
-     (else #f)))
+	 ((s1 rst)  (match ((consume slash-segment) rst)
+			   ((ss rst) (list (cons s1 ss) rst))))
+	 (else #f)))
 
 (define (path-rootless s)
   (match (segment-nz s)
-     ((s1 rst)  (match ((consume slash-segment) rst)
-               ((ss rst) (list (cons s1 ss) rst))))
-     (else #f)))
+	 ((s1 rst)  (match ((consume slash-segment) rst)
+			   ((ss rst) (list (cons s1 ss) rst))))
+	 (else #f)))
 
 ;;  RFC3986, section 3.4
 ;;
@@ -815,8 +849,8 @@
 (define query0  (many (uchar ":@/?")))
 (define (query s)
   (match (query0 s)
-     ((ss rst)  (list ss rst))
-     (else #f)))
+	 ((ss rst)  (list ss rst))
+	 (else #f)))
 
 ;;  RFC3986, section 3.5
 ;;   fragment         = *( pchar / "/" / "?" )
@@ -824,8 +858,8 @@
 (define fragment0  (many (uchar ":@/?")))
 (define (fragment s)
   (match (fragment0 s)
-     ((ss rst)  (list ss rst))
-     (else #f)))
+	 ((ss rst)  (list ss rst))
+	 (else #f)))
 
 ;;  Reference, Relative and Absolute URI forms
 ;;
@@ -851,11 +885,11 @@
 (define (relative-ref s)
   (and (not (scheme s))
        (match-let* (((ua up rst)  (relative-part s))
-                    ((uq rst)     (match rst ((#\? . rst) (query rst))
-                                         (else (list #f rst))))
-                    ((uf rst)     (match rst ((#\# . rst) (fragment rst))
-                                         (else (list #f rst)))))
-                   (and (null? rst)
+		    ((uq rst)     (match rst ((#\? . rst) (query rst))
+					 (else (list #f rst))))
+		    ((uf rst)     (match rst ((#\# . rst) (fragment rst))
+					 (else (list #f rst)))))
+		   (and (null? rst)
                         (make-URI #f ua
                                   (uri-path-list->path up)
                                   (and uq (uri-char-list->string uq))
@@ -866,12 +900,12 @@
 
 (define (relative-part s)
   (match s
-     ((#\/ #\/ . rst)
-      (match-let* (((ua rst)  (authority rst))
-               ((up rst)  (path-abempty rst)))
-              (list ua up rst)))
-     (else (match-let* (((up rst)  (or (path-abs s) (path-noscheme s) (list (list) s))))
-               (list #f up rst)))))
+	 ((#\/ #\/ . rst)
+	  (match-let* (((ua rst)  (authority rst))
+		       ((up rst)  (path-abempty rst)))
+		      (list ua up rst)))
+	 (else (match-let* (((up rst)  (or (path-abs s) (path-noscheme s) (list (list) s))))
+			   (list #f up rst))))) 
 
 
 
@@ -880,18 +914,18 @@
 (define (absolute-uri s)
   (let ((s (if (string? s) (uri-string->normalized-char-list s) s)))
     (and s (match (scheme s)
-          ((us rst)
-           (match-let* (((ua up rst)  (hier-part rst))
-                ((uq rst)     (match rst ((#\? . rst)  (query rst))
-                             (else (list #f rst)))))
-                   (match rst
-                      ((#\# . rst) (error 'absolute-uri "fragments are not permitted in absolute URI"))
+		  ((us rst)  
+		   (match-let* (((ua up rst)  (hier-part rst))
+				((uq rst)     (match rst ((#\? . rst)  (query rst))
+						     (else (list #f rst)))))
+			       (match rst
+                      ((#\# . rst) (uri-error 'absolute-uri "fragments are not permitted in absolute URI"))
                       (else (make-URI (string->symbol (list->string us))
                                       ua
                                       (uri-path-list->path up)
                                       (and uq (uri-char-list->string uq))
                                       #f)))))
-          (else (error 'absolute-uri "no scheme found in URI string"))))))
+          (else (uri-error 'absolute-uri "no scheme found in URI string"))))))
 
 (define (absolute-uri? u)
   (and (uri-reference? u) (not (relative-ref? u)) (not (uri-fragment u))))
@@ -909,14 +943,14 @@
                          (lambda (u pw)
                            (string-append u ":******" )))))
     (cond ((URI? uri)
-           (with-output-to-string
-             (lambda ()
+	    (with-output-to-string
+	      (lambda ()
                (let ((scheme (URI-scheme uri))
                      (authority (URI-authority uri))
                      (path (URI-path uri))
                      (query (URI-query uri))
                      (fragment (URI-fragment uri)))
-                 (display-fragments
+		(display-fragments
                   (list
                    (and scheme (list scheme ":"))
                    (and (URIAuth? authority)
@@ -932,7 +966,7 @@
                    (path->string path)
                    (and query (list "?" query))
                    (and fragment (list  "#" fragment))))))))
-          (else #f))))
+	   (else #f))))
 
 
 
@@ -940,18 +974,18 @@
   (let loop ((fragments b))
     (cond
       ((null? fragments) (begin))
-      ((not (car fragments))
+      ((not (car fragments)) 
        (loop (cdr fragments) ))
-      ((null? (car fragments))
+      ((null? (car fragments)) 
        (loop (cdr fragments) ))
       ((pair? (car fragments))
        (begin (loop (car fragments))
-          (loop (cdr fragments) )))
+	      (loop (cdr fragments) )))
       (else
        (display (car fragments))
        (loop (cdr fragments) )))))
 
-
+			 
 (define (path->string path)
   (match path
          (('/ . segments)     (string-append "/" (join-segments segments)))
@@ -979,7 +1013,7 @@
              (,(uri-auth->list (URI-authority uri) userinfomap)
               ,(URI-path uri) ,(URI-query uri))
              ,(URI-fragment uri)))
-          (else #f))))
+	   (else #f))))
 
 (define (uri-auth->list uri-auth userinfomap)
   (cond ((URIAuth? uri-auth)
@@ -988,8 +1022,8 @@
                               (URIAuth-password uri-auth)))
            ,(URIAuth-host uri-auth)
            ,(URIAuth-port uri-auth)))
-        (else #f)))
-
+	 (else #f)))
+			 
 
 ;;  Percent encoding and decoding
 
@@ -1007,7 +1041,7 @@
                       char-set:full))
         (str1 (uri-string->char-list str)))
     (and str1 (uri-char-list->string (pct-decode str1 char-set)))))
-
+    
 (define (uri-string->normalized-char-list str)
   (let ((str1 (uri-string->char-list str)))
     (and str1 (pct-decode str1 char-set:uri-unreserved))))
@@ -1015,21 +1049,21 @@
 ;; Convert a URI character list to a string
 
 (define (uri-char-list->string s)
-  (reverse-list->string
+  (reverse-list->string 
    (fold (lambda (x ax)
            (cond ((char? x) (cons x ax))
                  ((list? x) (append-reverse x ax)))) (list) s)))
-
-;; Convert a string to a URI character list
+   
+;; Convert a string to a URI character list 
 
 (define (uri-string->char-list s)
   (let loop ((cs (list)) (lst (string->list s)))
     (if (null? lst) (reverse cs)
-    (match lst
-           ((#\% h1 h2 . rst)  (and (hexdigit-char? h1) (hexdigit-char? h2)
-                    (loop (cons (list #\% h1 h2) cs) rst)))
-           (((and c (? char?)) . rst)  (loop (cons c cs) rst))))))
-
+	(match lst
+	       ((#\% h1 h2 . rst)  (and (hexdigit-char? h1) (hexdigit-char? h2)
+					(loop (cons (list #\% h1 h2) cs) rst)))
+	       (((and c (? char?)) . rst)  (loop (cons c cs) rst))))))
+   
 ;;
 ;;  Resolving a relative URI relative to a base URI
 ;;
@@ -1052,14 +1086,14 @@
               (update-URI ref
                           'path (just-segments ref)
                           'scheme (uri-scheme base)))
-             ((let ((p (uri-path ref))) (and (not (null? p)) p)) =>
-              (lambda (ref-path)
-                (if (and (pair? ref-path) (eq? '/ (car ref-path)))
-                    (update-URI ref
+	     ((let ((p (uri-path ref))) (and (not (null? p)) p)) =>
+	      (lambda (ref-path)
+		(if (and (pair? ref-path) (eq? '/ (car ref-path)))
+		    (update-URI ref
                                 'scheme (uri-scheme base)
                                 'authority (uri-auth base)
                                 'path (just-segments ref))
-                    (update-URI ref
+		    (update-URI ref
                                 'scheme (uri-scheme base)
                                 'authority (uri-auth base)
                                 'path (merge-paths base ref-path)))))
@@ -1068,7 +1102,7 @@
                           'scheme (uri-scheme base)
                           'authority (uri-auth base)
                           'path (merge-paths base (list ""))))
-             (else (update-URI ref
+	     (else (update-URI ref
                                'path (URI-path base)
                                'scheme (URI-scheme base)
                                'authority (URI-authority base)
@@ -1079,14 +1113,14 @@
 
 (define (merge0 pb pr)
   (let* ((rpb  (reverse pb))
-     (pb1  (reverse (match rpb      ; RFC3986, section 5.2.3, second bullet
+	 (pb1  (reverse (match rpb      ; RFC3986, section 5.2.3, second bullet
                                ((_ . rst) rst)
                                (else rpb)))))
     (append pb1 pr))) ; It is assumed we never get here if pr is empty!
 
 (define (merge-paths b pr)  ; pr is a relative path, *not* a URI object
   (let ((ba (uri-authority b))
-    (pb (uri-path b)))
+	(pb (uri-path b)))
     (let ((mp (if (and ba (null? pb))
                   (cons '/ pr)  ; RFC3986, section 5.2.3, first bullet
                   (merge0 pb pr))))
@@ -1096,17 +1130,17 @@
 (define (remove-dot-segments ps)
   (match ps
          (('/ . rst)   (cons '/ (elim-dots rst)))
-     (else         (elim-dots ps))))
+	 (else         (elim-dots ps))))
 
 (define (elim-dots ps)
   (let loop ((ps ps) (trailing-slash? #f) (lst (list)))
     (if (null? ps) (reverse (if trailing-slash? (cons "" lst) lst))
-    (match ps
-           (("." . rst)
-        (loop rst #t lst))
-           ((".." . rst)
-        (loop rst #t (if (pair? lst) (cdr lst) lst)))
-           ((x . rst)
+	(match ps
+	       (("." . rst)
+		(loop rst #t lst))
+	       ((".." . rst)
+		(loop rst #t (if (pair? lst) (cdr lst) lst)))
+	       ((x . rst)
                 (loop rst #f (cons x lst)))))))
 
 ;;
@@ -1127,26 +1161,26 @@
 
 
 (define (uri-relative-from uabs base)
-  (cond ((ucdiff? uri-scheme uabs base) (update-URI uabs))
+  (cond ((ucdiff? uri-scheme uabs base)      (update-URI uabs))
         ((ucdiff? uri-authority uabs base) (update-URI uabs 'scheme #f))
         ;; Special case: no relative representation for http://a/ -> http://a
         ;; ....unless that should be a path of ("..")
         ((null? (uri-path uabs))
          (update-URI uabs 'scheme #f))
-        ((ucdiff? uri-path uabs base)
-         (update-URI uabs
+	((ucdiff? uri-path uabs base)
+	 (update-URI uabs
                      'scheme #f
                      'authority #f
                      'path (rel-path-from
-                            (remove-dot-segments (uri-path uabs))
-                            (remove-dot-segments (uri-path base)))))
-        ((ucdiff? uri-query uabs base)
-         (update-URI uabs
+			    (remove-dot-segments (uri-path uabs))
+			    (remove-dot-segments (uri-path base)))))
+	((ucdiff? uri-query uabs base)
+	 (update-URI uabs
                      'scheme #f
                      'authority #f
                      'path (list)))
-        (else
-         (update-URI uabs
+	(else
+	 (update-URI uabs
                      'scheme #f
                      'authority #f
                      'query #f
@@ -1154,12 +1188,12 @@
 
 (define (ucdiff? sel u1 u2)
   (let ((s1 (sel u1))
-    (s2 (sel u2)))
+	(s2 (sel u2)))
     (not (cond ((and (URIAuth? s1) (URIAuth? s2))
-        (not (or (ucdiff? uri-username u1 u2) (ucdiff? uri-host u1 u2) (ucdiff? uri-port u1 u2))))
-           ((and (list? s1) (list? s2))       (equal? s1 s2))
-           ((and (string? s1) (string? s2))   (string=? s1 s2))
-           (else                              (eq? s1 s2))))))
+		(not (or (ucdiff? uri-username u1 u2) (ucdiff? uri-host u1 u2) (ucdiff? uri-port u1 u2))))
+	       ((and (list? s1) (list? s2))       (equal? s1 s2))
+	       ((and (string? s1) (string? s2))   (string=? s1 s2))
+	       (else                              (eq? s1 s2))))))
 
 (define (rel-path-from pabs base)
   (match (list pabs base)
@@ -1172,7 +1206,7 @@
            (if (string=? ra1 rb1)
                (rel-path-from1 sa1 sb1)
                pabs)))
-         (else (error 'rel-path-from "Both URI paths must be absolute" pabs base))))
+         (else (uri-error 'rel-path-from "Both URI paths must be absolute" pabs base))))
 
 (define (make-rel-path x)
   (match x
@@ -1182,14 +1216,14 @@
 ;;  rel-path-from1 strips off trailing names from the supplied paths,
 
 (define (rel-path-from1 pabs base)
-  (match-let* (((na . sa)  (reverse pabs))
-           ((nb . sb)  (reverse base)))
+  (match-let* (((na . sa)  (reverse pabs))  
+	       ((nb . sb)  (reverse base)))
      (let ((rp (rel-segs-from (reverse sa) (reverse sb))))
        (if (null? rp)  (cond ((string=? na nb)  (list))
-                 (else              (list na)))
-       (append rp (list na))))))
+			     (else              (list na)))
+	   (append rp (list na))))))
 
-
+			  
 ;;  rel-segs-from discards any common leading segments from both paths,
 ;;  then invokes dif-segs-from to calculate a relative path from the end
 ;;  of the base path to the end of the target path.  The final name is
@@ -1197,12 +1231,12 @@
 
 (define (rel-segs-from sabs base)
   (cond ((and (null? sabs) (null? base))  (list))
-    ((or (null? sabs) (null? base))   (dif-segs-from sabs base))
-    (else (match-let (((sa1 . ra1) sabs)
-              ((sb1 . rb1) base))
-             (if (string=? sa1 sb1)
-                 (rel-segs-from ra1 rb1)
-                 (dif-segs-from sabs base))))))
+	((or (null? sabs) (null? base))   (dif-segs-from sabs base))
+	(else (match-let (((sa1 . ra1) sabs)
+			  ((sb1 . rb1) base))
+			 (if (string=? sa1 sb1)
+			     (rel-segs-from ra1 rb1)
+			     (dif-segs-from sabs base))))))
 
 ;;  dif-segs-from calculates a path difference from base to target,
 ;;  not including the final name at the end of the path (i.e. results
@@ -1221,22 +1255,19 @@
 ;; Case normalization; cf. RFC3986 section 6.2.2.1
 
 (define (uri-normalize-case uri)
-  (let* ((normalized-uri
-          (uri-reference
-           (normalize-pct-encoding
-            (uri->string uri (lambda (user pass) (conc user ":" pass))))))
-         (scheme (string->symbol (string-downcase
-                                  (display-to-string (uri-scheme uri)))))
-         (host (normalize-pct-encoding (string-downcase (uri-host uri)))))
-    (update-uri normalized-uri 'scheme scheme 'host host)))
+  (let* ((normalized-uri (uri-reference 
+                          (normalize-pct-encoding (uri->string uri (lambda (user pass) (conc user ":" pass))))))
+         (scheme (string->symbol (string-downcase (->string (uri-scheme uri)))))
+         (host           (normalize-pct-encoding (string-downcase (uri-host uri)))))
+    (update-uri~ normalized-uri 'scheme scheme 'host host)))
 
 (define (normalize-pct-encoding str)
   (let ((str1 (uri-string->normalized-char-list str)))
     (and str1 (uri-char-list->string
-           (map (lambda (c) (match c
-                       ((#\% h1 h2)  `(#\% ,(char-upcase h1) ,(char-upcase h2)))
-                       (else c)))
-            str1)))))
+	       (map (lambda (c) (match c
+				       ((#\% h1 h2)  `(#\% ,(char-upcase h1) ,(char-upcase h2)))
+				       (else c)))
+		    str1)))))
 
 ;;  Path segment normalization; cf. RFC3986 section 6.2.2.4
 

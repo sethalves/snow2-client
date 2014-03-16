@@ -1720,7 +1720,7 @@
               (let ((n (binio-read-subu8vector buf 0 bufsize in)))
                 (if (= n 0)
                     (begin
-                      (binio-close-input-port in)
+                      (close-input-port in)
                       (close-digest digest result-type))
                     (begin
                       (digest-update-subu8vector digest buf 0 n)

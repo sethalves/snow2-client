@@ -205,20 +205,26 @@
 
     (cond-expand
      (chibi
+      ;; (define (open-network-client settings-list)
+      ;;   (let* ((host (settings-list-get 'host settings-list #f))
+      ;;          (port (settings-list-get 'port settings-list 0))
+      ;;          (addr (get-address-info host port))
+      ;;          (sock (socket (address-info-family addr)
+      ;;                        (address-info-socket-type addr)
+      ;;                        (address-info-protocol addr))))
+      ;;     (connect sock
+      ;;              (address-info-address addr)
+      ;;              (address-info-address-length addr))
+      ;;     (set-file-descriptor-flags! sock open/non-block)
+      ;;     (list sock
+      ;;           (open-input-file-descriptor sock #t)
+      ;;           (open-output-file-descriptor sock #t))))
+
       (define (open-network-client settings-list)
-        (let* ((host (settings-list-get 'host settings-list #f))
-               (port (settings-list-get 'port settings-list 0))
-               (addr (get-address-info host port))
-               (sock (socket (address-info-family addr)
-                             (address-info-socket-type addr)
-                             (address-info-protocol addr))))
-          (connect sock
-                   (address-info-address addr)
-                   (address-info-address-length addr))
-          (set-file-descriptor-flags! sock open/non-block)
-          (list sock
-                (open-input-file-descriptor sock #t)
-                (open-output-file-descriptor sock #t)))))
+        (let ((host (settings-list-get 'host settings-list #f))
+              (port (settings-list-get 'port settings-list 0)))
+          (open-net-io host port)))
+      )
      (chicken
       (define (open-network-client settings-list)
         (let* ((host (settings-list-get 'host settings-list #f))
@@ -261,22 +267,21 @@
         (socket-input-port sock)))
 
      (sagittarius
-      (define (bin->textual port)
-        (transcoded-port port (make-transcoder
-                               (latin-1-codec)
-                               ;; (eol-style lf)
-                               (eol-style none)
-                               )))
-
-      (define (socket:outbound-write-port sock)
-        (bin->textual (socket-output-port sock)))
-
-      (define (socket:inbound-read-port sock)
-        (bin->textual (socket-input-port sock))))
-
+      ;; (define (bin->textual port)
+      ;;   (transcoded-port port (make-transcoder
+      ;;                          (latin-1-codec)
+      ;;                          (eol-style none))))
+      ;; (define (socket:outbound-write-port sock)
+      ;;   (bin->textual (socket-output-port sock)))
 
       ;; (define (socket:inbound-read-port sock)
-      ;;   (socket-input-port sock)))
+      ;;   (bin->textual (socket-input-port sock)))
+
+      (define (socket:outbound-write-port sock)
+        (socket-output-port sock))
+
+      (define (socket:inbound-read-port sock)
+        (socket-input-port sock)))
 
      )
 

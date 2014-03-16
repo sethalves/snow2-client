@@ -25,6 +25,7 @@
             (snow extio)
             )
     ))
+  (import (snow binio))
 
   (begin
 
@@ -82,6 +83,7 @@
                  (loop (cdr chars)
                        (cons (car chars) result)
                        results)))))
+
 
 
 ;; this is from (chibi mime).
@@ -189,9 +191,9 @@
       => (lambda (m) (in (car m) (list (cadr m)) acc (+ count 1))))
      (else
       ;;(warn "invalid header line: ~S\n" line)
-      (out (read-line port mime-line-length-limit) acc (+ count 1)))))
+      (out (read-latin-1-line port mime-line-length-limit) acc (+ count 1)))))
   (define (in header value acc count)
-    (let ((line (read-line port mime-line-length-limit)))
+    (let ((line (read-latin-1-line port mime-line-length-limit)))
       (cond
        ((and limit (> count limit))
         acc)
@@ -203,13 +205,13 @@
         (out line
              (kons header (string-join (reverse value)) acc)
              (+ count 1))))))
-  (let ((first-line (read-line port mime-line-length-limit)))
+  (let ((first-line (read-latin-1-line port mime-line-length-limit)))
     (cond
      ((eof-object? first-line)
       knil)
      ((and kons-from (match-mbox-from-line first-line))
       => (lambda (m) ; special case check on first line for mbox files
-           (out (read-line port mime-line-length-limit)
+           (out (read-latin-1-line port mime-line-length-limit)
                 (kons-from '%from (car m)
                            (kons-from '%date (cadr m) knil))
                 0)))
@@ -300,7 +302,7 @@
 (define (mime-read-to-boundary port boundary next final)
   (let ((final-boundary (and boundary (string-append boundary "--"))))
     (let lp ((res '()))
-      (let ((line (read-line port mime-line-length-limit)))
+      (let ((line (read-latin-1-line port mime-line-length-limit)))
         (cond
          ((or (eof-object? line) (equal? line final-boundary))
           (final (string-join (reverse res)

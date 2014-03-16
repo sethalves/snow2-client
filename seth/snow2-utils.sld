@@ -18,6 +18,7 @@
    (chibi (import (chibi filesystem)))
    (else))
   (import (snow snowlib)
+          (snow extio)
           (snow srfi-13-strings)
           (seth srfi-69-hash-tables)
           (snow filesys) (snow binio) (snow genport) (snow zlib) (snow tar)
@@ -254,7 +255,9 @@
 
     (define (read-repository in-port)
       ;; read an s-exp from in-port and convert it to a repository record.
-      (let* ((repository-sexp (read in-port)))
+      (let* ((repository-sexp
+              (read
+               (binary-port->latin-1-textual-port in-port))))
         (repository-from-sexp repository-sexp)))
 
 
