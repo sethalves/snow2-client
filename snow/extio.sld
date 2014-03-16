@@ -225,25 +225,66 @@
 
      (else
       ;; for schemes with no procedural ports (sagittarius)
-      (define (make-delimited-input-port port len)
-        (let ((buf (make-string len)))
-          (let loop ((i 0))
-            (if (= i len)
-                (cond ((binary-port? port)
-                       (open-input-bytevector
-                        (string->latin-1 buf)))
+
+      ;; (define (make-delimited-input-port port len)
+      ;;   (let ((buf (make-string len)))
+      ;;     (let loop ((i 0))
+      ;;       (if (= i len)
+      ;;           (cond ((binary-port? port)
+      ;;                  (open-input-bytevector
+      ;;                   (string->latin-1 buf)))
+      ;;                 (else
+      ;;                  (open-input-string buf)))
+      ;;           (let ((c (read-latin-1-char port)))
+      ;;             (cond ((eof-object? c)
+      ;;                    (cond ((binary-port? port)
+      ;;                           (open-input-bytevector
+      ;;                            (string->latin-1 (substring buf 0 i))))
+      ;;                          (else
+      ;;                           (open-input-string (substring buf 0 i)))))
+      ;;                   (else
+      ;;                    (string-set! buf i c)
+      ;;                    (loop (+ i 1)))))))))
+
+      (define (make-delimited-binary-input-port port len)
+        (let loop ((i 0)
+                   (segments '()))
+          (define (return-result)
+            (open-input-bytevector
+             (reverse-bytevector-list->bytevector segments)))
+          (if (= i len)
+              (return-result)
+              (let* ((to-read (if (> (+ i 1024) len) (- len i) 1024))
+                     (seg (read-bytevector to-read port)))
+                (cond ((eof-object? seg)
+                       (return-result))
                       (else
-                       (open-input-string buf)))
-                (let ((c (read-latin-1-char port)))
-                  (cond ((eof-object? c)
-                         (cond ((binary-port? port)
-                                (open-input-bytevector
-                                 (string->latin-1 (substring buf 0 i))))
-                               (else
-                                (open-input-string (substring buf 0 i)))))
-                        (else
-                         (string-set! buf i c)
-                         (loop (+ i 1)))))))))))
+                       (loop (+ i (bytevector-length seg))
+                             (cons seg segments))))))))
+
+
+      (define (make-delimited-textual-input-port port len)
+        (let loop ((i 0)
+                   (segments '()))
+          (define (return-result)
+            (open-input-string (apply string-append (reverse segments))))
+          (if (= i len)
+              (return-result)
+              (let* ((to-read (if (> (+ i 25) len) (- len i) 25))
+                     (seg (read-string to-read port)))
+                (cond ((eof-object? seg) (return-result))
+                      (else
+                       (loop (+ i (string-length seg))
+                             (cons seg segments))))))))
+
+
+      (define (make-delimited-input-port port len)
+        (cond ((binary-port? port)
+               (make-delimited-binary-input-port port len))
+              (else
+               (make-delimited-textual-input-port port len))))
+
+      ))
 
     (cond-expand
      (sagittarius
@@ -312,22 +353,19 @@
            (lambda () ; peek-char
              (peek-latin-1-char port))))))
 
+     ;; this is currently failing on high-bit characters.
      ;; (chibi
      ;;  (define (binary-port->latin-1-textual-port port)
-     ;;    (let ((saw-eof #f))
-     ;;      (make-custom-input-port
-     ;;       (lambda (str start end)
-     ;;         (cond (saw-eof
-     ;;                ;; (eof-object) ;;?
-     ;;                0)
+     ;;    (make-custom-input-port
+     ;;     (lambda (str start end)
+     ;;       (let ((c
+     ;;              ;;(read-latin-1-char port)
+     ;;              (read-u8 port)
+     ;;              ))
+     ;;         (cond ((eof-object? c) 0)
      ;;               (else
-     ;;                (let ((c (read-latin-1-char port)))
-     ;;                  (cond ((eof-object? c)
-     ;;                         (set! saw-eof #t)
-     ;;                         0)
-     ;;                        (else
-     ;;                         (string-set! str start c)
-     ;;                         1))))))))))
+     ;;                (string-set! str start (integer->char c))
+     ;;                1)))))))
 
      (gauche
       (define (binary-port->latin-1-textual-port port)
@@ -347,11 +385,14 @@
      (else
       ;; for schemes with no procedural ports (sagittarius)
       (define (binary-port->latin-1-textual-port port)
-        (let loop ((chars (list)))
-          (let ((i (read-u8 port)))
-            (if (eof-object? i)
-                (open-input-string
-                 (latin-1->string (u8-list->bytevector (reverse chars))))
-                (loop (cons i chars))))))))
+        (let loop ((segments '()))
+          (let ((seg (read-bytevector 1024 port)))
+            (cond ((eof-object? seg)
+                   (open-input-string
+                    (reverse-bytevector-list->latin-1-string segments)))
+                  (else
+                   (loop (cons seg segments)))))))
+
+      ))
 
     ))

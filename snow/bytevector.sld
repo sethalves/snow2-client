@@ -32,6 +32,9 @@
           bytevector-u16-ref
           bytevector-u16-length
           make-u16-bytevector
+
+          reverse-bytevector-list->latin-1-string
+          reverse-bytevector-list->bytevector
           )
   (import (scheme base))
   (cond-expand
@@ -164,5 +167,53 @@
     (define bytevector-u16-ref vector-ref)
     (define bytevector-u16-length vector-length)
     (define make-u16-bytevector make-vector)
+
+
+    (define (sum-bytevector-list-sizes bv-lst)
+      (let loop ((bv-lst bv-lst)
+                 (count 0))
+        (cond ((null? bv-lst) count)
+              (else (loop (cdr bv-lst)
+                          (+ count (bytevector-length (car bv-lst))))))))
+
+
+    (define (reverse-bytevector-list->latin-1-string bv-lst)
+      ;; reverse a list of bytevectors and combine them into
+      ;; a latin-1 string
+      (let* ((data-size (sum-bytevector-list-sizes bv-lst))
+             (result (make-string data-size)))
+        (define (convert-bv bv string-i)
+          (let convert-loop ((bv-i 0)
+                             (string-i string-i))
+            (cond ((= bv-i (bytevector-length bv)) #t)
+                  (else
+                   (let ((c (integer->char (bytevector-u8-ref bv bv-i))))
+                     (string-set! result string-i c)
+                     (convert-loop (+ bv-i 1) (+ string-i 1)))))))
+        (let loop ((bv-lst bv-lst)
+                   (string-i data-size))
+          (cond ((null? bv-lst) result)
+                (else
+                 (let* ((bv (car bv-lst))
+                        (new-string-i (- string-i (bytevector-length bv))))
+                   (convert-bv bv new-string-i)
+                   (loop (cdr bv-lst) new-string-i)))))))
+
+
+
+    (define (reverse-bytevector-list->bytevector bv-lst)
+      ;; reverse a list of bytevectors and combine them into
+      ;; a bytevector
+      (let* ((data-size (sum-bytevector-list-sizes bv-lst))
+             (result (make-bytevector data-size)))
+        (let loop ((bv-lst bv-lst)
+                   (result-i data-size))
+          (cond ((null? bv-lst) result)
+                (else
+                 (let* ((bv (car bv-lst))
+                        (new-result-i (- result-i (bytevector-length bv))))
+                   (bytevector-copy! result new-result-i bv)
+                   (loop (cdr bv-lst) new-result-i)))))))
+
 
     ))
