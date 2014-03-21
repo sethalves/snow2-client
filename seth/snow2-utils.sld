@@ -277,6 +277,7 @@
 
 
     (define (snow2-packages-libraries packages)
+      ;; return a flattened list of all libraries in the given packages
       (fold
        (lambda (package lst)
          (append (snow2-package-libraries package) lst))
@@ -326,6 +327,8 @@
 
 
     (define (find-packages-with-libraries repositories library-names)
+      ;; return a list of packages that contain any libraries
+      ;; with the given library-names.
       (let ((package-url-ht (make-hash-table)))
         (for-each
          (lambda (library-name)
@@ -344,6 +347,8 @@
 
 
     (define (library-from-name repositories library-name)
+      ;; search repositories for a library record with the given name.
+      ;; return the first matching record or #f.
       (let* ((package (find-package-with-library repositories library-name)))
         (cond ((not package)
                (error
@@ -455,6 +460,8 @@
                               (get-repositories-and-siblings
                                (cons repository repositories)
                                (append (cdr repository-urls) sibling-urls)))
+                            ;; perhaps this should be a fatal error.
+                            ;; for now, just try to continue.
                             (get-repositories-and-siblings
                              repositories (cdr repository-urls))))))))))
 
@@ -486,6 +493,11 @@
 
 
     (define (install repositories library-names use-symlinks verbose)
+      ;; this is the main interface point for downloading/finding and
+      ;; unpacking packages.  repositories is a list of repository records.
+      ;; library-names is a list of library-name s-expressions.
+      ;; use-symlinks being true will cause symlinks to source files rather
+      ;; than copies (when possible).  verbose prints more.
 
       (define (install-from-tgz repo local-package-filename)
         (snow-with-exception-catcher
@@ -508,6 +520,7 @@
                   (tar-recs (tar-unpack-genport unzipped-p)))
              (genport-close-input-port unzipped-p)
              (write-tar-recs-to-disk tar-recs)))))
+
 
       (define (install-from-http repo package url)
         (let-values (((write-port local-package-filename)
@@ -535,7 +548,8 @@
                    (let ((success
                           (install-from-tgz repo local-package-filename)))
                      (delete-file local-package-filename)
-                     success))))))
+                     success))
+                  (else #f)))))
 
 
       (define (install-symlinks repo package package-local-directory)
@@ -550,60 +564,64 @@
               (filter
                (lambda (filename)
                  (let ((parts (snow-unmake-filename filename)))
-                   (or (< (length parts) 2)
-                       (not (equal? (car parts) package-local-name))
-                       (not (equal? (cadr parts) "test")))))
+                   (cond ((< (length parts) 2) #f)
+                         ((equal? (cadr parts) "test") #f)
+                         (else
+                          (string-suffix? ".sld" filename)))
+                   ;; (or (< (length parts) 2)
+                   ;;     (not (equal? (car parts) package-local-name))
+                   ;;     (not (equal? (cadr parts) "test")))
+                   ))
                (map
                 (lambda (filename)
+                  ;; remove the package's path from the start of each filename
                   (substring filename
                              (+ 1 (string-length ;; + 1 eats extra /
                                    (snow-filename-strip-extension
                                     repo-path)))
                              (string-length filename)))
-                (snow-directory-subfiles package-local-directory '(regular))))))
+                ;; get a list of all files inside the package directory
+                (snow-directory-subfiles
+                 package-local-directory '(regular))))))
 
 
           (for-each
            (lambda (filename)
-             (cond ((string-suffix? ".sld" filename)
-                    (let* ((link-name
-                            (snow-make-filename
-                             repo-local-name
-                             (snow-filename-strip-trailing-directory-separator
-                              (snow-filename-directory
-                               (snow-filename-strip-trailing-directory-separator
-                                (snow-filename-directory filename))))
-                             (snow-filename-strip-directory filename)))
-                           (link-dir (snow-filename-directory link-name))
-                           (repo-path (uri->string (snow2-repository-url repo)))
-                           (libfile-name
-                            (snow-make-filename repo-path filename)))
-                      (display "linking ")
-                      (display libfile-name)
-                      (display " to ")
-                      (display link-name)
-                      (newline)
+             (let* ((link-name
+                     (snow-make-filename
+                      repo-local-name
+                      (snow-filename-strip-trailing-directory-separator
+                       (snow-filename-directory
+                        (snow-filename-strip-trailing-directory-separator
+                         (snow-filename-directory filename))))
+                      (snow-filename-strip-directory filename)))
+                    (link-dir (snow-filename-directory link-name))
+                    (repo-path (uri->string (snow2-repository-url repo)))
+                    (libfile-name
+                     (snow-make-filename repo-path filename)))
+               (display "linking ")
+               (display libfile-name)
+               (display " to ")
+               (display link-name)
+               (newline)
 
-                      (snow-create-directory-recursive link-dir)
-                      (cond ((or (snow-file-exists? link-name)
-                                 (snow-file-symbolic-link? link-name))
-                             (snow-delete-file link-name)))
+               (snow-create-directory-recursive link-dir)
+               (cond ((or (snow-file-exists? link-name)
+                          (snow-file-symbolic-link? link-name))
+                      (snow-delete-file link-name)))
 
-                      (snow-create-symbolic-link
-                       (cond ((snow-filename-relative? libfile-name)
-                              ;; we are making a link in a subdirectory,
-                              ;; so prepend the required number of ../
-                              (let* ((link-parts
-                                      (snow-unmake-filename link-name))
-                                     (depth (length link-parts))
-                                     (dots (make-list (- depth 1) "..")))
-                                (apply snow-make-filename
-                                       (reverse (cons libfile-name dots)))))
-                             (else libfile-name))
-
-                       link-name)
-
-                      ))))
+               (snow-create-symbolic-link
+                (cond ((snow-filename-relative? libfile-name)
+                       ;; we are making a link in a subdirectory,
+                       ;; so prepend the required number of ../
+                       (let* ((link-parts
+                               (snow-unmake-filename link-name))
+                              (depth (length link-parts))
+                              (dots (make-list (- depth 1) "..")))
+                         (apply snow-make-filename
+                                (reverse (cons libfile-name dots)))))
+                      (else libfile-name))
+                link-name)))
            (local-repo-sld-files repo))))
 
 

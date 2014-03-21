@@ -10,7 +10,7 @@
   (cond-expand
    (chibi (import (chibi io)))
    (chicken (import (only (chicken) flush-output pretty-print)
-                    (only (extras) read-string!)
+                    ;; (only (extras) read-string!)
                     (ports)))
    (gauche (import (snow gauche-extio-utils)))
    (sagittarius))
@@ -167,26 +167,41 @@
                  (eof-object)
                  (peek-char port)))))))
 
-     ;; chibi doesn't yet have binary procedural ports
-     ;; (chibi
-     ;;  (define (make-delimited-input-port port len)
-     ;;    (let ((index 0)
-     ;;          (saw-eof #f))
-     ;;      (make-custom-input-port
-     ;;       (lambda (str start end)
-     ;;         (cond ((= index len)
-     ;;                ;; (eof-object) ;; ?
-     ;;                0)
-     ;;               (saw-eof (eof-object))
-     ;;               (else
-     ;;                (let ((c (read-latin-1-char port)))
-     ;;                  (cond ((eof-object? c)
-     ;;                         (set! saw-eof #t)
-     ;;                         0)
-     ;;                        (else
-     ;;                         (set! index (+ index 1))
-     ;;                         (string-set! str start c)
-     ;;                         1))))))))))
+     (chibi
+      (define (make-delimited-textual-input-port port len)
+        (let ((index 0))
+          (make-custom-input-port
+           (lambda (str start end)
+             (cond ((= index len) (eof-object))
+                   (else
+                    (let ((c (read-char port)))
+                      (cond ((eof-object? c) c)
+                            (else (set! index (+ index 1))
+                                  (string-set! str start c)
+                                  ;; XXX ?
+                                  (bytevector-length
+                                   (string->utf8 (string c))))))))))))
+
+
+      (define (make-delimited-binary-input-port port len)
+        (let ((index 0))
+          (make-custom-binary-input-port
+           (lambda (bv start end)
+             (let* ((plan-to-read (- len index))
+                    (plan-to-read (if (< (- end start) plan-to-read)
+                                      (- end start) plan-to-read))
+                    (did-read
+                     (read-bytevector! bv port start (+ start plan-to-read))))
+               (cond ((eof-object? did-read) 0)
+                     (else
+                      (set! index (+ index did-read))
+                      did-read)))))))
+
+      (define (make-delimited-input-port port len)
+        (cond ((binary-port? port)
+               (make-delimited-binary-input-port port len))
+              (else
+               (make-delimited-textual-input-port port len)))))
 
      (gauche
       (define (make-delimited-input-port port len)
@@ -225,27 +240,6 @@
 
      (else
       ;; for schemes with no procedural ports (sagittarius)
-
-      ;; (define (make-delimited-input-port port len)
-      ;;   (let ((buf (make-string len)))
-      ;;     (let loop ((i 0))
-      ;;       (if (= i len)
-      ;;           (cond ((binary-port? port)
-      ;;                  (open-input-bytevector
-      ;;                   (string->latin-1 buf)))
-      ;;                 (else
-      ;;                  (open-input-string buf)))
-      ;;           (let ((c (read-latin-1-char port)))
-      ;;             (cond ((eof-object? c)
-      ;;                    (cond ((binary-port? port)
-      ;;                           (open-input-bytevector
-      ;;                            (string->latin-1 (substring buf 0 i))))
-      ;;                          (else
-      ;;                           (open-input-string (substring buf 0 i)))))
-      ;;                   (else
-      ;;                    (string-set! buf i c)
-      ;;                    (loop (+ i 1)))))))))
-
       (define (make-delimited-binary-input-port port len)
         (let loop ((i 0)
                    (segments '()))
@@ -353,19 +347,22 @@
            (lambda () ; peek-char
              (peek-latin-1-char port))))))
 
-     ;; this is currently failing on high-bit characters.
-     ;; (chibi
-     ;;  (define (binary-port->latin-1-textual-port port)
-     ;;    (make-custom-input-port
-     ;;     (lambda (str start end)
-     ;;       (let ((c
-     ;;              ;;(read-latin-1-char port)
-     ;;              (read-u8 port)
-     ;;              ))
-     ;;         (cond ((eof-object? c) 0)
-     ;;               (else
-     ;;                (string-set! str start (integer->char c))
-     ;;                1)))))))
+
+     (chibi
+      ;; XXX this is currently failing on high-bit characters.
+      (define (binary-port->latin-1-textual-port port)
+        (make-custom-input-port
+         (lambda (str start end)
+           (let ((seg (read-bytevector (- end start) port)))
+             (cond ((eof-object? seg) 0)
+                   (else
+                    (let ((s (latin-1->string seg)))
+                      (let loop ((i 0))
+                        (and (< i (string-length s))
+                             (begin
+                               (string-set! str (+ i start) (string-ref s i))
+                               (loop (+ i 1)))))
+                      (bytevector-length seg)))))))))
 
      (gauche
       (define (binary-port->latin-1-textual-port port)

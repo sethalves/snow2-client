@@ -44,26 +44,23 @@
   (begin
 
     (cond-expand
-
-     (chicken
-      ;; (use srfi-13)
-      )
-
-     ((or gauche sagittarius)
-      #t)
+     (chicken)
+     ((or gauche sagittarius) #t)
 
      (else
       ;; XXX has anyone ported srfi-13 to chibi?
 
-      ;; here is a partially and poorly implemented and less-macro'ed
+      ;; here is a partially and poorly implemented, less-macro'ed
       ;; version of srfi-13
 
       (define (string-tokenize s . token-chars+start+end)
         (let* ((args-len (length token-chars+start+end))
                (token-chars (if (> args-len 0)
                                 (list-ref token-chars+start+end 0)
-                                (lambda (c)
-                                  (char-set-contains? char-set:graphic c))))
+                                ;; (lambda (c)
+                                ;;   (char-set-contains? char-set:graphic c))
+                                char-set:graphic
+                                ))
                (start (if (> args-len 1)
                           (list-ref token-chars+start+end 1)
                           0))
@@ -82,7 +79,7 @@
                    (else
                     (let ((current-char (string-ref s 0))
                           (s (substring s 1 (string-length s))))
-                      (cond ((token-chars current-char)
+                      (cond ((char-set-contains? token-chars current-char)
                              (loop tokens
                                    (string-append
                                     current-token (string current-char))
