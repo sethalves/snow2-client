@@ -142,9 +142,10 @@
 
          (else
           (let loop ((chars '()))
-            (let ((c (chunked-read-char)))
+            (let ((c (chunked-read-u8)))
               (cond ((eof-object? c)
-                     (open-input-string (list->string (reverse chars))))
+                     (open-input-bytevector (u8-list->bytevector
+                                             (reverse chars))))
                     (else
                      (loop (cons c chars))))))
           ))))
