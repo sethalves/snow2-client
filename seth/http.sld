@@ -115,14 +115,15 @@
         (cond-expand
 
          (chibi
-          (make-custom-input-port
+          (make-custom-binary-input-port
            (lambda (str start end)
              (cond (saw-eof (eof-object))
                    (else
-                    (let ((c (chunked-read-char)))
+                    (let ((c (chunked-read-u8)))
                       (cond ((eof-object? c) c)
                             (else
-                             (string-set! str start c)
+                             ;; (string-set! str start c)
+                             (bytevector-u8-set! str start c)
                              1))))))))
 
          (chicken

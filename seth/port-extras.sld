@@ -62,7 +62,13 @@
       (list->string (read-all-main f read-latin-1-char)))
 
     (define (read-all-u8 f)
-      (u8-list->bytevector (read-all-main f read-u8)))
+      ;; (u8-list->bytevector (read-all-main f read-u8)))
+      (let loop ((segments '()))
+        (let ((seg (read-bytevector 1024 f)))
+          (cond ((eof-object? seg)
+                 (reverse-bytevector-list->bytevector segments))
+                (else
+                 (loop (cons seg segments)))))))
 
 
     (define (read-available-main port at-least at-most peeker reader ready?)

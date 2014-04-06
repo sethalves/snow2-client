@@ -25,10 +25,12 @@
           snow-filename-strip-directory
           snow-filename-strip-trailing-directory-separator
           snow-make-filename
+          snow-combine-filename-parts
           snow-unmake-filename
           snow-filename-relative?
           ;; snow-make-temp-filename
           snow-directory-subfiles
+          snow-directory-tree-walk
           snow-create-directory-recursive
           snow-create-symbolic-link
 
@@ -36,6 +38,7 @@
           change-directory
           )
   (import (scheme base)
+          (scheme write)
           (scheme file)
           (snow bytevector)
           (snow random)
@@ -824,6 +827,20 @@
               (else
                filename))))
 
+
+    (define (snow-combine-filename-parts parts)
+      (let loop ((filename "") (lst parts))
+        (cond ((and (pair? lst) (> (string-length (car lst)) 0))
+               (loop (string-append filename
+                                    (string (directory-separator))
+                                    (car lst))
+                     (cdr lst)))
+              ((pair? lst)
+               (loop filename (cdr lst)))
+              (else
+               filename))))
+
+
     (define (snow-unmake-filename filename)
       (string-tokenize
        filename
@@ -843,6 +860,32 @@
     ;;           filename))))
 
     ;; (define* (snow-directory-subfiles filename (types '(regular directory)))
+
+
+    (define (snow-directory-tree-walk
+             filename
+             recurse-into-directory?
+             consumer)
+
+      (define (list-file file-path-parts)
+        (let ((filename (snow-combine-filename-parts file-path-parts)))
+          (cond ((snow-file-directory? filename)
+                 (if (recurse-into-directory? file-path-parts)
+                     (list-dir file-path-parts)))
+                (else
+                 (consumer file-path-parts)))))
+
+      (define (list-dir dir-path-parts)
+        (let loop ((lst (snow-directory-files
+                         (snow-combine-filename-parts
+                          dir-path-parts))))
+          (if (pair? lst)
+              (let ((name (car lst)))
+                (list-file (append dir-path-parts (list name)))
+                (loop (cdr lst))))))
+
+      (list-file (snow-unmake-filename filename)))
+
 
 
     (define (snow-directory-subfiles filename . maybe-types)

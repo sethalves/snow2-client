@@ -186,6 +186,8 @@
     (cond-expand
      ((or chicken chibi))
      (gauche
+      (define bitwise-ior bitwise-ior)
+      (define bitwise-xor bitwise-xor)
       (define arithmetic-shift arithmetic-shift))
      (sagittarius
       (define arithmetic-shift bitwise-arithmetic-shift))

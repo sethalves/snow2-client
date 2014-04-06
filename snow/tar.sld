@@ -44,6 +44,7 @@
           (scheme time)
           (snow snowlib)
           (snow bytevector)
+          (snow srfi-60-integers-as-bits)
           (snow bignum)
           (snow genport)
           (snow filesys)
@@ -301,7 +302,7 @@
 
     ;; Unpacking tar files.
 
-    (define (tar-unpack-genport genport-in)
+    (define (tar-unpack-genport genport-in . maybe-consumer+finisher)
 
       ;; Error handling.
 
@@ -357,7 +358,13 @@
                                                 (+ offset end))))))))
 
         (define (octal-field-bignum len offset)
-          (string->bignum (octal-field-extract len offset) 8))
+          (cond ((= (bitwise-and (bytevector-u8-ref header offset) #x80) 0)
+                 (string->bignum (octal-field-extract len offset) 8))
+                ;; XXX if first byte is 255 it's negative
+                (else
+                 ;; binary field
+                 (u8vector->bignum
+                  (bytevector-copy header (+ offset 1) (+ offset len))))))
 
         (define (octal-field len offset)
           (string->number (octal-field-extract len offset) 8))
@@ -375,7 +382,8 @@
                 sum)))
 
         (define (read-header)
-          (let ((n (genport-read-subu8vector header 0 (header-size) genport-in)))
+          (let ((n (genport-read-subu8vector
+                    header 0 (header-size) genport-in)))
             (cond ((not (= n (header-size)))
                    (tar-file-truncated-error))
                   ((= (bytevector-u8-ref header 0) 0)
@@ -383,18 +391,18 @@
                     #f #f #f #f #f #f #f #f #f
                     #f #f #f #f #f))
                   (else
-                   (let ((name     (string-field 100 0))
-                         (mode     (octal-field 8 100))
-                         (uid      (octal-field 8 108))
-                         (gid      (octal-field 8 116))
-                         (size     (octal-field-bignum 12 124))
-                         (mtime    (octal-field-bignum 12 136))
-                         (chksum   (octal-field 8 148))
-                         (typeflag (byte-field 156))
-                         (linkname (string-field 100 157))
-                         (magicver (string-field 8 257))
-                         (magic    (string-field 6 257))
-                         (version  (string-field 2 263)))
+                   (let* ((name     (string-field 100 0))
+                          (mode     (octal-field 8 100))
+                          (uid      (octal-field 8 108))
+                          (gid      (octal-field 8 116))
+                          (size     (octal-field-bignum 12 124))
+                          (mtime    (octal-field-bignum 12 136))
+                          (chksum   (octal-field 8 148))
+                          (typeflag (byte-field 156))
+                          (linkname (string-field 100 157))
+                          (magicver (string-field 8 257))
+                          (magic    (string-field 6 257))
+                          (version  (string-field 2 263)))
                      (let* ((tar-format
                              (cond ((string=? magicver "ustar  ")
                                     'gnu)
@@ -457,35 +465,57 @@
                                  ctime
                                  size))))))))))
 
-        (define (read-tar-file)
-          (let loop ((rev-tar-rec-list '()))
+        (define (read-tar-file consumer)
+          (let loop ()
             (let ((tar-rec (read-header)))
               (if (tar-rec? tar-rec)
                   (let ((name (tar-rec-name tar-rec)))
                     (if (not name)
-                        (reverse rev-tar-rec-list)
+                        #t
                         (let* ((size-bignum (tar-rec-content tar-rec))
                                (size (bignum->fixnum size-bignum))
-                               (v (make-bytevector size))
-                               (n (genport-read-subu8vector v 0 size genport-in)))
-                          (if (or (not (= n size))
-                                  (let ((pad (modulo (- size) 512)))
-                                    (not (= pad
-                                            (genport-read-subu8vector
-                                             (make-bytevector pad)
-                                             0
-                                             pad
-                                             genport-in)))))
-                              (tar-file-truncated-error)
-                              (begin
-                                (tar-rec-content-set! tar-rec v)
-                                (loop (cons tar-rec rev-tar-rec-list)))))))
-                  tar-rec))))
+                               (d-in (genport->delimted-genport
+                                      genport-in size))
+                               (n (consumer tar-rec size d-in)))
+                          (genport-discard-until-eof d-in)
+                          (if (let ((pad (modulo (- size) 512)))
+                                (not (= pad
+                                        (genport-read-subu8vector
+                                         (make-bytevector pad)
+                                         0
+                                         pad
+                                         genport-in))))
+                              (snow-raise (tar-file-truncated-error)))
+                          (loop))))
+                  (snow-raise tar-rec)))))
 
-        (let ((result (read-tar-file)))
-          (if (pair? result)
-              result
-              (snow-raise result)))))
+
+        (define rev-tar-rec-list '())
+
+        ;; consumer to use if the caller didn't provide one.  it
+        ;; sets the content of each tar-rec and conses it to a list.
+        (define (list-consumer tar-rec size genport-in)
+          (let ((v (genport-read-u8vector genport-in)))
+            (tar-rec-content-set! tar-rec v)
+            (set! rev-tar-rec-list (cons tar-rec rev-tar-rec-list))
+            (bytevector-length v)))
+
+        ;; finisher to use if caller didn't provide one.  return's
+        ;; a list of tar-recs
+        (define (list-finisher)
+          (reverse rev-tar-rec-list))
+
+        (let* ((consumer (if (pair? maybe-consumer+finisher)
+                             (car maybe-consumer+finisher)
+                             #f))
+               (finisher (if (and (pair? maybe-consumer+finisher)
+                                  (pair? (cdr maybe-consumer+finisher)))
+                             (cadr maybe-consumer+finisher)
+                             #f)))
+          (read-tar-file (if consumer consumer list-consumer))
+          (cond ((not consumer) (list-finisher))
+                (finisher (finisher))
+                (else #t)))))
 
     (define (tar-unpack-file filename)
       (let* ((genport-in (genport-open-input-file filename))

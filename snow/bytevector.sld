@@ -35,16 +35,53 @@
 
           reverse-bytevector-list->latin-1-string
           reverse-bytevector-list->bytevector
+
+          hex-string->bytes
+          bytes->hex-string
+
+          bytevector-map
           )
-  (import (scheme base))
+  (import (scheme base)
+          (srfi 1))
   (cond-expand
    (chibi (import (chibi io)))
    (chicken (import (chicken) (srfi 4)))
    (foment (import (scheme char)))
-   (gauche (import (gauche uvector)))
+   (gauche (import (gauche uvector)
+                   (snow gauche-bv-string-utils)
+                   ))
    (sagittarius (import (util bytevector)))
    )
   (begin
+
+    (cond-expand
+
+     (gauche
+      (define (string->latin-1 str)
+        ;; works for regular or incomplete strings
+        (let* ((str-sz (string-size str))
+               (bv (make-bytevector str-sz)))
+          (let loop ((i 0))
+            (cond ((= i str-sz) bv)
+                  (else
+                   (bytevector-u8-set!
+                    bv i (string-byte-ref str i))
+                   (loop (+ i 1)))))))
+      )
+
+     (else
+      (define (string->latin-1 str)
+        ;; XXX this wont work unless it's all ascii.
+        (let* ((lst (map char->integer (string->list str)))
+               (bv (make-bytevector (length lst))))
+          (let loop ((lst lst)
+                     (pos 0))
+            (if (null? lst) bv
+                (begin
+                  (bytevector-u8-set! bv pos (car lst))
+                  (loop (cdr lst) (+ pos 1)))))))
+      ))
+
 
     (cond-expand
 
@@ -58,17 +95,6 @@
                     (reverse lst)
                     (loop (+ i 1)
                           (cons (bytevector-u8-ref bytes i) lst)))))))
-
-      (define (string->latin-1 str)
-        ;; XXX this wont work unless it's all ascii.
-        (let* ((lst (map char->integer (string->list str)))
-               (bv (make-bytevector (length lst))))
-          (let loop ((lst lst)
-                     (pos 0))
-            (if (null? lst) bv
-                (begin
-                  (bytevector-u8-set! bv pos (car lst))
-                  (loop (cdr lst) (+ pos 1)))))))
 
       (define (bytevector->u8-list bv)
         (let loop ((i 0)
@@ -170,11 +196,7 @@
 
 
     (define (sum-bytevector-list-sizes bv-lst)
-      (let loop ((bv-lst bv-lst)
-                 (count 0))
-        (cond ((null? bv-lst) count)
-              (else (loop (cdr bv-lst)
-                          (+ count (bytevector-length (car bv-lst))))))))
+      (fold + 0 (map bytevector-length bv-lst)))
 
 
     (define (reverse-bytevector-list->latin-1-string bv-lst)
@@ -203,7 +225,7 @@
 
     (define (reverse-bytevector-list->bytevector bv-lst)
       ;; reverse a list of bytevectors and combine them into
-      ;; a bytevector
+      ;; a single bytevector
       (let* ((data-size (sum-bytevector-list-sizes bv-lst))
              (result (make-bytevector data-size)))
         (let loop ((bv-lst bv-lst)
@@ -215,5 +237,46 @@
                    (bytevector-copy! result new-result-i bv)
                    (loop (cdr bv-lst) new-result-i)))))))
 
+
+
+    ;; XXX is there a standard version of this, someplace?
+    (define (hex-string->bytes hexstr)
+      ;; convert a string like "a745ff12" to a bytevector
+      (let ((result (make-bytevector (/ (string-length hexstr) 2))))
+        (let loop ((hexs (string->list hexstr))
+                   (i 0))
+          (if (< (length hexs) 2)
+              result
+              (let ((ascii (string->number (string (car hexs) (cadr hexs)) 16)))
+                (bytevector-u8-set! result i ascii)
+                (loop (cddr hexs)
+                      (+ i 1)))))))
+
+
+    ;; XXX is there a standard version of this, someplace?
+    (define (bytes->hex-string bv)
+      (let ((result (make-string (* (bytevector-length bv) 2) #\0)))
+        (let loop ((i 0))
+          (cond ((= i (bytevector-length bv))
+                 result)
+                (else
+                 (let ((s (number->string (bytevector-u8-ref bv i) 16)))
+                   (cond ((= (string-length s) 2)
+                          (string-set! result (* i 2) (string-ref s 0))
+                          (string-set! result (+ (* i 2) 1) (string-ref s 1)))
+                         (else
+                          (string-set! result (+ (* i 2) 1) (string-ref s 0))))
+                   (loop (+ i 1))))))))
+
+
+    (define (bytevector-map p bv)
+      (let* ((len (bytevector-length bv))
+             (result (make-bytevector len)))
+        (let loop ((i 0))
+          (cond ((= i len) result)
+                (else
+                 (bytevector-u8-set!
+                  result i (p (bytevector-u8-ref bv i)))
+                 (loop (+ i 1)))))))
 
     ))

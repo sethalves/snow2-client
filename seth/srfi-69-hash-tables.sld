@@ -7,6 +7,7 @@
           hash-table-delete!
           hash-table-merge!
           hash-table-exists?
+          hash-table-walk
           hash-table-ref
           hash-table-ref/default
           hash-table-set!

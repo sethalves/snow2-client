@@ -174,6 +174,16 @@
               (else
                (cdr child)))))
 
+    (define (get-multi-args-by-type obj child-type default)
+      ;; return the appended list '(a b c x y z) from children with the form
+      ;; '(child-type a b c)
+      ;; '(child-type x y z)
+      ;; if no such children are found and default isn't #f, return default
+      (let ((childs (get-children-by-type obj child-type)))
+        (cond ((and (null? childs) default) default)
+              (else
+               (fold append '() (map cdr childs))))))
+
 
     (define uri->hashtable-key uri->string)
 
@@ -202,7 +212,7 @@
       ;; convert an s-exp into a library record
       (let ((name (get-list-by-type library-sexp 'name #f))
             (path (get-string-by-type library-sexp 'path #f))
-            (depends-sexps (get-args-by-type library-sexp 'depends '())))
+            (depends-sexps (get-multi-args-by-type library-sexp 'depends '())))
         (cond ((not name) #f)
               ((not path) #f)
               (else
@@ -232,7 +242,7 @@
     (define (repository-from-sexp repository-sexp)
       ;; convert an s-exp into a repository record
       (cond ((not (list? repository-sexp))
-             (error "repository definition isn't a list."))
+             (error "repository definition isn't a list." repository-sexp))
             ((null? repository-sexp)
              (error "repository s-exp is empty."))
             ((not (eq? (car repository-sexp) 'repository))
