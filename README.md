@@ -78,7 +78,7 @@ snow2 will be placed in /usr/local/bin/
 
 Some libraries will be placed in /usr/local/share/scheme/
 
-You can also use "build" rather than "install", but only chicken's
+You can also use "build" rather than "install", but only CHICKEN's
 compiled version will work when the user's current working directory
 isn't the snow2 source directory.
 
