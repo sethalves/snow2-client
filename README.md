@@ -17,7 +17,7 @@ Inspiration and some packages are taken from the first snow system:
 
 Supported schemes are:
 
-<a href="http://synthcode.com/scheme/chibi/">Chibi</a>,
+<a href="http://code.google.com/p/chibi-scheme/">Chibi</a>,
 <a href="http://call-cc.org/">Chicken</a>,
 <a href="http://practical-scheme.net/gauche/">Gauche</a>,
 <a href="https://bitbucket.org/ktakashi/sagittarius-scheme/wiki/Home">Sagittarius</a>
@@ -27,19 +27,38 @@ Other schemes will be supported when they support r7rs-style libraries.
 Requirements
 ============
 
-Snow2 currently (2014-1-26) requires built-from-trunk versions of all 4
-supported schemes.
+Last updated: 2014-4-20
 
-Chicken requires that several eggs be installed, one from svn.
+# Chibi
+
+The only requirement is to build chibi-scheme from trunk (chibi-scheme-0.6.1 isn't new enough).  See
+
+  http://code.google.com/p/chibi-scheme/source/checkout
+
+# CHICKEN
+
+Snow2 requires CHICKEN built from trunk (chicken-4.8.0.5 isn't new enough).  See
+
+http://code.call-cc.org/
+
+Running under CHICKEN requires that several eggs be installed, one from svn.
 
 ```
-chicken-install srfi-27 srfi-37 http-client
+chicken-install srfi-27 srfi-29 srfi-37 http-client openssl udp
 svn co https://code.call-cc.org/svn/chicken-eggs/release/4/r7rs/trunk r7rs
 cd r7rs
 chicken-install
 ```
 
 Additionally, some of the snow2 packages assume you have certain chicken eggs installed.
+
+# Gauche
+
+Build gauche from trunk (Gauche-0.9.3.3 isn't new enough).
+
+# Sagittarius
+
+Snow2 works with sagittarius-0.5.3.
 
 
 Building
