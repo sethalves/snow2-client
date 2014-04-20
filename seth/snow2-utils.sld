@@ -267,7 +267,7 @@
       ;; read an s-exp from in-port and convert it to a repository record.
       (let* ((repository-sexp
               (read
-               (binary-port->latin-1-textual-port in-port))))
+               (binary-port->textual-port in-port))))
         (repository-from-sexp repository-sexp)))
 
 

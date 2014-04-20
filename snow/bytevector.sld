@@ -195,6 +195,37 @@
     (define make-u16-bytevector make-vector)
 
 
+
+    ;;
+    ;; these 4 are from (chibi bytevector).  They would have to
+    ;; go in their own library which depends on (snow bytevector)
+    ;; and srfi-60
+    ;;
+
+    ;; (define (bytevector-u16-ref-le str i)
+    ;;   (+ (bytevector-u8-ref str i)
+    ;;      (arithmetic-shift (bytevector-u8-ref str (+ i 1)) 8)))
+
+    ;; (define (bytevector-u16-ref-be str i)
+    ;;   (+ (arithmetic-shift (bytevector-u8-ref str i) 8)
+    ;;      (bytevector-u8-ref str (+ i 1))))
+
+    ;; (define (bytevector-u32-ref-be str i)
+    ;;   (+ (arithmetic-shift (bytevector-u8-ref str i) 24)
+    ;;      (arithmetic-shift (bytevector-u8-ref str (+ i 1)) 16)
+    ;;      (arithmetic-shift (bytevector-u8-ref str (+ i 2)) 8)
+    ;;      (bytevector-u8-ref str (+ i 3))))
+
+    ;; (define (bytevector-u32-ref-le str i)
+    ;;   (+ (bytevector-u8-ref str i)
+    ;;      (arithmetic-shift (bytevector-u8-ref str (+ i 1)) 8)
+    ;;      (arithmetic-shift (bytevector-u8-ref str (+ i 2)) 16)
+    ;;      (arithmetic-shift (bytevector-u8-ref str (+ i 3)) 24)))
+
+
+
+
+
     (define (sum-bytevector-list-sizes bv-lst)
       (fold + 0 (map bytevector-length bv-lst)))
 

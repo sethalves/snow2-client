@@ -15,6 +15,7 @@
           snow-file-directory?
           snow-file-regular?
           snow-file-symbolic-link?
+          snow-file-size
           snow-delete-file
           snow-rename-file
           snow-create-directory
@@ -930,6 +931,24 @@
                       (begin
                         (snow-create-directory-recursive p)
                         (snow-create-directory dir))))))))
+
+
+
+    (cond-expand
+     (chibi
+      (define snow-file-size file-size)
+      )
+     (chicken
+      (define snow-file-size file-size)
+      )
+     (gauche
+      (define snow-file-size file-size)
+      )
+     (sagittarius
+      (define snow-file-size file-size-in-bytes)
+      ))
+
+
 
 ;;;============================================================================
 

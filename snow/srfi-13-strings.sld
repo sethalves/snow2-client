@@ -41,7 +41,7 @@
                   ))
    (chicken (import (srfi 13)))
    (gauche (import (gauche) (srfi 13)))
-   (sagittarius (import (srfi :13))))
+   (sagittarius (import (srfi 13))))
   (begin
 
     (cond-expand

@@ -1,5 +1,7 @@
 (define-library (seth http)
   (export http
+          log-http-to-stderr
+          response-status-class
           call-with-request-body
           download-file
           http-header-as-integer
@@ -17,7 +19,7 @@
    (chicken (import (chicken)
                     (ports) ;; for make-input-port
                     (extras) (posix)
-                    (http-client)
+                    (only (http-client) call-with-input-request)
                     (uri-generic)
                     (intarweb)))
    (gauche (import (rfc uri)
@@ -46,6 +48,14 @@
           )
   (begin
 
+    ;; http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html
+
+    (define log-http-to-stderr (make-parameter #f))
+
+
+    (define (response-status-class code)
+      ;; inspired by chicken's intarweb's response-class
+      (- code (modulo code 100)))
 
 
     (define (http-header-as-integer headers name default)
@@ -53,13 +63,13 @@
              => (lambda (v)
                   (cond ((number? v) v)
                         ((string? v) (string->number v))
-                        (else (snow-error "http-header-as-integer error")))))
-            (else #f)))
+                        (else (snow-error "http-header-as-integer error" v)))))
+            (else default)))
 
 
     (define (http-header-as-string headers name default)
       (cond ((assq-ref headers name default) => ->string)
-            (else #f)))
+            (else default)))
 
 
     (define (uri->path-string uri)
@@ -76,6 +86,8 @@
                 (saw-eof #t)
                 (else
                  (let ((chunk-length-str (read-latin-1-line port)))
+                   ;; (cond ((log-http-to-stderr)
+                   ;;        (display chunk-length-str (current-error-port))))
                    (cond ((eof-object? chunk-length-str)
                           (set! chunk-length 0)
                           (set! saw-eof #t))
@@ -89,17 +101,29 @@
           (update-chunk-length)
           (cond (saw-eof (eof-object))
                 (else
-                 (set! chunk-length (- chunk-length 1))
-                 (let ((c (read-latin-1-char port)))
-                   (if (= 0 chunk-length)
-                       (read-latin-1-line port))
+                 (let ((c (read-char port)))
+                   (set! chunk-length (- chunk-length 1))
+                   (cond ((= 0 chunk-length)
+                          (read-latin-1-line port)))
                    (update-chunk-length)
                    c))))
 
+
         (define (chunked-read-u8)
-          (let ((c (chunked-read-char)))
-            (cond ((eof-object? c) c)
-                  (else (char->integer c)))))
+          (update-chunk-length)
+          (cond (saw-eof (eof-object))
+                (else
+                 (let ((c (read-u8 port)))
+                   (set! chunk-length (- chunk-length 1))
+                   (cond ((= 0 chunk-length)
+                          (read-latin-1-line port)))
+                   (update-chunk-length)
+                   c))))
+
+        ;; (define (chunked-read-u8)
+        ;;   (let ((c (chunked-read-char)))
+        ;;     (cond ((eof-object? c) c)
+        ;;           (else (char->integer c)))))
 
         (define (chunked-char-ready?)
           (update-chunk-length)
@@ -109,7 +133,7 @@
           (update-chunk-length)
           (cond (saw-eof (eof-object))
                 (else
-                 (set! chunk-length (- chunk-length 1))
+                 ;; (set! chunk-length (- chunk-length 1))
                  (peek-latin-1-char port))))
 
         (cond-expand
@@ -155,6 +179,9 @@
       ;; "HTTP/1.1 200 OK"
       (let* ((first-line (read-latin-1-line read-port))
              (parts (string-tokenize first-line)))
+        (cond ((log-http-to-stderr)
+               (display first-line (current-error-port))
+               (newline (current-error-port))))
         (cond ((< (length parts) 3) #f)
               ((not (string-prefix-ci? "http/" (car parts))) #f)
               (else (string->number (cadr parts))))))
@@ -188,8 +215,6 @@
       (define (get-outbound-port-and-length headers)
         (let ((user-content-length
                (http-header-as-integer headers 'content-length #f)))
-          ;; XXX should check content-encoding here, in case
-          ;; the writer has multi-byte characters
           (cond
 
            ;; writer is #f
@@ -197,16 +222,30 @@
 
            ;; writer is a string
            ((string? writer)
+            (let ((writer (string->utf8 writer)))
+              (if (and user-content-length
+                       (not (= user-content-length
+                               (bytevector-length writer))))
+                  (snow-error "http -- writer string length mismatch"))
+              (values (open-input-bytevector writer)
+                      (bytevector-length writer))))
+
+           ((bytevector? writer)
             (if (and user-content-length
                      (not (= user-content-length
-                             (string-length writer))))
-                (snow-error "http -- writer string length mismatch"))
-            (values (open-input-string writer)
-                    (string-length writer)))
+                             (bytevector-length writer))))
+                (snow-error "http -- writer bytevector length mismatch"))
+            (values (open-input-bytevector writer)
+                    (bytevector-length writer)))
 
-           ;; writer is a port
-           ((input-port? writer)
+           ;; writer is a binary port
+           ((and (input-port? writer) (binary-port? writer))
             (values writer user-content-length))
+
+           ;; writer is a textual port
+           ((and (input-port? writer))
+            (values (textual-port->binary-port writer)
+                    user-content-length))
 
            ;; something unexpected
            (else
@@ -226,11 +265,11 @@
                                (n-to-read (if (> n-to-read 1024)
                                               1024
                                               n-to-read))
-                               (data (read-latin-1-string n-to-read src-port)))
+                               (data (read-bytevector n-to-read src-port)))
                           (if (eof-object? data)
                               (snow-error
                                "http -- not enough request body data"))
-                          (write-string data dst-port)
+                          (write-bytevector data dst-port)
                           (loop (+ sent n-to-read)))))))))
 
 
@@ -265,6 +304,7 @@
         ;;
         ;; make request
         ;;
+
         (let-values (((writer-port content-length)
                       (get-outbound-port-and-length user-headers)))
           ;; finish putting together request headers
@@ -275,14 +315,23 @@
                       host-headers))
                  (final-headers (header-finalizer host-cl-headers)))
 
+            (cond ((log-http-to-stderr)
+                   (display
+                    (format "~a ~a HTTP/1.1\r\n" verb-str path-part)
+                    (current-error-port))
+                   (mime-write-headers final-headers (current-error-port))
+                   (display "\r\n" (current-error-port))))
+
+            ;; send request and headers
             (display
+             ;; try to avoid sending 3 separate header packets
              (with-output-to-string
                (lambda ()
-                 ;; send request and headers
                  (display (format "~a ~a HTTP/1.1\r\n" verb-str path-part))
                  (mime-write-headers final-headers (current-output-port))
                  (display "\r\n")))
              write-port)
+
             ;; send body
             (send-body writer-port write-port content-length)
             (snow-force-output write-port)))
@@ -290,19 +339,31 @@
         ;;
         ;; read response
         ;;
+
         (let* ((status-code (read-status-line read-port))
                (headers (mime-headers->list read-port))
+
+               ;; (XXX (begin (display "headers=") (write headers) (newline)))
+
                (content-length
                 (http-header-as-integer headers 'content-length #f))
                (transfer-encoding
                 (http-header-as-string headers 'transfer-encoding #f))
                (body-port
-                (cond (content-length
+                (cond ((or (equal? verb-str "HEAD")
+                           (= status-code 204) ;; No Content
+                           )
+                       (open-input-bytevector (make-bytevector 0)))
+                      (content-length
                        (make-delimited-input-port read-port content-length))
                       ((equal? transfer-encoding "chunked")
                        (make-dechunked-input-port read-port))
                       (else
                        (snow-raise "http -- no content length or chunked")))))
+
+          (cond ((log-http-to-stderr)
+                 (mime-write-headers headers (current-error-port))))
+
           (cond ((not reader)
                  (let* ((response-body
                          (if content-length

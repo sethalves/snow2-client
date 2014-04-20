@@ -555,6 +555,8 @@
        ((snow-error-condition? err)
         (display "Error (snow-error-condition) -- " (current-error-port))
         (display (snow-error-condition-msg err) (current-error-port))
+        (newline (current-error-port))
+        (display (snow-error-condition-args err) (current-error-port))
         (newline (current-error-port)))
        ((snow-condition? err)
         (display "Error (snow-condition) -- " (current-error-port))
