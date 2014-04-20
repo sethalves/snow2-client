@@ -118,6 +118,11 @@ downloading bytevector.tgz from http://snow-repository.s3-website-us-east-1.amaz
 downloading pi.tgz from http://snow-repository.s3-website-us-east-1.amazonaws.com/
 $ ls snow
 bignum.sld  bytevector.sld  hello.sld  pi.sld
+$ snow2 search
+(snow assert)
+(snow bignum)
+(snow binio)
+...
 ```
 
 See <a href="https://github.com/sethalves/snow2-test-chicken">snow2-test-chicken</a> or <a href="https://github.com/sethalves/snow2-test-chibi">snow2-test-chibi</a> for more examples.
