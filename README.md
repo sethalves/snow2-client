@@ -29,13 +29,13 @@ Requirements
 
 Last updated: 2014-4-20
 
-## Chibi
+### Chibi
 
 The only requirement is to build chibi-scheme from trunk (chibi-scheme-0.6.1 isn't new enough).  See
 
   http://code.google.com/p/chibi-scheme/source/checkout
 
-## CHICKEN
+### CHICKEN
 
 Snow2 requires CHICKEN built from trunk (chicken-4.8.0.5 isn't new enough).  See
 
@@ -52,11 +52,11 @@ chicken-install
 
 Additionally, some of the snow2 packages assume you have certain chicken eggs installed.
 
-## Gauche
+### Gauche
 
 Build gauche from trunk (Gauche-0.9.3.3 isn't new enough).
 
-## Sagittarius
+### Sagittarius
 
 Snow2 works with sagittarius-0.5.3.
 
