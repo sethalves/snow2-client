@@ -72,11 +72,6 @@
             (else default)))
 
 
-    (define (uri->path-string uri)
-      (uri->string
-       (update-uri uri 'scheme #f 'authority #f 'fragment #f)))
-
-
     (define (make-dechunked-input-port port)
       (let ((chunk-length 0)
             (saw-eof #f))

@@ -14,7 +14,9 @@
           char-set:gen-delims char-set:sub-delims
           char-set:uri-reserved char-set:uri-unreserved
 
-          uri-equal? uri-auth-equal?)
+          uri-equal? uri-auth-equal?
+
+          uri->path-string)
 
   (import (scheme base)
           (scheme char)
@@ -1280,5 +1282,9 @@
 
 (define (uri-path-relative? uri)
   (not (uri-path-absolute? uri)))
+
+(define (uri->path-string uri)
+  (uri->string
+   (update-uri uri 'scheme #f 'authority #f 'fragment #f)))
 
 ))

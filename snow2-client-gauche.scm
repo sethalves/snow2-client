@@ -7,5 +7,5 @@ exec gosh \
 -r7 $0 "$@"
 |#
 
-(import (scheme base) (prefix (seth snow2-utils) snow2-))
+(import (scheme base) (prefix (seth snow2 client) snow2-))
 (snow2-main-program)

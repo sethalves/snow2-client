@@ -53,7 +53,8 @@
   (import (scheme base) (scheme write))
   (cond-expand
    (chibi)
-   (chicken (import (only (chicken) handle-exceptions)))
+   (chicken (import (only (chicken) handle-exceptions condition->list)
+                    (only (extras) pretty-print)))
    (gauche)
    (sagittarius))
   (begin
@@ -564,8 +565,13 @@
         (newline (current-error-port)))
        (else
         (display "Error -- " (current-error-port))
-        (write err (current-error-port))
-        (newline (current-error-port))))
+        (cond-expand
+         (chicken
+          (pretty-print (condition->list err) (current-error-port))
+          (newline (current-error-port)))
+         (else
+          (write err (current-error-port))
+          (newline (current-error-port))))))
       err)
 
 ;;;----------------------------------------------------------------------------

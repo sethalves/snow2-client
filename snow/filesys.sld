@@ -27,7 +27,7 @@
           snow-filename-strip-trailing-directory-separator
           snow-make-filename
           snow-combine-filename-parts
-          snow-unmake-filename
+          snow-split-filename
           snow-filename-relative?
           ;; snow-make-temp-filename
           snow-directory-subfiles
@@ -830,24 +830,35 @@
 
 
     (define (snow-combine-filename-parts parts)
-      (let loop ((filename "") (lst parts))
-        (cond ((and (pair? lst) (> (string-length (car lst)) 0))
-               (loop (string-append filename
-                                    (string (directory-separator))
-                                    (car lst))
-                     (cdr lst)))
-              ((pair? lst)
-               (loop filename (cdr lst)))
+      (let loop ((result "")
+                 (parts parts))
+        (cond ((null? parts) result)
+              ((null? (cdr parts))
+               (loop (string-append result (car parts))
+                     (cdr parts)))
               (else
-               filename))))
+               (loop (string-append result
+                                    (car parts)
+                                    (string (directory-separator)))
+                     (cdr parts))))))
 
 
-    (define (snow-unmake-filename filename)
-      (string-tokenize
-       filename
-       ;; (lambda (c) (not (eqv? c (directory-separator))))
-       (char-set-complement (string->char-set (string (directory-separator))))
-       ))
+    (define (snow-split-filename filename)
+      (let loop ((ret (list))
+                 (this-part "")
+                 (str filename))
+        (cond
+         ((not str) #f)
+         ((= (string-length str) 0)
+          (reverse (cons this-part ret)))
+         ((eqv? (string-ref str 0) (directory-separator))
+          (loop (cons this-part ret) ""
+                (substring str 1 (string-length str))))
+         (else
+          (loop ret
+                ;; (string-tack this-part (string-ref str 0))
+                (string-append this-part (string (string-ref str 0)))
+                (substring str 1 (string-length str)))))))
 
 
     (define (snow-filename-relative? filename)
@@ -885,7 +896,7 @@
                 (list-file (append dir-path-parts (list name)))
                 (loop (cdr lst))))))
 
-      (list-file (snow-unmake-filename filename)))
+      (list-file (snow-split-filename filename)))
 
 
 

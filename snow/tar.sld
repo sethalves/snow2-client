@@ -145,7 +145,8 @@
           (define (octal-field-aux n-str len offset)
             (let ((n-str-len (string-length n-str)))
               (if (> n-str-len len)
-                  (tar-field-overflow)
+                  ;; (tar-field-overflow)
+                  (error "overflow" n-str n-str-len len)
                   (let ((pad (- len n-str-len)))
                     (let loop ((i 0))
                       (if (< i pad)
@@ -532,7 +533,7 @@
     (define (tar-read-file filename)
 
       (define mtime ;; current time because we can't get file's mtime
-        (current-second))
+        (exact (floor (current-second))))
 
       (define (read-file filename rev-tar-rec-list)
         (let* ((type

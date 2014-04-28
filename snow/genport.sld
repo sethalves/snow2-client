@@ -236,7 +236,7 @@
            (lambda () ; read-char
              (if (> (genport-read-subu8vector buff 0 1 genport-in) 0)
                  (integer->char (bytevector-u8-ref buff 0))
-                 (eof-object?)))
+                 (eof-object)))
            (lambda () #t) ; char-ready?
            (lambda () ; close
              (genport-close-input-port genport-in))

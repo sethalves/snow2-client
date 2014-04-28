@@ -27,7 +27,7 @@ Other schemes will be supported when they support r7rs-style libraries.
 Requirements
 ============
 
-Last updated: 2014-4-20
+Last updated: 2014-04-20
 
 ### Chibi
 
@@ -130,3 +130,16 @@ $ snow2 search
 ```
 
 See <a href="https://github.com/sethalves/snow2-test-chicken">snow2-test-chicken</a> or <a href="https://github.com/sethalves/snow2-test-chibi">snow2-test-chibi</a> for more examples.
+
+Other Scheme Package Managers
+=============================
+
+http://home.gna.org/dorodango/manual/
+
+http://wiki.call-cc.org/eggs
+
+http://planet.racket-lang.org/
+
+http://synthcode.com/scheme/common-scheme/doc/common-scheme.html
+
+http://gna.org/projects/spells
