@@ -533,7 +533,9 @@
     (define (tar-read-file filename)
 
       (define mtime ;; current time because we can't get file's mtime
-        (exact (floor (current-second))))
+        ;; (exact (floor (current-second)))
+        (snow-file-mtime filename)
+        )
 
       (define (read-file filename rev-tar-rec-list)
         (let* ((type

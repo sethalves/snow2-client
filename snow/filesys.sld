@@ -16,6 +16,7 @@
           snow-file-regular?
           snow-file-symbolic-link?
           snow-file-size
+          snow-file-mtime
           snow-delete-file
           snow-rename-file
           snow-create-directory
@@ -960,8 +961,38 @@
       ))
 
 
+    (cond-expand
+     (bigloo
+      (define snow-file-mtime file-modification-time))
+     (chibi
+      (define (snow-file-mtime filename)
+        (exact (floor (+ 1262271600 (file-modification-time filename))))))
+     (chicken
+      (define (snow-file-mtime filename)
+        (exact (floor (vector-ref (file-stat filename) 8)))))
+     (gambit
+      (define (snow-file-mtime filename)
+        (time->seconds (file-info-last-modification-time (file-info path)))))
+     (gauche
+      (define (snow-file-mtime filename)
+        (exact (floor (file-mtime filename)))))
+     (guile
+      (define (snow-file-mtime filename)
+        (stat:mtime (stat filename))))
+     (mosh
+      (define snow-file-mtime file-stat-mtime))
+     (racket
+      (define (snow-file-mtime filename)
+        (file-or-directory-modify-seconds filename)))
+     (sagittarius
+      (define (snow-file-mtime filename)
+        (exact (floor (file-stat-mtime filename)))))
+     (else))
+
+
+     ))
+
 
 ;;;============================================================================
 
 
-    ))

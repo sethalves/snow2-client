@@ -59,7 +59,10 @@
                    493 ;; mode
                    0 ;; uid
                    0 ;; gid
-                   (exact (floor (current-second))) ;; mtime
+                   ;; (exact (floor (current-second))) ;; mtime
+                   (snow-file-mtime
+                    (snow-combine-filename-parts
+                     (append repo-path lib-rel-path)))
                    'directory
                    "" ;; linkname
                    "root" ;; uname

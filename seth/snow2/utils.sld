@@ -380,7 +380,8 @@
                (cond ((or (not (snow-file-exists? tests-dirname))
                           (not (snow-file-directory? tests-dirname))
                           (not (file-exists? packages-dirname))
-                          (not (snow-file-directory? packages-dirname)))
+                          (not (snow-file-directory? packages-dirname))
+                          (not (snow-file-exists? index-filename)))
                       #f)
                      (else
                       (let* ((in-port (open-binary-input-file index-filename))
@@ -429,45 +430,25 @@
       ;; read a file that contains a package s-exp and update the copy
       ;; in repository.
       (let ((updated-package (package-from-filename package-filename)))
+        (cond ((not updated-package)
+               (error "can't read package metafile." package-filename)))
         (let loop ((repo-packages (snow2-repository-packages repository)))
-          (cond ((null? repo-packages) #f)
+          (cond ((null? repo-packages)
+                 ;; we found a package file, but it's not in the repository's
+                 ;; index.scm file.
+                 (set-snow2-repository-packages!
+                  repository
+                  (cons updated-package
+                        (snow2-repository-packages repository)))
+                 updated-package)
                 (else
                  (let ((repo-package (car repo-packages)))
-
-                   ;; (display "names: ")
-                   ;; (write (snow2-package-name repo-package))
-                   ;; (display " ")
-                   ;; (write (snow2-package-name updated-package))
-                   ;; (newline)
-
-                   ;; (display "urls: ")
-                   ;; (write (snow2-package-url repo-package))
-                   ;; (display " ")
-                   ;; (write (snow2-package-url updated-package))
-                   ;; (newline)
-
-
                    (cond ((and
                            (equal? (snow2-package-name repo-package)
                                    (snow2-package-name updated-package))
                            (uri-equal?
                             (snow2-package-url repo-package)
                             (snow2-package-url updated-package)))
-
-                          ;; (let ((hi (snow2-package-repository repo-package)))
-                          ;;   (set-snow2-package-repository! repo-package #f)
-                          ;;   (display "--------------\n")
-                          ;;   (write repo-package)
-                          ;;   (display "\n--------------\n")
-                          ;;   (write updated-package)
-                          ;;   (display "\n--------------\n")
-                          ;;   (set-snow2-package-repository! repo-package hi)
-                          ;;   (write (snow2-packages-equal? repo-package
-                          ;;                                 updated-package))
-                          ;;   (display "\n--------------\n"))
-
-
-
                           (cond ((not (snow2-packages-equal? repo-package
                                                              updated-package))
                                  ;; (display "package file changed.\n")

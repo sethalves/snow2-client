@@ -75,6 +75,20 @@
        r7rs-imports))
 
 
+    (define (r7rs-import->libs r7rs-import)
+      (cond ((not (pair? r7rs-import))
+             (display "Warning: unexpected import form: ")
+             (write r7rs-import)
+             (newline)
+             r7rs-import)
+            ((eq? (car r7rs-import) 'only)
+             (r7rs-import->libs (cadr r7rs-import)))
+            ((eq? (car r7rs-import) 'prefix)
+             (r7rs-import->libs (cadr r7rs-import)))
+            (else r7rs-import)))
+
+
+
     (define (r7rs-get-library-imports filename)
       ;; (display filename)
       ;; (newline)
@@ -84,21 +98,23 @@
              (r7rs-no-begin (r7rs-drop-body r7rs-lib))
              (r7rs-sans-ce (r7rs-explode-cond-expand r7rs-no-begin))
              (r7rs-imports-all (r7rs-extract-im/export r7rs-sans-ce 'import))
-             (r7rs-imports-clean
-              (map (lambda (r7rs-import)
-                     (cond ((not (pair? r7rs-import))
-                            (display "Warning: unexpected import form: ")
-                            (write r7rs-import)
-                            (newline)
-                            r7rs-import)
-                           ((eq? (car r7rs-import) 'only)
-                            (cadr r7rs-import))
-                           ((eq? (car r7rs-import) 'prefix)
-                            (cadr r7rs-import))
-                           (else r7rs-import)))
-                   r7rs-imports-all))
-             (r7rs-imports (r7rs-filter-known-imports
-                            (uniq r7rs-imports-clean))))
+             (r7rs-imports-clean (map r7rs-import->libs r7rs-imports-all))
+             ;; (r7rs-imports-clean
+             ;;  (map (lambda (r7rs-import)
+             ;;         (cond ((not (pair? r7rs-import))
+             ;;                (display "Warning: unexpected import form: ")
+             ;;                (write r7rs-import)
+             ;;                (newline)
+             ;;                r7rs-import)
+             ;;               ((eq? (car r7rs-import) 'only)
+             ;;                (cadr r7rs-import))
+             ;;               ((eq? (car r7rs-import) 'prefix)
+             ;;                (cadr r7rs-import))
+             ;;               (else r7rs-import)))
+             ;;       r7rs-imports-all))
+             (r7rs-imports
+              (r7rs-filter-known-imports (uniq r7rs-imports-clean)))
+             )
         (close-input-port p)
 
         ;; (snow-pretty-print r7rs-no-begin)
