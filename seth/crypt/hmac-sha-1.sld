@@ -10,7 +10,7 @@
    (chibi
     (import (snow bytevector)
             (snow srfi-60-integers-as-bits)
-            (snow srfi-13-strings)
+            ;; (snow srfi-13-strings)
             (seth port-extras)
             (seth crypt sha-1)
             (scheme write)

@@ -17,6 +17,7 @@
           hash-table-values
           hash-table->alist
           alist->hash-table
+          hash-table-cons!
           )
   (import (scheme base))
   (cond-expand
@@ -390,4 +391,10 @@
           (hash-table-keys src-table))))
       (else))
 
+     (define (hash-table-cons! ht key value)
+       (cond ((hash-table-exists? ht key)
+              (let ((previous (hash-table-ref ht key)))
+                (hash-table-set! ht key (cons value previous))))
+             (else
+              (hash-table-set! ht key (list value)))))
      ))

@@ -66,7 +66,8 @@
                   (chibi net)
                   (scheme read)
                   (scheme write)
-                  (seth port-extras)))
+                  ;; (seth port-extras)
+                  ))
    (chicken (import (openssl) (udp) (posix) (ports)
                     ;; (tcp6) ;; XXX tcp6 is ignoring timeout parameters
                     (tcp)
@@ -77,7 +78,7 @@
                    (gauche net)
                    (seth gauche-socket-utils)
                    (snow bytevector)
-                   (seth port-extras)
+                   ;; (seth port-extras)
                    ))
    (sagittarius
     ;; http://ktakashi.github.io/sagittarius-ref.html#lib.sagittarius.socket
@@ -91,7 +92,8 @@
                   eol-style)
             (sagittarius socket)
             (snow bytevector)
-            (seth port-extras)))
+            ;; (seth port-extras)
+            ))
    )
   (begin
 

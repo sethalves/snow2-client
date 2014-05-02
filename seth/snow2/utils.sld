@@ -2,6 +2,7 @@
   (export get-repository
           read-repository
           get-repositories-and-siblings
+          find-packages-with-library
           find-package-with-library
           snow2-package-libraries
           snow2-packages-libraries
@@ -18,7 +19,16 @@
           library->sexp
           package->sexp
           repository->sexp
-          refresh-package-from-filename)
+          refresh-package-from-filename
+          find-libraries-by-name
+
+          local-repository->in-fs-index-path
+          local-repository->in-fs-index-filename
+          local-repository->in-fs-tgz-path
+          local-repository->in-fs-tgz-filename
+          local-repository->in-fs-lib-path
+          local-repository->in-fs-lib-filename
+          )
 
   (import (scheme base)
           (scheme read)
@@ -26,20 +36,24 @@
           (scheme file)
           (scheme process-context))
   (cond-expand
-   (chibi (import (only (srfi 1) filter make-list any fold)))
+   (chibi (import (only (srfi 1) filter make-list any fold last)))
    (else (import (srfi 1))))
   (cond-expand
    (chibi (import (chibi filesystem)))
    (else))
   (import (snow snowlib)
           (snow extio)
-          (snow srfi-13-strings)
+          ;; (snow srfi-13-strings)
           (seth srfi-69-hash-tables)
-          (snow filesys) (snow binio) (snow genport) (snow zlib) (snow tar)
+          (snow filesys)
+          ;; (snow binio)
+          ;; (snow genport)
+          ;; (snow zlib)
+          ;; (snow tar)
           (prefix (seth http) http-)
-          (seth temporary-file)
-          (seth string-read-write)
-          (seth srfi-37-argument-processor)
+          ;; (seth temporary-file)
+          ;; (seth string-read-write)
+          ;; (seth srfi-37-argument-processor)
           (seth uri)
           (seth snow2 types)
           )
@@ -242,8 +256,8 @@
                      (loop (cdr libraries))))))))
 
 
-    (define (find-package-with-library repositories library-name)
-      ;; find the last package that contains a library with the given name
+    (define (find-packages-with-library repositories library-name)
+      ;; find all packages with a library of the given name
       (let r-loop ((repositories repositories)
                    (candidate-packages '()))
         (cond
@@ -252,7 +266,7 @@
                  (error "couldn't find library" library-name))
                 ;; XXX rather than just taking the last one,
                 ;; select one based on version requirements, etc
-                (else (car candidate-packages))))
+                (else candidate-packages)))
          (else
           (let loop ((packages (snow2-repository-packages (car repositories)))
                      (candidate-packages candidate-packages))
@@ -266,6 +280,11 @@
                                (cons package candidate-packages))
                          (loop (cdr packages)
                                candidate-packages))))))))))
+
+
+    (define (find-package-with-library repositories library-name)
+      ;; find the last package that contains a library with the given name
+      (car (find-packages-with-library repositories library-name)))
 
 
     (define (find-packages-with-libraries repositories library-names)
@@ -459,5 +478,66 @@
                           repo-package)
                          (else
                           (loop (cdr repo-packages))))))))))
+
+
+    (define (find-libraries-by-name container library-name)
+      ;; returns a (possibly empty) list of library structs that
+      ;; have the given name and are somewhere inside container.
+      ;; container can be any of:
+      ;;   snow2-library, snow2-package, snow2-repository
+      ;; or a list containing these.
+      (if (snow2-library? container)
+          (if (equal? library-name (snow2-library-name container))
+              (list container)
+              '())
+          (fold append '()
+                (map (lambda (child)
+                       (find-libraries-by-name child library-name))
+                     (cond ((snow2-package? container)
+                            (snow2-package-libraries container))
+                           ((snow2-repository? container)
+                            (snow2-repository-packages container))
+                           ((list? container) container)
+                           (else
+                            (error "unknown snow2 container type"
+                                   container)))))))
+
+
+    (define (local-repository->in-fs-index-path local-repository)
+      ;; given an on-disk repository, return a path to index.scm
+      (let* ((repo-path (uri-path (snow2-repository-url local-repository))))
+        (append repo-path (list "index.scm"))))
+
+    (define (local-repository->in-fs-index-filename local-repository)
+      ;; given an on-disk repository, return the (perhaps relative)
+      ;; path and filename of index.scm
+      (snow-combine-filename-parts
+       (local-repository->in-fs-index-path local-repository)))
+
+    (define (local-repository->in-fs-tgz-path local-repository package)
+      ;; within a local repository, return a path on the filesystem to
+      ;; a tgz for the given package
+      (let* ((repo-path (uri-path (snow2-repository-url local-repository)))
+             (url (snow2-package-url package)))
+        (reverse (cons (last (uri-path url)) (reverse repo-path)))))
+
+    (define (local-repository->in-fs-tgz-filename local-repository package)
+      ;; within a local repository, return a path/filename on the filesystem
+      ;; to a tgz for the given package
+      (snow-combine-filename-parts
+       (local-repository->in-fs-tgz-path local-repository package)))
+
+
+    (define (local-repository->in-fs-lib-path local-repository lib)
+      ;; return path to library source file within a local repository
+      (let* ((repo-path (uri-path (snow2-repository-url local-repository)))
+             (in-pkg-lib-path (snow-split-filename (snow2-library-path lib))))
+        (append repo-path in-pkg-lib-path)))
+
+    (define (local-repository->in-fs-lib-filename local-repository lib)
+      ;; return filename of library source file within a local repository
+      (snow-combine-filename-parts
+       (local-repository->in-fs-lib-path local-repository lib)))
+
 
     ))

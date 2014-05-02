@@ -22,7 +22,7 @@
    (gauche (import (snow gauche-extio-utils)))
    (sagittarius (import (only (rnrs) port-position set-port-position!))))
   (import (snow snowlib)
-          (snow binio)
+          ;; (snow binio)
           (snow bytevector)
           (snow srfi-60-integers-as-bits)
           )

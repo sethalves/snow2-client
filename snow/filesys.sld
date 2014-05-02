@@ -42,8 +42,8 @@
   (import (scheme base)
           (scheme write)
           (scheme file)
-          (snow bytevector)
-          (snow random)
+          ;; (snow bytevector)
+          ;; (snow random)
           (snow srfi-13-strings))
   (cond-expand
    (chibi

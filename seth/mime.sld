@@ -22,7 +22,7 @@
    (sagittarius
     (import (rfc mime)
             (snow srfi-13-strings)
-            (snow extio)
+            ;; (snow extio)
             )
     ))
   (import (snow binio))
