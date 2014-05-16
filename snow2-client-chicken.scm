@@ -12,7 +12,6 @@ exec csi -include-path /usr/local/share/scheme -s $0 "$@"
 (include "snow/bytevector.sld")
 (include "snow/binio.sld")
 (include "snow/bignum.sld")
-(include "snow/random.sld")
 (include "snow/extio.sld")
 (include "snow/srfi-29-format.sld")
 (include "snow/srfi-13-strings.sld")

@@ -89,18 +89,56 @@ Running
 ```
 $ snow2 -h
 snow2 [arguments] <operation> '(library name)' ...
-  <operation> can be "install" or "uninstall" or "list-depends" or "search"
-  -r --repo <url>      Prepend to list of snow2 repositories.
+  <operation> can be one of: install uninstall list-depends search check
+  -r --repo <url>      Add to list of snow2 repositories.
   -s --symlink         Make symlinks to a repo's source files.
   -v --verbose         Print more.
   -h --help            Print usage message.
+
+Example: snow2 install '(snow hello)'
 ```
 
+### operations
+
+#### install
+
+The requested libraries will be made available as children of the
+current directory.  If the package holding the requested libraries is
+located on an HTTP server, it will be downloaded to a file in /tmp/
+and untarred (and the tarball in /tmp will be removed).  If the
+repository is a directory on the local file system, the package will
+be untarred from the tarball located in the repository's directory.
+If the repository is a local diretory and the --symlink option is
+invoked, the installed libraries will be symbolic links to the source
+files in the local repository.  This can be useful when working on
+changes to a library.
+
+#### uninstall
+
+This currently does nothing.
+
+#### list-depends
+
+The arguments of the (depends ...)  clause of each package containing
+the mentioned libraries will be printed.
+
+#### search
+
+Display a list of libraries which have names that are matched by
+a substring search with the provided argument.
+
+### examples
 
 ```
 $ snow2 search hello
 (snow hello)
 ```
+
+```
+$ snow2 search 'ow he'
+(snow hello)
+```
+
 
 ```
 $ snow2 list-depends '(snow hello)'
@@ -143,3 +181,5 @@ http://planet.racket-lang.org/
 http://synthcode.com/scheme/common-scheme/doc/common-scheme.html
 
 http://gna.org/projects/spells
+
+http://www.gnu.org/software/guix/

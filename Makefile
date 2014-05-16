@@ -86,6 +86,14 @@ uninstall-chicken:
 clean-chicken:
 	rm -f snow2
 
+bootstrap-chicken:
+	rm -rf snow seth
+	ln -s ../snow2-packages/snow/snow snow
+	ln -s ../snow2-packages/seth/seth seth
+	make SCHEME=chicken build
+	rm seth snow
+	./snow2 -:a40 install '(seth snow2 types)'
+
 
 #
 # chibi
