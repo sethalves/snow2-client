@@ -108,8 +108,8 @@ located on an HTTP server, it will be downloaded to a file in /tmp/
 and untarred (and the tarball in /tmp will be removed).  If the
 repository is a directory on the local file system, the package will
 be untarred from the tarball located in the repository's directory.
-If the repository is a local diretory and the --symlink option is
-invoked, the installed libraries will be symbolic links to the source
+If the repository is a local directory and the --symlink option is
+used, the installed libraries will be symbolic links to the source
 files in the local repository.  This can be useful when working on
 changes to a library.
 
