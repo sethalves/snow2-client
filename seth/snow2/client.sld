@@ -4,19 +4,24 @@
           client
           main-program)
 
-  (import (scheme base) (scheme read) (scheme write)
-          (scheme file) (scheme process-context))
+  (import (scheme base)
+          (scheme write)
+          (scheme file)
+          (scheme process-context))
   (cond-expand
-   (chibi (import (only (srfi 1) filter make-list any fold)))
-   (else (import (srfi 1))))
+   (chibi (import (only (srfi 1) filter make-list any fold)
+                  ;; (only (chibi) read)
+                  ))
+   (else (import ;; (scheme read)
+                 (srfi 1)
+                 )))
   (cond-expand
    (chibi (import (chibi filesystem)))
    (else))
   (import (snow snowlib)
-          ;; (snow extio)
           (snow srfi-13-strings)
-          ;; (seth srfi-69-hash-tables)
           (snow filesys) (snow binio) (snow genport) (snow zlib) (snow tar)
+          (snow srfi-29-format)
           (prefix (seth http) http-)
           (seth temporary-file)
           (seth string-read-write)
@@ -25,10 +30,28 @@
           (seth crypt md5)
           (seth snow2 types)
           (seth snow2 utils)
-          ;; (seth snow2 r7rs-library)
+          (seth snow2 r7rs-library)
           (seth snow2 manage)
           )
   (begin
+
+
+    (define (display-error msg err . maybe-depth)
+      (let* ((depth (if (pair? maybe-depth) (car maybe-depth) 0))
+             (depth-s (make-string (* depth 2) #\space)))
+        (display
+         (format "~aError -- ~a ~s\n" depth-s msg (error-object-message err))
+         (current-error-port))
+        (for-each (lambda (irr)
+                    (cond ((error-object? irr)
+                           (display-error "" irr (+ depth 1)))
+                          (else
+                           (display depth-s)
+                           (write irr (current-error-port))
+                           (newline (current-error-port)))))
+                  (error-object-irritants err))))
+
+
 
     (define (write-tar-recs-to-disk tar-recs)
       (let loop ((tar-recs tar-recs))
@@ -62,49 +85,45 @@
       ;; use-symlinks being true will cause symlinks to source files rather
       ;; than copies (when possible).  verbose prints more.
       (define (install-from-tgz repo package local-package-tgz-file)
-        (snow-with-exception-catcher
-         (lambda (err)
-           (display "Error -- " (current-error-port))
-           (display local-package-tgz-file (current-error-port))
-           (display " " (current-error-port))
-           (cond
-            ((snow-error-condition? err)
-             (display (snow-error-condition-msg err) (current-error-port)))
-            (else
-             (display err)))
-           (newline (current-error-port))
-           #f)
-         (lambda ()
-           (let* ((pkg-tgz-size (snow2-package-size package))
-                  (checksum (snow2-package-size package))
-                  (pkg-md5-sum (cond ((and checksum
-                                           (pair? checksum)
-                                           (eq? (car checksum) 'md5))
-                                      (cadr checksum))
-                                     (else #f))))
-             ;; if the package metadata had (size ...) or (checksum ...)
-             ;; make sure the provided values match those of what we're about
-             ;; to untar.
-             (cond ((and pkg-md5-sum
-                         (not (eq? pkg-md5-sum
-                                   (filename->md5 local-package-tgz-file))))
-                    (error "checksum mismatch"
-                           local-package-tgz-file
-                           pkg-md5-sum))
-                   ((and pkg-tgz-size
-                         (not (= pkg-tgz-size
-                                 (snow-file-size local-package-tgz-file))))
-                    (error "filesize mismatch"
-                           local-package-tgz-file
-                           pkg-tgz-size)))
+        (guard
+         (err (#t
+               ;; (display
+               ;;     (format "Error -- ~a ~s ~s\n"
+               ;;             local-package-tgz-file
+               ;;             (error-object-message err)
+               ;;             (error-object-irritants err)))
+               (display-error local-package-tgz-file err)
+               (raise err)))
+         (let* ((pkg-tgz-size (snow2-package-size package))
+                (checksum (snow2-package-size package))
+                (pkg-md5-sum (cond ((and checksum
+                                         (pair? checksum)
+                                         (eq? (car checksum) 'md5))
+                                    (cadr checksum))
+                                   (else #f))))
+           ;; if the package metadata had (size ...) or (checksum ...)
+           ;; make sure the provided values match those of what we're about
+           ;; to untar.
+           (cond ((and pkg-md5-sum
+                       (not (eq? pkg-md5-sum
+                                 (filename->md5 local-package-tgz-file))))
+                  (error "checksum mismatch"
+                         local-package-tgz-file
+                         pkg-md5-sum))
+                 ((and pkg-tgz-size
+                       (not (= pkg-tgz-size
+                               (snow-file-size local-package-tgz-file))))
+                  (error "filesize mismatch"
+                         local-package-tgz-file
+                         pkg-tgz-size)))
 
-             (let* ((bin-port (binio-open-input-file
-                               local-package-tgz-file))
-                    (zipped-p (genport-native-input-port->genport bin-port))
-                    (unzipped-p (gunzip-genport zipped-p))
-                    (tar-recs (tar-unpack-genport unzipped-p)))
-               (genport-close-input-port unzipped-p)
-               (write-tar-recs-to-disk tar-recs))))))
+           (let* ((bin-port (binio-open-input-file
+                             local-package-tgz-file))
+                  (zipped-p (genport-native-input-port->genport bin-port))
+                  (unzipped-p (gunzip-genport zipped-p))
+                  (tar-recs (tar-unpack-genport unzipped-p)))
+             (genport-close-input-port unzipped-p)
+             (write-tar-recs-to-disk tar-recs)))))
 
 
       (define (install-from-http repo package url)
@@ -117,31 +136,55 @@
           (newline)
 
           (let ((download-success
-                 (snow-with-exception-catcher
-                  (lambda (exn)
-                    (display "unable to install package: "
-                             (current-error-port))
-                    (display (uri->string url) (current-error-port))
-                    (newline (current-error-port))
-                    (display exn (current-error-port))
-                    (newline (current-error-port))
-                    #f)
-                  (lambda ()
-                    (http-download-file (uri->string url) write-port)))))
+
+                 ;; (snow-with-exception-catcher
+                 ;;  (lambda (exn)
+                 ;;    (display "unable to install package: "
+                 ;;             (current-error-port))
+                 ;;    (display (uri->string url) (current-error-port))
+                 ;;    (newline (current-error-port))
+                 ;;    (display exn (current-error-port))
+                 ;;    (newline (current-error-port))
+                 ;;    #f)
+                 ;;  (lambda ()
+                 ;;    (http-download-file (uri->string url) write-port)))
+
+                 (guard
+                  (err (#t
+                        ;; (display
+                        ;;  (format "Unable to install package: ~a ~s ~s\n"
+                        ;;          (uri->string url)
+                        ;;          (error-object-message err)
+                        ;;          (error-object-irritants err)
+                        ;;          ))
+                        (display-error
+                         (format "Unable to install package: ~a\n"
+                                 (uri->string url))
+                         err)
+                        (raise err)))
+                  (http-download-file (uri->string url) write-port))
+                 ))
 
             (cond (download-success
-                   (let ((success
-                          (install-from-tgz repo package
-                                            local-package-tgz-file)))
+                   (let ((success (install-from-tgz
+                                   repo package local-package-tgz-file)))
                      (delete-file local-package-tgz-file)
                      success))
                   (else #f)))))
 
 
-      (define (install-symlinks repo package)
+      (define (install-symlinks local-repository package)
         (let* ((libraries (snow2-package-libraries package))
-               (manifest (fold append '() (map get-library-manifest libraries)))
-               (repo-path (uri-path (snow2-repository-url repo))))
+               (lib-sexps (map (lambda (lib)
+                                 (let* ((lib-filename
+                                         (local-repository->in-fs-lib-filename
+                                          local-repository lib)))
+                                   (r7rs-library-file->sexp lib-filename)))
+                               libraries))
+               (manifest (fold append '()
+                               (map r7rs-get-library-manifest
+                                    libraries lib-sexps)))
+               (repo-path (uri-path (snow2-repository-url local-repository))))
           (for-each
            (lambda (library-member-filename)
              (let* ((dst-path (snow-split-filename library-member-filename))
@@ -349,11 +392,11 @@
         (display " " (current-error-port))
         (display "[arguments] <operation> '(library name)' ...\n"
                  (current-error-port))
-        (display "  <operation> can be \"install\" or " (current-error-port))
-        (display "\"uninstall\" or \"list-depends\" or \"search\"\n"
-                 (current-error-port))
+        (display "  <operation> can be one of: install " (current-error-port))
+        (display "uninstall list-depends " (current-error-port))
+        (display "search check\n" (current-error-port))
         (display "  -r --repo <url>      " (current-error-port))
-        (display "Prepend to list of snow2 repositories.\n"
+        (display "Add to list of snow2 repositories.\n"
                  (current-error-port))
         (display "  -s --symlink         " (current-error-port))
         (display "Make symlinks to a repo's source files.\n")
@@ -361,7 +404,9 @@
         (display "Print more.\n" (current-error-port))
         (display "  -h --help            " (current-error-port))
         (display "Print usage message.\n" (current-error-port))
-        (display "\nExample: snow2 install '(snow srfi-13-strings)'\n")
+        (display "\nExample: snow2 install '(snow hello)'\n")
+        (display "\nsee ")
+        (display "https://github.com/sethalves/snow2-client#snow2-client\n")
         (exit 1)))
 
 
@@ -398,7 +443,7 @@
              #f ;; initial value of operation
              '() ;; initial value of repos
              #f ;; initial value of use-symlinks
-             '() ;; initial value of libs
+             '() ;; initial value of args
              #f ;; initial value of verbose
              )))
         (let ((repository-urls
@@ -417,7 +462,7 @@
                 ((member operation '("package"))
                  (let ((repositories (get-repositories-and-siblings
                                       '() repository-urls)))
-                   (make-package-archives repositories args)))
+                   (make-package-archives repositories args verbose)))
                 ;; upload a tgz package file
                 ((member operation '("s3-upload" "upload-s3" "upload"))
                  (let ((repositories (get-repositories-and-siblings
@@ -428,14 +473,8 @@
                  (let ((repositories (get-repositories-and-siblings
                                       '() repository-urls))
                        (credentials #f))
-                   (check-packages credentials repositories args)))
-                ;; ((member operation '("blerg"))
-                ;;  (let ((repositories (get-repositories-and-siblings
-                ;;                       '() repository-urls))
-                ;;        (credentials #f))
-                ;;    (check-packages~ credentials repositories
-                ;;                     (map read-from-string args)
-                ;;                     )))
+                   (for-each sanity-check-repository repositories)
+                   (check-packages credentials repositories args verbose)))
                 ;; other operations
                 ((not (member operation '("link-install"
                                           "install"

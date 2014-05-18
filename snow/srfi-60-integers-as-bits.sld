@@ -18,7 +18,8 @@
                           bitwise-not
                           bitwise-xor)))
    (gauche (import (srfi 60)))
-   (sagittarius (import (rnrs arithmetic bitwise (6)))))
+   (sagittarius (import (rnrs arithmetic bitwise (6))))
+   (else))
   (begin
 
     (define powers-of-two ;; 64 bits worth
@@ -86,41 +87,28 @@
     (cond-expand
 
      ;; these have srfi-33 or srfi-60 available
-     ((or chibi chicken gauche kawa mosh racket sagittarius))
+     ((or chibi chicken gauche sagittarius))
 
-     (bigloo
-      (define (arithmetic-shift n sft)
-        (if (> sft 0)
-            (bit-lsh n sft)
-            (bit-rsh n (- sft))))
+     ;; (else
+     ;;  (define (arithmetic-shift n sft)
+     ;;    (if (> sft 0)
+     ;;        (bit-lsh n sft)
+     ;;        (bit-rsh n (- sft))))
 
-      ;; (define bitwise-ior bit-or)
-      (define (bitwise-ior . args)
-        (if (null? args)
-            0
-            (bit-or (car args) (apply bitwise-ior (cdr args)))))
+     ;;  ;; (define bitwise-ior bit-or)
+     ;;  (define (bitwise-ior . args)
+     ;;    (if (null? args)
+     ;;        0
+     ;;        (bit-or (car args) (apply bitwise-ior (cdr args)))))
 
-      (define bitwise-and bit-and)
-      (define bitwise-not bit-not)
-      (define (bitwise-xor . args)
-        (let loop ((v (car args))
-                   (args (cdr args)))
-          (if (null? args) v
-              (loop (bit-xor v (car args))
-                    (cdr args))))))
-
-     (guile
-      (define arithmetic-shift ash)
-      (define bitwise-ior logior)
-      (define bitwise-and logand)
-      (define bitwise-xor logxor)
-      (define bitwise-not lognot))
-
-     (scheme2js
-      (define bitwise-ior bit-or)
-      (define bitwise-and bit-and)
-      (define bitwise-xor bit-xor)
-      (define bitwise-not bit-not))
+     ;;  (define bitwise-and bit-and)
+     ;;  (define bitwise-not bit-not)
+     ;;  (define (bitwise-xor . args)
+     ;;    (let loop ((v (car args))
+     ;;               (args (cdr args)))
+     ;;      (if (null? args) v
+     ;;          (loop (bit-xor v (car args))
+     ;;                (cdr args))))))
 
      (else
       (define (bitwise-op v0 v1 op)

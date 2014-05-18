@@ -52,346 +52,62 @@
           )
   (import (scheme base) (scheme write))
   (cond-expand
-   (chibi)
    (chicken (import (only (chicken) handle-exceptions condition->list)
                     (only (extras) pretty-print)))
-   (gauche)
-   (sagittarius))
+   (else))
   (begin
 
 ;;;============================================================================
 
 ;;; System dependencies.
 
-    (cond-expand
-
-     (else
-
-      (define-record-type <snow-cond>
-        (make-snow-cond type fields)
-        snow-cond?
-        (type snow-cond-type set-snow-cond-type!)
-        (fields snow-cond-fields set-snow-cond-fields!)
-        )
-
-
-      (define (make-snow-condition)
-        (make-snow-cond '()
-                        '#()))
-
-      (define (snow-condition? obj)
-        (snow-cond? obj))
-
-      (define (make-type-check-condition type-expected)
-        (make-snow-condition '(type-check-condition)
-                             (vector type-expected)))
-
-      (define (type-check-condition? obj)
-        (and (snow-condition? obj)
-             (memq 'type-check-condition (snow-cond-type obj))))
-
-      (define (type-check-condition-type-expected cnd)
-        (vector-ref (snow-cond-fields cnd) 0))
-
-      (define (make-snow-error-condition msg args)
-        (make-snow-cond '(error-condition)
-                        (vector msg args)))
-
-      (define (snow-error-condition? obj)
-        (and (snow-cond? obj)
-             (memq 'error-condition (snow-cond-type obj))))
-
-      (define (snow-error-condition-msg cnd)
-        (vector-ref (snow-cond-fields cnd) 0))
-
-      (define (snow-error-condition-args cnd)
-        (vector-ref (snow-cond-fields cnd) 1))))
-
-    (cond-expand
-
-     (bigloo
-
-      (define (snow-raise exc)
-        (raise exc))
-
-      (define (snow-with-exception-catcher catcher thunk)
-        (with-handler catcher (thunk))))
-
-     (chez
-
-      (define exception-error-msg
-        (string-append "uncaught" " exception"))
-
-      (define (snow-raise exc)
-        (error 'snow-raise exception-error-msg exc))
-
-      (define (snow-with-exception-catcher catcher thunk)
-        ((call-with-current-continuation
-          (lambda (unwind-and-call)
-            (lambda ()
-              (parameterize ((error-handler
-                              (lambda (who msg . args)
-                                (let ((exc
-                                       (if (and (eq? who 'snow-raise)
-                                                (eq? msg exception-error-msg)
-                                                (pair? args))
-                                           (car args)
-                                           (cons who (cons msg args)))))
-                                  (unwind-and-call (lambda ()
-                                                     (catcher exc)))))))
-                            (call-with-values
-                                thunk
-                              (lambda results
-                                (unwind-and-call
-                                 (lambda () (apply values results))))))))))))
-
-     (chibi
-      (define (snow-raise exc)
-        (error exc))
-      (define (snow-with-exception-catcher catcher thunk)
-        (guard (condition (else (catcher condition)))
-               (thunk))))
-
-     (chicken
-
-      (define (snow-raise exc)
-        ;; (signal exc)
-        (error exc))
-
-      (define (snow-with-exception-catcher catcher thunk)
-        (handle-exceptions exn (catcher exn) (thunk)))
-
-      ;; (define (snow-with-exception-catcher catcher thunk)
-      ;;   ((call-with-current-continuation
-      ;;     (lambda (unwind-and-call)
-      ;;       (lambda ()
-      ;;         (with-exception-handler
-      ;;          (lambda (exc)
-      ;;            (unwind-and-call
-      ;;             (lambda ()
-      ;;               (catcher
-      ;;                ((condition-property-accessor 'exn 'message) exc)))))
-      ;;          (lambda ()
-      ;;            (call-with-values
-      ;;                thunk
-      ;;              (lambda results
-      ;;                (unwind-and-call
-      ;;                 (lambda () (apply values results))))))))))))
+    (define-record-type <snow-cond>
+      (make-snow-cond type fields)
+      snow-cond?
+      (type snow-cond-type set-snow-cond-type!)
+      (fields snow-cond-fields set-snow-cond-fields!)
       )
 
-     (guile
 
-      (define (snow-raise exc)
-        (throw 'raise exc))
+    (define (make-snow-condition)
+      (make-snow-cond '()
+                      '#()))
 
-      (define (snow-with-exception-catcher catcher thunk)
-        (catch #t thunk (lambda (key . exc)
-                          (catcher (if (pair? exc) (car exc) key))))))
+    (define (snow-condition? obj)
+      (snow-cond? obj))
 
-     (kawa
+    (define (make-type-check-condition type-expected)
+      (make-snow-condition '(type-check-condition)
+                           (vector type-expected)))
 
-      (define-simple-class <snow-exception> (<java.lang.Throwable>)
-        (snow-exc init-keyword: snow-exc:))
+    (define (type-check-condition? obj)
+      (and (snow-condition? obj)
+           (memq 'type-check-condition (snow-cond-type obj))))
 
-      (define (snow-raise exc)
-        (primitive-throw (make <snow-exception> snow-exc: exc)))
+    (define (type-check-condition-type-expected cnd)
+      (vector-ref (snow-cond-fields cnd) 0))
 
-      (define (snow-with-exception-catcher-aux catcher thunk)
-        (try-catch (thunk)
-                   (e <java.lang.Throwable>
-                      (catcher
-                       (if (<snow-exception>:instance? e)
-                           e:snow-exc
-                           e)))))
+    (define (make-snow-error-condition msg args)
+      (make-snow-cond '(error-condition)
+                      (vector msg args)))
 
-      (define (snow-with-exception-catcher catcher thunk)
-        (snow-with-exception-catcher-aux catcher thunk)))
+    (define (snow-error-condition? obj)
+      (and (snow-cond? obj)
+           (memq 'error-condition (snow-cond-type obj))))
 
-     (larceny
+    (define (snow-error-condition-msg cnd)
+      (vector-ref (snow-cond-fields cnd) 0))
 
-      (define* (snow-raise exc)
-        ((error-handler) 'snow-raise-errcode exc))
+    (define (snow-error-condition-args cnd)
+      (vector-ref (snow-cond-fields cnd) 1))
 
-      (define* (snow-with-exception-catcher catcher thunk)
-        ((call-with-current-continuation
-          (lambda (unwind-and-call)
-            (lambda ()
-              (let ((orig-error-handler (error-handler)))
-                (call-with-error-handler
-                 (lambda (code . args)
-                   '(begin (display `(snow-with-exception-catcher..error-handler ,code ,@args))
-                           (newline))
-                   (case code
-                     ((snow-raise-errcode)
-                      (unwind-and-call (lambda () (catcher (car args)))))
-                     (else
-                      (apply orig-error-handler code args))))
-                 (lambda ()
-                   (call-with-values thunk
-                     (lambda results
-                       (unwind-and-call
-                        (lambda () (apply values results))))))))))))))
+    (define (snow-raise exc)
+      (error exc))
 
-     (mit
+    (define (snow-with-exception-catcher catcher thunk)
+      (guard (condition (else (catcher condition)))
+             (thunk)))
 
-      (define _snow:condition-type
-        (make-condition-type 'snow-exception condition-type:error '(exc)
-                             (lambda (condition port)
-                               condition
-                               (write-string "Snow exception." port))))
-
-      (define (snow-raise exc)
-        (call-with-current-continuation
-         (lambda (k)
-           (signal-condition
-            (make-condition
-             _snow:condition-type
-             k
-             '()
-             (list 'exc exc))))))
-
-      (define (snow-with-exception-catcher catcher thunk)
-        ((call-with-current-continuation
-          (lambda (unwind-and-call)
-            (lambda ()
-              (bind-condition-handler
-               '()
-               (lambda (condition)
-                 (let ((exc
-                        (if (eq? (condition/type condition) _snow:condition-type)
-                            (access-condition condition 'exc)
-                            condition)))
-                   (unwind-and-call (lambda () (catcher exc)))))
-               (lambda ()
-                 (let ((results (thunk)))
-                   (unwind-and-call
-                    (lambda () results)))))))))))
-
-     (mzscheme
-
-      (define (snow-raise exc)
-        (raise exc))
-
-      (define (snow-with-exception-catcher catcher thunk)
-        (with-handlers
-         (((lambda (exc) #t)
-           (lambda (exc) (catcher exc))))
-         (thunk))))
-
-     (scheme48
-
-      (define-condition-type 'snow-except '())
-
-      (define (snow-raise exc)
-        (signal 'snow-except exc))
-
-      (define (snow-with-exception-catcher catcher thunk)
-        ((call-with-current-continuation
-          (lambda (unwind-and-call)
-            (lambda ()
-              (with-handler
-               (lambda (c propagate)
-                 (unwind-and-call
-                  (lambda ()
-                    (catcher (if (and (eq? (condition-type c) 'snow-except)
-                                      (pair? (condition-stuff c)))
-                                 (car (condition-stuff c))
-                                 c)))))
-               (lambda ()
-                 (call-with-values
-                     thunk
-                   (lambda results
-                     (unwind-and-call
-                      (lambda () (apply values results)))))))))))))
-
-     (scm
-
-      (define *current-exception-handler*
-        (lambda (exc)
-          (display "uncaught exception ")
-          (write exc)
-          (newline)
-          (exit 1)))
-
-      (define (snow-raise exc)
-        (*current-exception-handler* exc))
-
-      (define (snow-with-exception-catcher catcher thunk)
-        ((call-with-current-continuation
-          (lambda (unwind-and-call)
-            (lambda ()
-              (fluid-let ((*current-exception-handler*
-                           (lambda (exc)
-                             (unwind-and-call (lambda () (catcher exc))))))
-                (call-with-values
-                    thunk
-                  (lambda results
-                    (unwind-and-call
-                     (lambda () (apply values results))))))))))))
-
-     (scsh
-
-      (define (snow-raise exc)
-        (error 'snow-except exc))
-
-      (define (snow-with-exception-catcher catcher thunk)
-        ((call-with-current-continuation
-          (lambda (unwind-and-call)
-            (lambda ()
-              (with-handler
-               (lambda (exc next)
-                 (unwind-and-call
-                  (lambda ()
-                    (catcher
-                     (if (and (pair? exc)
-                              (eq? (car exc) 'error)
-                              (pair? (cdr exc))
-                              (eq? (cadr exc) 'snow-except)
-                              (pair? (cddr exc)))
-                         (caddr exc)
-                         exc)))))
-               (lambda ()
-                 (call-with-values
-                     thunk
-                   (lambda results
-                     (unwind-and-call
-                      (lambda () (apply values results)))))))))))))
-
-     (sisc
-
-      (define _snow:exception-tag (list 'snow-exception))
-
-      (define (snow-raise exc)
-        (throw (make-error (list _snow:exception-tag exc))))
-
-      (define (snow-with-exception-catcher catcher thunk)
-        (with-failure-continuation
-         (lambda (error-record error-k)
-           (let ((msg (error-message error-record)))
-             (if (and (pair? msg)
-                      (eq? (car msg) _snow:exception-tag))
-                 (catcher (cadr msg))
-                 (catcher error-record))))
-         thunk)))
-
-     (else
-
-      (define (snow-raise exc)
-        (raise exc))
-
-      (define (snow-with-exception-catcher catcher thunk)
-        ((call-with-current-continuation
-          (lambda (unwind-and-call)
-            (lambda ()
-              (with-exception-handler
-               (lambda (exc)
-                 (unwind-and-call (lambda () (catcher exc))))
-               (lambda ()
-                 (call-with-values
-                     thunk
-                   (lambda results
-                     (unwind-and-call
-                      (lambda () (apply values results))))))))))))))
 
     ;; Record operations.
 
@@ -462,12 +178,9 @@
 
     (cond-expand
 
-     ((or bigloo
+     ((or sagittarius
           ;; chicken ;; can't yet use keyword macros from r7rs
-          gambit
-          kawa
-          mzscheme
-          sagittarius)
+          )
 
       (define (snow-keyword? obj)
         (keyword? obj))
@@ -478,16 +191,10 @@
       (define (snow-string->keyword s)
         (string->keyword s)))
 
-     ((or chez
-          chibi
+     ((or chibi
           chicken ;; can't yet use keyword macros from r7rs
-          larceny
-          mit
-          rscheme
-          scheme48
-          scm
-          scsh
-          sisc)
+          foment
+          gauche)
 
       (define (snow-keyword? obj)
         (and (symbol? obj)

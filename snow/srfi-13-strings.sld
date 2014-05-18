@@ -41,7 +41,9 @@
                   ))
    (chicken (import (srfi 13)))
    (gauche (import (gauche) (srfi 13)))
-   (sagittarius (import (srfi 13))))
+   (sagittarius (import (srfi 13)))
+   (foment (import (scheme char)))
+   )
   (begin
 
     (cond-expand
@@ -159,8 +161,8 @@
 
 
       (define (string-trim s . criterion+start+end)
-        (receive
-         (criterion start end) (string-trim-arguments s criterion+start+end)
+        (let-values (((criterion start end)
+                      (string-trim-arguments s criterion+start+end)))
          (let loop ((i start))
            (cond ((= i end) "")
                  ((string-trim-decider s i criterion) (loop (+ i 1)))
@@ -168,8 +170,8 @@
 
 
       (define (string-trim-right s . criterion+start+end)
-        (receive
-         (criterion start end) (string-trim-arguments s criterion+start+end)
+        (let-values (((criterion start end)
+                      (string-trim-arguments s criterion+start+end)))
          (let loop ((i end))
            (cond ((= i start) "")
                  ((string-trim-decider s (- i 1) criterion) (loop (- i 1)))
@@ -177,8 +179,8 @@
 
 
       (define (string-trim-both s . criterion+start+end)
-        (receive
-         (criterion start end) (string-trim-arguments s criterion+start+end)
+        (let-values (((criterion start end)
+                      (string-trim-arguments s criterion+start+end)))
          (let sloop ((si start))
            (cond ((= si end) "")
                  ((string-trim-decider s si criterion) (sloop (+ si 1)))
@@ -346,8 +348,8 @@
 
 
     (cond-expand
-     ((or chibi chicken)
-      ;; XXX remove this when chicken's (srfi 13) has it
+     ;; XXX remove chicken from this list when chicken's (srfi 13) has it
+     ((or chibi chicken foment)
       (define (reverse-list->string char-list)
         (let* ((len (length char-list))
                (s (make-string len)))

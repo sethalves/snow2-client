@@ -72,6 +72,16 @@
                     ;; (tcp6) ;; XXX tcp6 is ignoring timeout parameters
                     (tcp)
                     ))
+
+   (foment
+    ;; http://srfi.schemers.org/srfi-106/srfi-106.html
+    ;; https://code.google.com/p/foment/wiki/Sockets
+    (import (scheme read)
+            (scheme write)
+            (foment base)
+            (snow bytevector)
+            ))
+
    (gauche (import (scheme read) (scheme write)
                    (gauche)
                    (r7rs)

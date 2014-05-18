@@ -6,6 +6,7 @@
           r7rs-get-exports-from-import-set
           r7rs-get-referenced-symbols
           r7rs-library-file->sexp
+          r7rs-get-library-manifest
           )
   (import (scheme base)
           (scheme char)
@@ -22,7 +23,7 @@
           )
 
   (cond-expand
-   (chibi (import (only (srfi 1) filter find)))
+   (chibi (import (only (srfi 1) filter find drop-right)))
    (else (import (srfi 1))))
 
   (begin
@@ -60,7 +61,10 @@
        r7rs-lib))
 
 
-    (define (r7rs-extract-im/export r7rs-lib type)
+    (define (r7rs-extract-clause-cdr r7rs-lib type)
+      ;; type will be one of 'import 'export 'include.
+      ;; this will return the arguments (the cdrs) of the
+      ;; indicated clause type appended into one list.
       (let loop ((r7rs-lib r7rs-lib)
                  (result '()))
         (cond ((null? r7rs-lib) result)
@@ -88,7 +92,7 @@
                           util memcached matchable match
                           extras http-client uri-generic intarweb
                           message-digest file z3 base64 hmac
-                          binary input-parse
+                          binary input-parse foment
                           srfi-27 srfi-95))))
 
 
@@ -124,13 +128,20 @@
       ;; in lib-sexp
       (let* ((lib-no-begin (r7rs-drop-body lib-sexp))
              (lib-sans-ce (r7rs-explode-cond-expand lib-no-begin)))
-        (uniq (r7rs-extract-im/export lib-sans-ce 'import))))
+        (uniq (r7rs-extract-clause-cdr lib-sans-ce 'import))))
 
 
-    (define (r7rs-get-imported-library-names lib-sexp)
+    (define (r7rs-get-imported-library-names lib-sexp verbose)
       ;; return a list of library-names that may be imported by this library
       (let* ((lib-imports-all (r7rs-get-import-decls lib-sexp))
              (lib-imports-clean (map r7rs-import-set->libs lib-imports-all)))
+        (cond (verbose
+               (display "  lib-imports-all=")
+               (write lib-imports-all)
+               (newline)
+               (display "  lib-imports-clean=")
+               (write lib-imports-clean)
+               (newline)))
         (r7rs-filter-known-imports (uniq lib-imports-clean))))
 
 
@@ -138,7 +149,7 @@
       (let* ((p (open-input-file filename))
              (r7rs-lib (read p))
              (r7rs-no-begin (r7rs-drop-body r7rs-lib))
-             (r7rs-exports (r7rs-extract-im/export r7rs-no-begin 'export)))
+             (r7rs-exports (r7rs-extract-clause-cdr r7rs-no-begin 'export)))
         (close-input-port p)
         r7rs-exports))
 
@@ -162,8 +173,6 @@
                                  (string-append
                                   prefix (symbol->string identifier))))
                               sub-identifiers)))))
-            ((eq? (car import-set) 'prefix)
-             (error "write this"))
             ((eq? (car import-set) 'rename)
              (error "write this"))
             (else
@@ -181,17 +190,11 @@
                       (let* ((lib (car libs))
                              (lib-pkg (snow2-library-package lib))
                              (lib-repo (snow2-package-repository lib-pkg)))
-                        (cond (lib-repo
-                               (values import-set
-                                       (r7rs-get-library-exports
-                                        (snow-combine-filename-parts
-                                         (local-repository->in-fs-lib-path
-                                          lib-repo lib)))))
-                              (else
-                               (display "didn't find repository for ")
-                               (write (snow2-library-name (car libs)))
-                               (display ", perhaps need a re-package?\n")
-                               (values #f '()))))))))))
+                        (values import-set
+                                (r7rs-get-library-exports
+                                 (snow-combine-filename-parts
+                                  (local-repository->in-fs-lib-path
+                                   lib-repo lib)))))))))))
 
 
     (define (flatten lst)
@@ -212,6 +215,30 @@
                 (lambda (a b)
                   (string-ci<? (symbol->string a) (symbol->string b)))))
               (else '()))))
+
+
+    (define (r7rs-get-includes lib-sexp)
+      ;; extract a list of included files from the (include ...) statements
+      ;; in lib-sexp
+      (let* ((lib-no-begin (r7rs-drop-body lib-sexp))
+             (lib-sans-ce (r7rs-explode-cond-expand lib-no-begin)))
+        (uniq (r7rs-extract-clause-cdr lib-sans-ce 'include))))
+
+
+    (define (r7rs-get-library-manifest lib lib-sexp)
+      ;; return a list of source files for a library.  lib should be
+      ;; a snow2-library record and lib-sexp should be the contents of the
+      ;; file indicated by the (path ...) clause in lib.
+      (let* ((base-path
+              (drop-right (snow-split-filename (snow2-library-path lib)) 1)))
+        (cons (snow2-library-path lib)
+              (map
+               (lambda (filename)
+                 (let ((filename-path (snow-split-filename filename)))
+                   ;; XXX this assumes relative include paths
+                   (snow-combine-filename-parts
+                    (append base-path filename-path))))
+               (r7rs-get-includes lib-sexp)))))
 
 
     ))

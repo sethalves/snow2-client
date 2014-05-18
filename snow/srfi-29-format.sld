@@ -129,16 +129,16 @@
         (cond ((null? format-list) (get-output-string buffer))
               ((char=? (car format-list) #\~)
                (cond ((null? (cdr format-list))
-                      (snow-error 'format "Incomplete escape sequence"))
+                      (error 'format "Incomplete escape sequence"))
                      ((char-numeric? (cadr format-list))
                       (let posloop ((fl (cddr format-list))
                                     (pos (string->number
                                           (string (cadr format-list)))))
                         (cond ((null? fl)
-                               (snow-error 'format "Incomplete escape sequence"))
+                               (error 'format "Incomplete escape sequence"))
                               ((and (eq? (car fl) '#\@)
                                     (null? (cdr fl)))
-                                    (snow-error 'format "Incomplete escape sequence"))
+                                    (error 'format "Incomplete escape sequence"))
                               ((and (eq? (car fl) '#\@)
                                     (eq? (cadr fl) '#\*))
                                (loop (cddr fl) objects (list-ref objects pos)))
@@ -155,7 +155,7 @@
                                    (display object-override buffer)
                                    (loop (cddr format-list) objects #f)))
                                 ((null? objects)
-                                 (snow-error 'format "No value for escape sequence"))
+                                 (error 'format "No value for escape sequence"))
                                 (else
                                   (begin
                                     (display (car objects) buffer)
@@ -167,7 +167,7 @@
                                    (display object-override buffer)
                                    (loop (cddr format-list) objects #f)))
                                 ((null? objects)
-                                 (snow-error 'format "No value for escape sequence"))
+                                 (error 'format "No value for escape sequence"))
                                 (else
                                   (begin
                                     (write (car objects) buffer)
@@ -175,16 +175,16 @@
                                           (cdr objects) #f)))))
                          ((#\%)
                           (if object-override
-                              (snow-error 'format "Escape sequence following positional override does not require a value"))
+                              (error 'format "Escape sequence following positional override does not require a value"))
                           (display #\newline buffer)
                           (loop (cddr format-list) objects #f))
                         ((#\~)
                           (if object-override
-                              (snow-error 'format "Escape sequence following positional override does not require a value"))
+                              (error 'format "Escape sequence following positional override does not require a value"))
                           (display #\~ buffer)
                           (loop (cddr format-list) objects #f))
                          (else
-                           (snow-error 'format "Unrecognized escape sequence"))))))
+                           (error 'format "Unrecognized escape sequence"))))))
               (else (display (car format-list) buffer)
                     (loop (cdr format-list) objects #f)))))))
 
@@ -193,11 +193,11 @@
 ;; (define (format . args)
 ;;   (cond
 ;;    ((null? args)
-;;     (snow-error "FORMAT: required format-string argument is missing"))
+;;     (error "FORMAT: required format-string argument is missing"))
 ;;    ((string? (car args))
 ;;     (apply format~ args))
 ;;    ((< (length args) 2)
-;;     (snow-error (format #f "FORMAT: too few arguments ~s" (cons 'format args))))
+;;     (error (format #f "FORMAT: too few arguments ~s" (cons 'format args))))
 ;;    ((eq? (car args) #f)
 ;;     (apply format~ (cdr args)))
 ;;    (else
@@ -205,7 +205,7 @@
 ;;            (args (cdr args))
 ;;            (port (cond ((output-port? output-port) output-port)
 ;;                        ((eq? output-port #t) (current-output-port))
-;;                        (else (snow-error
+;;                        (else (error
 ;;                               (format #f "FORMAT: bad output-port argument: ~s"
 ;;                                       output-port))))))
 ;;       (display (apply format~ args) port)

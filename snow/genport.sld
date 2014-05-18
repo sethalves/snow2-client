@@ -229,34 +229,34 @@
 
     (cond-expand
 
-     (chicken
-      (define (genport->binary-input-port genport-in)
-        (let ((buff (make-bytevector 1)))
-          (make-input-port
-           (lambda () ; read-char
-             (if (> (genport-read-subu8vector buff 0 1 genport-in) 0)
-                 (integer->char (bytevector-u8-ref buff 0))
-                 (eof-object)))
-           (lambda () #t) ; char-ready?
-           (lambda () ; close
-             (genport-close-input-port genport-in))
-           #f ; peek-char
-           (lambda (port len buffer start) ; read-string!
-             (cond ((blob? buffer)
-                    (genport-read-subu8vector
-                     (blob->u8vector/shared buffer)
-                     start len genport-in))
-                   (else
-                    (let* ((bv (make-bytevector len))
-                           (got (genport-read-subu8vector
-                                 bv start len genport-in)))
-                      (let loop ((i 0))
-                        (cond ((= i got) got)
-                              (else
-                               (let* ((b (bytevector-u8-ref bv i))
-                                      (c (integer->char b)))
-                                 (string-set! buffer (+ start i) c)
-                                 (loop (+ i 1))))))))))))))
+     ;; (chicken
+     ;;  (define (genport->binary-input-port genport-in)
+     ;;    (let ((buff (make-bytevector 1)))
+     ;;      (make-input-port
+     ;;       (lambda () ; read-char
+     ;;         (if (> (genport-read-subu8vector buff 0 1 genport-in) 0)
+     ;;             (integer->char (bytevector-u8-ref buff 0))
+     ;;             (eof-object)))
+     ;;       (lambda () #t) ; char-ready?
+     ;;       (lambda () ; close
+     ;;         (genport-close-input-port genport-in))
+     ;;       #f ; peek-char
+     ;;       (lambda (port len buffer start) ; read-string!
+     ;;         (cond ((blob? buffer)
+     ;;                (genport-read-subu8vector
+     ;;                 (blob->u8vector/shared buffer)
+     ;;                 start len genport-in))
+     ;;               (else
+     ;;                (let* ((bv (make-bytevector len))
+     ;;                       (got (genport-read-subu8vector
+     ;;                             bv start len genport-in)))
+     ;;                  (let loop ((i 0))
+     ;;                    (cond ((= i got) got)
+     ;;                          (else
+     ;;                           (let* ((b (bytevector-u8-ref bv i))
+     ;;                                  (c (integer->char b)))
+     ;;                             (string-set! buffer (+ start i) c)
+     ;;                             (loop (+ i 1))))))))))))))
 
      (chibi
       (define (genport->binary-input-port genport-in)

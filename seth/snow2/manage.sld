@@ -36,21 +36,30 @@
 
   (begin
 
-    (define (make-package-archive local-repository package)
+    (define (make-package-archive local-repository package verbose)
       ;; create the .tgz file that gets uploaded to a repository.
-      ;; update the size and md5 sum in the package meta-data
+      ;; update the size and md5 sum and depends in the package meta-data
+      ;; in index.scm.
       (let* ((repo-path (uri-path (snow2-repository-url local-repository))))
 
         (define (lib-file->tar-recs lib-filename)
           ;; create a tar-rec for a file
           (let* ((lib-rel-path (snow-split-filename lib-filename))
                  (lib-full-path (append repo-path lib-rel-path))
-                 (lib-full-filename (snow-combine-filename-parts lib-full-path))
-                 (tar-recs (tar-read-file lib-full-filename)))
-            (cond ((not (= (length tar-recs) 1))
-                   (error "unexpected tar-rec count" lib-filename tar-recs)))
-            (tar-rec-name-set! (car tar-recs) lib-filename)
-            (car tar-recs)))
+                 (lib-full-filename
+                  (snow-combine-filename-parts lib-full-path)))
+            (cond ((not (file-exists? lib-full-filename))
+                   (display "package source file missing: ")
+                   (display lib-full-filename)
+                   (newline)
+                   (exit 1))
+                  (else
+                   (let ((tar-recs (tar-read-file lib-full-filename)))
+                     (cond ((not (= (length tar-recs) 1))
+                            (error "unexpected tar-rec count"
+                                   lib-filename tar-recs)))
+                     (tar-rec-name-set! (car tar-recs) lib-filename)
+                     (car tar-recs))))))
 
         (define (lib-dir->tar-recs lib-dirname)
           ;; create a tar-rec for a directory
@@ -96,8 +105,18 @@
            equal?))
 
         (let* ((libraries (snow2-package-libraries package))
+               ;; read in the files indicated by the (path ...) clauses
+               ;; in the library definitions.
+               (lib-sexps (map (lambda (lib)
+                                 (let* ((lib-filename
+                                         (local-repository->in-fs-lib-filename
+                                          local-repository lib)))
+                                   (r7rs-library-file->sexp lib-filename)))
+                               libraries))
                ;; get a list of filenames for all libraries in the package
-               (manifest (fold append '() (map get-library-manifest libraries)))
+               (manifest (fold append '()
+                               (map r7rs-get-library-manifest
+                                    libraries lib-sexps)))
                ;; get a list of directories needed to hold the library files
                (dirs (manifest->directories manifest))
                ;; make tar records for the directories
@@ -108,10 +127,30 @@
                (all-tar-recs (append dir-tar-recs file-tar-recs))
                ;; figure out the name of the tgz file within the local repo
                (package-url (snow2-package-url package))
-               (package-filename (last (uri-path package-url)))
+               (package-filename
+                (if (and package-url (pair? (uri-path package-url)))
+                    (last (uri-path package-url))
+                    "unknown.tgz"))
                (local-package-path (append repo-path (list package-filename)))
                (local-package-filename
                 (snow-combine-filename-parts local-package-path)))
+
+          ;; get a list of libraries this package depends on and
+          ;; set library names.
+          (for-each (lambda (lib lib-sexp)
+                      (cond (verbose
+                             (display (format "-- depends for ~a --\n"
+                                              (snow2-library-path lib)))))
+                      (set-snow2-library-depends!
+                       lib (r7rs-get-imported-library-names lib-sexp verbose))
+                      (cond ((or (not (snow2-library-name lib))
+                                 (null? (snow2-library-name lib)))
+                             (set-snow2-library-name!
+                              lib (lib-sexp->name lib-sexp))))
+
+                      )
+                    libraries lib-sexps)
+
           (display "writing ")
           (display local-package-path)
           (newline)
@@ -137,7 +176,8 @@
               (set-snow2-package-size! package local-package-size)
               (set-snow2-package-checksum!
                package `(md5 ,local-package-md5))
-              (set-snow2-package-dirty! package #t))))))
+              (set-snow2-package-dirty! package #t)
+              (set-snow2-repository-dirty! local-repository #t))))))
 
 
     (define (conditional-put-object! credentials bucket s3-path local-filename)
@@ -191,15 +231,16 @@
       ;; this program was run.
       (or
        (get-repository
-        (uri-reference (snow-combine-filename-parts '("."))))
+        (uri-reference (snow-combine-filename-parts '("."))) #f)
        (get-repository
-        (uri-reference (snow-combine-filename-parts '(".."))))
+        (uri-reference (snow-combine-filename-parts '(".."))) #f)
        (get-repository
-        (uri-reference (snow-combine-filename-parts '(".." ".."))))
+        (uri-reference (snow-combine-filename-parts '(".." ".."))) #f)
        (get-repository
-        (uri-reference (snow-combine-filename-parts '(".." ".." ".."))))
+        (uri-reference (snow-combine-filename-parts '(".." ".." ".."))) #f)
        (get-repository
-        (uri-reference (snow-combine-filename-parts '(".." ".." ".." ".."))))))
+        (uri-reference (snow-combine-filename-parts '(".." ".." ".." ".."))) #f)
+       ))
 
 
     (define (all-package-metafiles local-repository)
@@ -296,7 +337,14 @@
           ;; (write (uri-path (snow2-repository-url repository)))
           ;; (newline)
           (cond (repository
-                 (op repository))
+                 (op repository)
+                 ;; update index.scm if the repository is "dirty"
+                 (cond ((snow2-repository-dirty repository)
+                        (let ((p (open-output-file
+                                  (local-repository->in-fs-index-filename
+                                   repository))))
+                          (snow-pretty-print (repository->sexp repository) p)
+                          (close-output-port p)))))
                 (else
                  (error
                   "Unable to determine which repository to operate on."))))))
@@ -330,31 +378,34 @@
                            (result (op local-repository
                                        package-metafile
                                        package)))
-                      ;; rewrite package meta-file to sync any changes
+
+                      ;; if the package changed, we'll need to rewrite index.scm
                       (cond ((snow2-package-dirty package)
-                             (let ((p (open-output-file package-metafile)))
-                               (snow-pretty-print (package->sexp package) p)
-                               (close-output-port p)
-                               (set-snow2-repository-dirty!
-                                local-repository #t))))
+                             (set-snow2-repository-dirty! local-repository #t)))
+
+                      ;; rewrite package meta-file to sync any changes
+                      ;; (cond ((snow2-package-dirty package)
+                      ;;        (let ((p (open-output-file package-metafile)))
+                      ;;          (snow-pretty-print
+                      ;;           (package->sexp package #t) p)
+                      ;;          (close-output-port p)
+                      ;;          (set-snow2-repository-dirty!
+                      ;;           local-repository #t))))
+
+
                       result))
                   package-metafiles)))
-           (cond ((snow2-repository-dirty local-repository)
-                  (let ((p (open-output-file
-                            (local-repository->in-fs-index-filename
-                             local-repository))))
-                    (snow-pretty-print (repository->sexp local-repository) p)
-                    (close-output-port p))))
+
            result))))
 
 
-    (define (make-package-archives repositories package-metafiles)
+    (define (make-package-archives repositories package-metafiles verbose)
       ;; call make-package-archive for each of packages-files
       (local-packages-operation
        repositories package-metafiles
        (lambda (local-repository package-metafile package)
          (refresh-package-from-filename local-repository package-metafile)
-         (make-package-archive local-repository package))))
+         (make-package-archive local-repository package verbose))))
 
 
     (define (list-replace-last lst new-elt)
@@ -395,83 +446,125 @@
             imported-lib-exports))
 
 
-    (define (check-packages credentials repositories package-metafiles)
+    (define (check-packages credentials repositories package-metafiles
+                            show-who-imports-what)
       (local-packages-operation
        repositories package-metafiles
        (lambda (local-repository package-metafile package)
-         (for-each
-          (lambda (lib)
-            (let* ((lib-filename (local-repository->in-fs-lib-filename
-                                  local-repository lib))
-                   (lib-sexp (r7rs-library-file->sexp lib-filename))
-                   (lib-imports (r7rs-get-imported-library-names lib-sexp))
-                   (pkg-depends (snow2-library-depends lib))
-                   (deps-missing
-                    (lset-difference equal? lib-imports pkg-depends))
-                   (deps-unneeded
-                    (lset-difference equal? pkg-depends lib-imports))
+         (let ((meta-data (let* ((p (open-input-file package-metafile))
+                                 (meta-data (read p)))
+                            (close-input-port p)
+                            meta-data)))
 
-                   ;; (XXX (begin (write lib-filename) (newline)))
+           ;; check for any auto-generated meta-data fields in the
+           ;; package's meta-data file.
+           (for-each
+            (lambda (unwanted-clause-name)
+              (cond ((get-child-by-type meta-data unwanted-clause-name #f)
+                     (display
+                      (format
+                       "package meta-file ~a has (~a ...).\n"
+                       package-metafile
 
-                   (lib-body-symbols (r7rs-get-referenced-symbols lib-sexp))
-                   (import-decls (r7rs-get-import-decls lib-sexp))
-                   )
+                       unwanted-clause-name)))))
+            (list 'size 'checksum))
 
-              (cond
-               ((pair? deps-missing)
-                (display "library ")
-                (write (snow2-library-name lib))
-                (display " in ")
-                (write package-metafile)
-                (display " is missing depends: ")
-                (write deps-missing)
-                (newline)))
+           (for-each
+            (lambda (lib-meta-sexp)
+              (for-each
+               (lambda (unwanted-clause-name)
+                 (cond ((get-child-by-type
+                         lib-meta-sexp unwanted-clause-name #f)
+                        (display
+                         (format
+                          "in package meta-file ~a library ~a has (~a ...)\n"
+                          package-metafile
+                          (cadr (get-child-by-type lib-meta-sexp 'path))
+                          unwanted-clause-name)))))
+               (list 'name 'depends)))
+            (get-children-by-type meta-data 'library))
 
-              (cond
-               ((pair? deps-unneeded)
-                (display "library ")
-                (write (snow2-library-name lib))
-                (display " in ")
-                (write package-metafile)
-                (display " has unneeded depends: ")
-                (write deps-unneeded)
-                (newline)))
 
-              ;; (display "-------lib-body-symbols-------\n")
-              ;; (write lib-body-symbols)
-              ;; (newline)
+           (for-each
+            (lambda (lib)
+              (let* (;; find the .sld file in the local filesystem
+                     (lib-filename (local-repository->in-fs-lib-filename
+                                    local-repository lib))
+                     ;; read in the .sld s-expression
+                     (lib-sexp (r7rs-library-file->sexp lib-filename))
+                     ;; extract the names of imported libraries from lib-sexp
+                     (lib-imports (r7rs-get-imported-library-names lib-sexp))
+                     (pkg-depends (snow2-library-depends lib))
+                     (deps-unneeded
+                      (lset-difference equal? pkg-depends lib-imports))
+                     (lib-body-symbols (r7rs-get-referenced-symbols lib-sexp))
+                     (import-decls (r7rs-get-import-decls lib-sexp))
+                     )
 
-              ;; (display "-------import-decls-------\n")
-              ;; (write import-decls)
-              ;; (newline)
+                (cond
+                 ((pair? deps-unneeded)
+                  (display "library ")
+                  (write (snow2-library-name lib))
+                  (display " in ")
+                  (write package-metafile)
+                  (display " has unneeded depends: ")
+                  (write deps-unneeded)
+                  (newline)))
 
-              (for-each (lambda (import-decl)
+                ;; (display "-------lib-body-symbols-------\n")
+                ;; (write lib-body-symbols)
+                ;; (newline)
 
-                          ;; (display "  ------")
-                          ;; (write import-decl)
-                          ;; (display "\n")
+                ;; (display "-------import-decls-------\n")
+                ;; (write import-decls)
+                ;; (newline)
 
-                          (let-values (((imported-lib-name imported-lib-exports)
-                                        (r7rs-get-exports-from-import-set
-                                         repositories import-decl)))
-                            (cond ((and
-                                    imported-lib-name
-                                    (not (is-system-import? imported-lib-name))
-                                    (not (import-is-needed?
-                                          imported-lib-exports
-                                          lib-body-symbols)))
-                                   (display "in ")
-                                   (write lib-filename)
-                                   (display " unused import: ")
-                                   (write imported-lib-name)
-                                   (newline)
+                (for-each
+                 (lambda (import-decl)
 
-                                   (write imported-lib-exports)
-                                   (newline)
+                   ;; (display "  ------")
+                   ;; (write import-decl)
+                   ;; (display "\n")
 
-                                   ))))
-                        import-decls)
-              ))
-          (snow2-package-libraries package)))))
+                   (let-values (((imported-lib-name imported-lib-exports)
+                                 (r7rs-get-exports-from-import-set
+                                  repositories import-decl)))
+
+                     (cond ((and
+                             imported-lib-name
+                             show-who-imports-what
+                             (not (is-system-import? imported-lib-name)))
+                            (display "  in ")
+                            (write (snow2-library-path lib))
+                            (display ", ")
+                            (write imported-lib-name)
+                            (display " provides:")
+                            (for-each (lambda (lib-body-symbol)
+                                        (cond ((member lib-body-symbol
+                                                       imported-lib-exports)
+                                               (display " ")
+                                               (write lib-body-symbol))))
+                                      lib-body-symbols)
+                            (newline)))
+
+                     (cond ((and
+                             imported-lib-name
+                             (not (is-system-import? imported-lib-name))
+                             (not (import-is-needed?
+                                   imported-lib-exports
+                                   lib-body-symbols)))
+                            (display "in ")
+                            (write lib-filename)
+                            (display " unused import: ")
+                            (write imported-lib-name)
+                            (newline)
+
+                            (write imported-lib-exports)
+                            (newline)
+
+                            ))))
+                 import-decls)
+                ))
+            (snow2-package-libraries package))))))
 
     ))

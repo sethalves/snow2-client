@@ -109,7 +109,7 @@
 ;;
 
 
-(define uri-error snow-error)
+(define uri-error error)
 
 
 

@@ -28,9 +28,7 @@
   (import (snow srfi-60-integers-as-bits))
   (cond-expand
    (chibi (import (scheme cxr)))
-   (chicken)
-   (gauche)
-   (sagittarius))
+   (else))
   (import (snow binio) (snow bytevector))
   (begin
 
@@ -70,19 +68,6 @@
 ;; will subsume digest-update-subu8vector).
 
 ;;;============================================================================
-
-(cond-expand
-
- (gambit
-
-  (declare
-   (standard-bindings)
-   (fixnum)
-   (not safe)))
-
- (else
-
-  #f))
 
 (define-record-type <digest>
   (make-digest end update state)

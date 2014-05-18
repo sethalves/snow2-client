@@ -2,7 +2,7 @@
 
 (define-library (seth port-extras)
   (export read-all-chars
-          read-all-latin-1-chars
+          ;; read-all-latin-1-chars
           read-all-u8
           read-available-chars
           read-available-u8
@@ -14,13 +14,13 @@
           read-words
           port-find-byte
           )
-  (import (scheme base))
+  (import (scheme base)
+          (scheme write)
+          )
   (cond-expand
    (chibi (import (chibi io) (scheme write) (scheme char) (snow bytevector)))
    (chicken (import (scheme char) (snow bytevector)
-                    (scheme read) (scheme write)
-                    ;; (seth string-read-write)
-                    ))
+                    (scheme read) (scheme write)))
    ((or gauche sagittarius) (import (scheme char) (snow bytevector)))
    )
   (import (snow binio))
@@ -59,8 +59,8 @@
     (define (read-all-chars f)
       (list->string (read-all-main f read-char)))
 
-    (define (read-all-latin-1-chars f)
-      (list->string (read-all-main f read-latin-1-char)))
+    ;; (define (read-all-latin-1-chars f)
+    ;;   (list->string (read-all-main f read-latin-1-char)))
 
     (define (read-all-u8 f)
       ;; (u8-list->bytevector (read-all-main f read-u8)))

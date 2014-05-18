@@ -34,7 +34,7 @@
 
     (define (s3-error who p)
       (let ((data (read-all-u8 p)))
-        (snow-error who (utf8->string data))))
+        (error who (utf8->string data))))
 
 
     (define (make-s3-uri bucket key)
@@ -220,7 +220,7 @@
              (let ((data (string->utf8 (read-all-chars body))))
                (values data (bytevector-length data))))
             (else
-             (snow-error "aws s3 put-object! unusable body type" body))))
+             (error "aws s3 put-object! unusable body type" body))))
 
 
     (define (put-object! credentials bucket key body .

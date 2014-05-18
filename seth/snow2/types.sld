@@ -114,15 +114,16 @@
 
 
     (define (get-children-by-type obj child-type)
-      ;; return any child sexps that is a list starting with child-type
+      ;; return any child sexps that are lists starting with child-type
       (filter (lambda (child)
                 (eq? (get-tag child) child-type))
               (cdr obj)))
 
 
     (define (get-child-by-type obj child-type . default)
-      ;; find a non-optional child with the given tag.  the tag
+      ;; find a child with the given tag.  the tag
       ;; is expected to be unique among the children.
+      ;; if default is #f, a missing child will raise an error.
       (let ((childs (get-children-by-type obj child-type)))
         (cond ((null? childs)
                (if (pair? default)

@@ -26,11 +26,9 @@
           (scheme write)
           (scheme file))
   (cond-expand
-   (chibi)
-   (chicken)
    (gauche (import (binary io)))
-   (sagittarius))
-  (import (snow snowlib)
+   (else))
+  (import ;; (snow snowlib)
           (snow bytevector))
   (begin
 
@@ -71,62 +69,13 @@
                   (loop (+ i 1)))
                 (- i start)))))))
 
-    (cond-expand
 
-     (bigloo
+    (define (binio-open-input-file filename)
+      (open-binary-input-file filename))
 
-      (define (binio-open-input-file filename)
-        (let ((p (open-input-file filename)))
-          (if (input-port? p)
-              p
-              (raise (instantiate::&io-port-error
-                      (proc 'binio-open-input-file)
-                      (msg "Cannot open file for input")
-                      (obj filename))))))
-
-      (define (binio-open-output-file filename)
-        (let ((p (open-output-file filename)))
-          (if (output-port? p)
-              p
-              (raise (instantiate::&io-port-error
-                      (proc 'binio-open-input-file)
-                      (msg "Cannot open file for output")
-                      (obj filename)))))))
-
-     (kawa
-
-      (define (binio-open-input-file filename)
-        (fluid-let ((port-char-encoding #f))
-          (open-input-file filename)))
-
-      (define (binio-open-output-file filename)
-        (fluid-let ((port-char-encoding #f))
-          (open-output-file filename))))
-
-     (sisc
-
-      (define (binio-open-input-file filename)
-        (open-input-file filename "8859_1"))
-
-      (define (binio-open-output-file filename)
-        (open-output-file filename "8859_1")))
-
-     (sagittarius
-
-      (define (binio-open-input-file filename)
-        (open-binary-input-file filename))
-
-      (define (binio-open-output-file filename)
-        (if (file-exists? filename) (delete-file filename))
-        (open-binary-output-file filename)))
-
-     (else
-
-      (define (binio-open-input-file filename)
-        (open-binary-input-file filename))
-
-      (define (binio-open-output-file filename)
-        (open-binary-output-file filename))))
+    (define (binio-open-output-file filename)
+      (if (file-exists? filename) (delete-file filename))
+      (open-binary-output-file filename))
 
 
     (define (write-latin-1-string str bin-port)
@@ -153,7 +102,7 @@
 
     (define (write-latin-1-char c out)
       (let ((i (char->integer c)))
-        (cond ((> i 255) (snow-error "write-latin-1-char got unicode"))
+        (cond ((> i 255) (error "write-latin-1-char got unicode"))
               ((binary-port? out)
                (write-u8 i out))
               (else
@@ -174,7 +123,7 @@
              (let ((c (read-char in)))
                (cond ((eof-object? c) c)
                      ((> (char->integer c) 255)
-                      (snow-error "read-latin-1-char got unicode."))
+                      (error "read-latin-1-char got unicode."))
                      (else c))))))
 
 
@@ -187,7 +136,7 @@
              (let ((c (peek-char in)))
                (cond ((eof-object? c) c)
                      ((> (char->integer c) 255)
-                      (snow-error "peek-latin-1-char got unicode."))
+                      (error "peek-latin-1-char got unicode."))
                      (else c))))))
 
 

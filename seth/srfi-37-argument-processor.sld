@@ -16,7 +16,7 @@
           )
   (import (scheme base))
   (cond-expand
-   (chibi)
+   (chibi (import (only (srfi 1) find)))
    (chicken (import (srfi 37)))
    (gauche (import (srfi 37)))
    (sagittarius (import (srfi 37))))

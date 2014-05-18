@@ -17,7 +17,7 @@
             (scheme file)
             (chibi net http)))
    (chicken (import (chicken)
-                    (ports) ;; for make-input-port
+                    (only (ports) make-input-port)
                     (extras) (posix)
                     (only (http-client) call-with-input-request)
                     (uri-generic)
@@ -32,8 +32,8 @@
             (match)
             (srfi 1)
             (srfi 13)
-            (srfi 14)))
-   )
+            (srfi 14)
+            (only (rnrs) make-custom-binary-input-port))))
   (import (snow snowlib)
           (snow bytevector)
           (snow binio)
@@ -63,7 +63,7 @@
              => (lambda (v)
                   (cond ((number? v) v)
                         ((string? v) (string->number v))
-                        (else (snow-error "http-header-as-integer error" v)))))
+                        (else (error "http-header-as-integer error" v)))))
             (else default)))
 
 
@@ -136,7 +136,7 @@
          (chibi
           (make-custom-binary-input-port
            (lambda (str start end)
-             (cond (saw-eof (eof-object))
+             (cond (saw-eof 0)
                    (else
                     (let ((c (chunked-read-u8)))
                       (cond ((eof-object? c) c)
@@ -158,6 +158,23 @@
            :getc chunked-read-char
            :ready chunked-char-ready?
            :close (lambda () #t)))
+
+         (sagittarius
+          (make-custom-binary-input-port
+           "http chunked port"
+           (lambda (str start count)
+             (cond (saw-eof 0)
+                   (else
+                    (let ((c (chunked-read-u8)))
+                      (cond ((eof-object? c) 0)
+                            (else
+                             (bytevector-u8-set! str start c)
+                             1))))))
+           #f ;; get-position
+           #f ;; set-position!
+           #f ;; close
+           #f ;; ready
+           ))
 
          (else
           (let loop ((chars '()))
@@ -221,7 +238,7 @@
               (if (and user-content-length
                        (not (= user-content-length
                                (bytevector-length writer))))
-                  (snow-error "http -- writer string length mismatch"))
+                  (error "http -- writer string length mismatch"))
               (values (open-input-bytevector writer)
                       (bytevector-length writer))))
 
@@ -229,7 +246,7 @@
             (if (and user-content-length
                      (not (= user-content-length
                              (bytevector-length writer))))
-                (snow-error "http -- writer bytevector length mismatch"))
+                (error "http -- writer bytevector length mismatch"))
             (values (open-input-bytevector writer)
                     (bytevector-length writer)))
 
@@ -244,14 +261,14 @@
 
            ;; something unexpected
            (else
-            (snow-error "http -- invalid writer")))))
+            (error "http -- invalid writer")))))
 
 
       (define (send-body src-port dst-port content-length)
         ;; XXX content-encoding?
         (cond ((not content-length)
                ;; XXX chunked encoding
-               (snow-error "http -- request chunked encoding, write me!"))
+               (error "http -- request chunked encoding, write me!"))
               (else
                (let loop ((sent 0))
                  (cond ((= sent content-length) #t)
@@ -262,7 +279,7 @@
                                               n-to-read))
                                (data (read-bytevector n-to-read src-port)))
                           (if (eof-object? data)
-                              (snow-error
+                              (error
                                "http -- not enough request body data"))
                           (write-bytevector data dst-port)
                           (loop (+ sent n-to-read)))))))))
@@ -275,13 +292,13 @@
              (uri (cond ((uri-reference? uri) uri)
                         ((string? uri) (uri-reference uri))
                         (else
-                         (snow-error "http -- invalid uri" uri))))
+                         (error "http -- invalid uri" uri))))
              ;; set up network connection
              (hostname (uri-host uri))
              (port (or (uri-port uri)
                        (cond ((eq? (uri-scheme uri) 'http) 80)
                              ((eq? (uri-scheme uri) 'https) 443)
-                             (else (snow-error "http -- don't know port")))))
+                             (else (error "http -- don't know port")))))
              (sock (open-network-client `((host ,hostname) (port ,port))))
              (write-port (socket:outbound-write-port sock))
              (read-port (socket:inbound-read-port sock))
@@ -317,67 +334,74 @@
                    (mime-write-headers final-headers (current-error-port))
                    (display "\r\n" (current-error-port))))
 
-            ;; send request and headers
-            (display
-             ;; try to avoid sending 3 separate header packets
-             (with-output-to-string
-               (lambda ()
-                 (display (format "~a ~a HTTP/1.1\r\n" verb-str path-part))
-                 (mime-write-headers final-headers (current-output-port))
-                 (display "\r\n")))
-             write-port)
+            (guard
+             (exn (#t (error "http error during request" exn)))
+             ;; send request and headers
+             (display
+              ;; try to avoid sending 3 separate header packets
+              (with-output-to-string
+                (lambda ()
+                  (display (format "~a ~a HTTP/1.1\r\n" verb-str path-part))
+                  (mime-write-headers final-headers (current-output-port))
+                  (display "\r\n")))
+              write-port))
 
-            ;; send body
-            (send-body writer-port write-port content-length)
-            (snow-force-output write-port)))
+            (guard
+             (exn (#t (error "http error during send body" exn)))
+             ;; send body
+             (send-body writer-port write-port content-length)
+             (snow-force-output write-port))))
 
         ;;
         ;; read response
         ;;
 
-        (let* ((status-code (read-status-line read-port))
-               (headers (mime-headers->list read-port))
+        (guard
+         (exn (#t (error "http error during read response" exn)))
+         (let* ((status-code (read-status-line read-port))
+                (headers (mime-headers->list read-port))
+                (content-length
+                 (http-header-as-integer headers 'content-length #f))
+                (transfer-encoding
+                 (http-header-as-string headers 'transfer-encoding #f))
+                (body-port
+                 (cond ((or (equal? verb-str "HEAD")
+                            (= status-code 204)) ;; No Content
+                        (open-input-bytevector (make-bytevector 0)))
+                       (content-length
+                        (make-delimited-input-port read-port content-length))
+                       ((equal? transfer-encoding "chunked")
+                        (make-dechunked-input-port read-port))
+                       (else
+                        (error "http -- no content length or chunked")))))
 
-               ;; (XXX (begin (display "headers=") (write headers) (newline)))
+           (cond ((log-http-to-stderr)
+                  (mime-write-headers headers (current-error-port))))
 
-               (content-length
-                (http-header-as-integer headers 'content-length #f))
-               (transfer-encoding
-                (http-header-as-string headers 'transfer-encoding #f))
-               (body-port
-                (cond ((or (equal? verb-str "HEAD")
-                           (= status-code 204) ;; No Content
-                           )
-                       (open-input-bytevector (make-bytevector 0)))
-                      (content-length
-                       (make-delimited-input-port read-port content-length))
-                      ((equal? transfer-encoding "chunked")
-                       (make-dechunked-input-port read-port))
-                      (else
-                       (snow-raise "http -- no content length or chunked")))))
-
-          (cond ((log-http-to-stderr)
-                 (mime-write-headers headers (current-error-port))))
-
-          (cond ((not reader)
-                 (let* ((response-body
-                         (if content-length
-                             (read-latin-1-string content-length body-port)
-                             (read-all-latin-1-chars body-port)))
-                        (expect-eof (read-latin-1-char body-port)))
-                   (cond ((not (eof-object? expect-eof))
-                          (snow-raise "http -- extra data in response body"))
-                         ((and content-length
-                               (< (string-length response-body) content-length))
-                          (snow-raise "http -- response body too short"))
-                         (else
-                          (values status-code headers response-body)))))
-                ((procedure? reader)
-                 (reader status-code headers body-port))
-                ((port? reader)
-                 (snow-error "http -- write this!"))
-                (else
-                 (snow-error "http -- unexpected reader type"))))))
+           (cond ((not reader)
+                  (let* ((response-body
+                          (if content-length
+                              (read-bytevector content-length body-port)
+                              (read-all-u8 body-port)))
+                         (expect-eof (read-u8 body-port)))
+                    (cond ((eof-object? response-body)
+                           (error "http -- empty body"))
+                          ((not (eof-object? expect-eof))
+                           (error "http -- extra data in response body"))
+                          ((and content-length
+                                (< (bytevector-length response-body)
+                                   content-length))
+                           (error "http -- response body too short"))
+                          (else
+                           (values status-code headers response-body)))))
+                 ((procedure? reader)
+                  (guard
+                   (exn (#t (error "http error calling reader" exn)))
+                   (reader status-code headers body-port)))
+                 ((port? reader)
+                  (error "http -- write this!"))
+                 (else
+                  (error "http -- unexpected reader type")))))))
 
 
     ;;
@@ -388,9 +412,9 @@
 
     (cond-expand
 
-     ;; (chibi
-     ;;  (define (call-with-request-body url consumer)
-     ;;    (call-with-input-url url consumer)))
+     (chibi
+      (define (call-with-request-body url consumer)
+        (call-with-input-url url consumer)))
 
      (chicken
       (define (call-with-request-body url reader)
@@ -423,16 +447,14 @@
       (http 'GET
             url #f
             (lambda (status-code headers response-body-port)
-              (let loop ()
-                (let ((c (read-latin-1-char response-body-port)))
-                  (cond ((eof-object? c)
-                         (close-output-port write-port)
-                         #t)
-                        ((> (char->integer c) 255)
-                         (display "OOPS\n")
-                         (snow-error "download-file OOPS"))
-                        (else
-                         (write-latin-1-char c write-port)
-                         (loop))))))))
+              (let ((buffer (make-bytevector 1024)))
+                (let loop ()
+                  (let ((got (read-bytevector! buffer response-body-port)))
+                    (cond ((eof-object? got)
+                           (close-output-port write-port)
+                           #t)
+                          (else
+                           (write-bytevector buffer write-port 0 got)
+                           (loop)))))))))
 
     ))
