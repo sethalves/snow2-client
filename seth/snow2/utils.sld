@@ -479,7 +479,7 @@
                              repositories (cdr repository-urls))))))))))
 
 
-    (define (refresh-package-from-filename repository package-filename)
+    (define (refresh-package-from-filename repository package-filename verbose)
       ;; read a file that contains a package s-exp and update the copy
       ;; in repository.
       (let ((updated-package (package-from-metafile-name package-filename)))
@@ -505,7 +505,13 @@
                             (snow2-package-url updated-package)))
                           (cond ((not (snow2-packages-equal? repo-package
                                                              updated-package))
-                                 ;; (display "package file changed.\n")
+                                 (cond (verbose
+                                        (display "package file changed.\n")
+                                        (write (package->sexp repo-package))
+                                        (newline)
+                                        (write (package->sexp updated-package))
+                                        (newline)
+                                        ))
                                  (set-snow2-package-libraries!
                                   repo-package
                                   (snow2-package-libraries updated-package))

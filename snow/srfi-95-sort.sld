@@ -10,10 +10,8 @@
    ((or chibi chicken)
     (import (srfi 95)))
    (gauche (import (snow gauche-sort-utils)))
-   (sagittarius
-    ;; (import (srfi 25))
-    ))
-  (import (snow bytevector))
+   (else))
+  ;; (import (snow bytevector))
 
   (begin
     (cond-expand

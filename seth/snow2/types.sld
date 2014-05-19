@@ -226,9 +226,9 @@
 
 
     (define (snow2-libraries-equal? a b)
-      (and (equal? (snow2-library-name a) (snow2-library-name b))
+      (and ;; (equal? (snow2-library-name a) (snow2-library-name b))
            (equal? (snow2-library-path a) (snow2-library-path b))
-           (equal? (snow2-library-depends a) (snow2-library-depends b))
+           ;; (equal? (snow2-library-depends a) (snow2-library-depends b))
            (equal? (snow2-library-version a) (snow2-library-version b))
            (equal? (snow2-library-homepage a) (snow2-library-homepage b))
            (equal? (snow2-library-maintainers a) (snow2-library-maintainers b))

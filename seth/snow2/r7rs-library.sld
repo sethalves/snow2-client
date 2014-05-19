@@ -2,7 +2,6 @@
   (export r7rs-get-import-decls
           r7rs-get-imported-library-names
           is-system-import?
-          ;; r7rs-get-exports-from-imports
           r7rs-get-exports-from-import-set
           r7rs-get-referenced-symbols
           r7rs-library-file->sexp
@@ -15,37 +14,43 @@
           (scheme write)
           (scheme file)
           (snow filesys)
-          ;; (snow srfi-13-strings)
           (snow srfi-95-sort)
-          ;; (seth srfi-69-hash-tables)
           (seth snow2 types)
           (seth snow2 utils)
           )
 
   (cond-expand
-   (chibi (import (only (srfi 1) filter find drop-right)))
+   (chibi (import (only (srfi 1) filter find drop-right fold)))
    (else (import (srfi 1))))
 
   (begin
 
     (define (r7rs-explode-cond-expand r7rs-lib)
-      (let loop ((r7rs-lib r7rs-lib)
-                 (result '()))
-        (cond ((null? r7rs-lib) result)
-              (else
-               (let ((term (car r7rs-lib)))
-                 (cond ((and (pair? term)
-                             (eq? (car term) 'cond-expand))
-                        (let* ((ce-terms (cdr term))
-                               (childs (map cdr ce-terms))
-                               (childs-flat (apply append childs)))
-                          (loop (cdr r7rs-lib) (append result childs-flat))))
-                       (else
-                        (loop (cdr r7rs-lib)
-                              (append result (list term))))))))))
+      ;; replace any cond-expand with a list of all possible
+      ;; children of the cond-expand.  this will make the
+      ;; tree be as if all branches of the cond-expand were chosen
+      ;; at once.
+      (cond ((not (list? r7rs-lib)) r7rs-lib)
+            (else
+             (let loop ((r7rs-lib r7rs-lib)
+                        (result '()))
+               (cond ((null? r7rs-lib)
+                      (map r7rs-explode-cond-expand result))
+                     (else
+                      (let ((term (car r7rs-lib)))
+                        (cond ((and (pair? term)
+                                    (eq? (car term) 'cond-expand))
+                               (let* ((ce-terms (cdr term))
+                                      (childs (map cdr ce-terms))
+                                      (childs-flat (apply append childs)))
+                                 (loop (cdr r7rs-lib)
+                                       (append result childs-flat))))
+                              (else
+                               (loop (cdr r7rs-lib)
+                                     (append result (list term))))))))))))
 
 
-    (define (r7rs-drop-body r7rs-lib)
+    (define (r7rs-drop-begin r7rs-lib)
       ;; return r7rs-lib with (begin ...) snipped out
       (filter
        (lambda (term)
@@ -53,18 +58,11 @@
        r7rs-lib))
 
 
-    (define (r7rs-body r7rs-lib)
-      ;; return (begin ...)
-      (find
-       (lambda (term)
-         (and (pair? term) (eq? (car term) 'begin)))
-       r7rs-lib))
-
-
     (define (r7rs-extract-clause-cdr r7rs-lib type)
       ;; type will be one of 'import 'export 'include.
       ;; this will return the arguments (the cdrs) of the
       ;; indicated clause type appended into one list.
+      ;; XXX include-ci
       (let loop ((r7rs-lib r7rs-lib)
                  (result '()))
         (cond ((null? r7rs-lib) result)
@@ -85,7 +83,7 @@
     (define (is-system-import? lib-name)
       (and (pair? lib-name)
            (memq (car lib-name)
-                 '(scheme scheme chibi r7rs gauche sagittarius
+                 '(scheme chibi r7rs gauche sagittarius
                           ports tcp rnrs use openssl udp posix
                           srfi chicken ssax sxml sxpath txpath
                           sxpath-lolevel text md5 rfc math sha1 sha2
@@ -113,6 +111,10 @@
              (r7rs-import-set->libs (cadr r7rs-import)))
             ((eq? (car r7rs-import) 'prefix)
              (r7rs-import-set->libs (cadr r7rs-import)))
+            ((eq? (car r7rs-import) 'rename)
+             (r7rs-import-set->libs (cadr r7rs-import)))
+            ((eq? (car r7rs-import) 'except)
+             (error "write this")) ;; XXX
             (else r7rs-import)))
 
 
@@ -126,7 +128,7 @@
     (define (r7rs-get-import-decls lib-sexp)
       ;; extract a list of import-delcs from the (import ...) statements
       ;; in lib-sexp
-      (let* ((lib-no-begin (r7rs-drop-body lib-sexp))
+      (let* ((lib-no-begin (r7rs-drop-begin lib-sexp))
              (lib-sans-ce (r7rs-explode-cond-expand lib-no-begin)))
         (uniq (r7rs-extract-clause-cdr lib-sans-ce 'import))))
 
@@ -135,26 +137,53 @@
       ;; return a list of library-names that may be imported by this library
       (let* ((lib-imports-all (r7rs-get-import-decls lib-sexp))
              (lib-imports-clean (map r7rs-import-set->libs lib-imports-all)))
-        (cond (verbose
-               (display "  lib-imports-all=")
-               (write lib-imports-all)
-               (newline)
-               (display "  lib-imports-clean=")
-               (write lib-imports-clean)
-               (newline)))
+        ;; (cond (verbose
+        ;;        (display "  lib-imports-all=")
+        ;;        (write lib-imports-all)
+        ;;        (newline)
+        ;;        (display "  lib-imports-clean=")
+        ;;        (write lib-imports-clean)
+        ;;        (newline)))
         (r7rs-filter-known-imports (uniq lib-imports-clean))))
 
 
     (define (r7rs-get-library-exports filename)
       (let* ((p (open-input-file filename))
              (r7rs-lib (read p))
-             (r7rs-no-begin (r7rs-drop-body r7rs-lib))
+             (r7rs-no-begin (r7rs-drop-begin r7rs-lib))
              (r7rs-exports (r7rs-extract-clause-cdr r7rs-no-begin 'export)))
         (close-input-port p)
         r7rs-exports))
 
 
+
+
     (define (r7rs-get-exports-from-import-set repositories import-set)
+
+      (define (r7rs-get-exports-from-import-set-prefix repositories import-set)
+        (let ((prefix (symbol->string (caddr import-set))))
+          (let-values (((sub-lib sub-identifiers)
+                        (r7rs-get-exports-from-import-set
+                         repositories (cadr import-set))))
+            (values sub-lib
+                    (map (lambda (identifier)
+                           (string->symbol
+                            (string-append
+                             prefix (symbol->string identifier))))
+                         sub-identifiers)))))
+
+      (define (r7rs-get-exports-from-import-set-rename repositories import-set)
+        (let ((renames (cddr import-set)))
+          (let-values (((sub-lib sub-identifiers)
+                        (r7rs-get-exports-from-import-set
+                         repositories (cadr import-set))))
+            (values sub-lib
+                    (map (lambda (identifier)
+                           (let ((rename (assq identifier renames)))
+                             (cond (rename (cadr rename))
+                                   (else identifier))))
+                         sub-identifiers)))))
+
       (cond ((not (list? import-set))
              (error "import-set isn't a list"))
             ((null? import-set)
@@ -163,18 +192,11 @@
              (let ((lib (car (r7rs-import-set->libs (list (cadr import-set))))))
                (values lib (cddr import-set))))
             ((eq? (car import-set) 'prefix)
-             (let ((prefix (symbol->string (caddr import-set))))
-               (let-values (((sub-lib sub-identifiers)
-                             (r7rs-get-exports-from-import-set
-                              repositories (cadr import-set))))
-                 (values sub-lib
-                         (map (lambda (identifier)
-                                (string->symbol
-                                 (string-append
-                                  prefix (symbol->string identifier))))
-                              sub-identifiers)))))
+             (r7rs-get-exports-from-import-set-prefix repositories import-set))
             ((eq? (car import-set) 'rename)
-             (error "write this"))
+             (r7rs-get-exports-from-import-set-rename repositories import-set))
+            ((eq? (car import-set) 'except)
+             (error "write this")) ;; XXX
             (else
              (let* ((local-repos (filter snow2-repository-local repositories))
                     (libs (find-libraries-by-name local-repos import-set))
@@ -207,21 +229,90 @@
         (cons (car lst) (flatten (cdr lst))))))
 
 
-    (define (r7rs-get-referenced-symbols lib-sexp)
-      (let ((body (r7rs-body lib-sexp)))
-        (cond (body
-               (sort
-                (uniq (filter symbol? (flatten body)))
-                (lambda (a b)
-                  (string-ci<? (symbol->string a) (symbol->string b)))))
-              (else '()))))
+    (define (list-replace-last lst new-elt)
+      ;; what's the srfi-1 one-liner for this?
+      (reverse (cons new-elt (cdr (reverse lst)))))
+
+
+    (define (r7rs-get-referenced-symbols lib-filename lib-sexp)
+      ;; XXX this wont chase includes found inside body or
+      ;; an library-included file.
+      (let ((lib-sexp (r7rs-explode-cond-expand lib-sexp)))
+
+        (define (symbols-from-body body)
+          ;; extract a flat sorted and uniqued list of symols from an s-exp
+          (sort
+           (uniq (filter symbol? (flatten body)))
+           (lambda (a b)
+             (string-ci<? (symbol->string a)
+                          (symbol->string b)))))
+
+        (define (chase-library-include-file rel-include-filename)
+          ;; handle a single included file.  scan it for symbols
+          ;; and return a list.
+          (let* ((lib-filepath (snow-split-filename lib-filename))
+                 (include-path (snow-split-filename rel-include-filename))
+                 (include-filepath (append
+                                    (drop-right lib-filepath 1)
+                                    include-path))
+                 (include-filename
+                  (snow-combine-filename-parts include-filepath)))
+            (let ((h (open-input-file include-filename)))
+              (let loop ((body-syms '()))
+                (let ((body (read h)))
+                  (cond ((eof-object? body)
+                         (close-input-port h)
+                         body-syms)
+                        (else
+                         (loop (append (symbols-from-body body)
+                                       body-syms)))))))))
+
+        (define (chase-library-include term)
+          ;; handle (include <filename1> ...)
+          (fold append '() (map chase-library-include-file (cdr term))))
+
+        (define (chase-library-includes)
+          ;; look for library-includes in lib-sexp
+          (let loop ((lib-sexp lib-sexp)
+                     (result '()))
+            (cond ((null? lib-sexp) result)
+                  (else
+                   (let ((term (car lib-sexp)))
+                     ;; XXX include-ci
+                     (cond ((and (pair? term) (eq? (car term) 'include))
+                            (loop (cdr lib-sexp)
+                                  (append (chase-library-include term)
+                                          result)))
+                           (else
+                            (loop (cdr lib-sexp) result))))))))
+
+        (uniq
+         (append
+          ;; look for (begin ...) at the library definition level
+          (let loop ((lib-sexp lib-sexp)
+                     (result '()))
+            (cond ((null? lib-sexp) result)
+                  (else
+                   (let ((term (car lib-sexp)))
+                     (cond ((and (pair? term) (eq? (car term) 'begin))
+                            (let ((body (cdr term)))
+                              (loop (cdr lib-sexp)
+                                    (append
+                                     (symbols-from-body body)
+
+                                     result))))
+                           (else
+                            (loop (cdr lib-sexp) result)))))))
+
+          (chase-library-includes)))))
 
 
     (define (r7rs-get-includes lib-sexp)
       ;; extract a list of included files from the (include ...) statements
       ;; in lib-sexp
-      (let* ((lib-no-begin (r7rs-drop-body lib-sexp))
+      (let* ((lib-no-begin (r7rs-drop-begin lib-sexp))
              (lib-sans-ce (r7rs-explode-cond-expand lib-no-begin)))
+        ;; XXX include-ci
         (uniq (r7rs-extract-clause-cdr lib-sans-ce 'include))))
 
 
@@ -238,7 +329,7 @@
                    ;; XXX this assumes relative include paths
                    (snow-combine-filename-parts
                     (append base-path filename-path))))
-               (r7rs-get-includes lib-sexp)))))
+               (r7rs-get-includes (r7rs-explode-cond-expand lib-sexp))))))
 
 
     ))
