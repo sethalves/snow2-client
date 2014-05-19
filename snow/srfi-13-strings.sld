@@ -8,7 +8,7 @@
    string-tokenize
    string-pad
    string-pad-right
-   string-map
+   ;; string-map ;; this one is in r7rs
    string-trim
    string-trim-right
    string-trim-both
@@ -42,7 +42,7 @@
    (chicken (import (srfi 13)))
    (gauche (import (gauche) (srfi 13)))
    (sagittarius (import (srfi 13)))
-   (foment (import (scheme char)))
+   (foment (import (scheme char) (snow srfi-14-character-sets)))
    )
   (begin
 
