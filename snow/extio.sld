@@ -33,8 +33,7 @@
                        eol-style)))
    (foment)
    )
-  (import (snow snowlib)
-          (snow bytevector)
+  (import (snow bytevector)
           (snow srfi-60-integers-as-bits)
           (snow srfi-13-strings)
           )
@@ -636,7 +635,7 @@
         (do ((x 0 (+ x 1)))
             ((= x n))
           (if (not (= (bitwise-and (bytevector-u8-ref bv (+ i x 1)) #xc0) #x80))
-              (snow-error "invalid utf8" bv i len))))
+              (error "invalid utf8" bv i len))))
       (if (= i len)
           (values #f 0)
           (let ((b0 (bytevector-u8-ref bv i))
@@ -645,9 +644,9 @@
              ;; 0xxxxxxx
              ((= (bitwise-and b0 #x80) #x00) (values (integer->char b0) 1))
              ((not (= (bitwise-and b0 #xc0) #xc0))
-              (snow-error "invalid utf8" bv i len))
+              (error "invalid utf8" bv i len))
              ((= (bitwise-and b0 #xfe) #xfe)
-              (snow-error "invalid utf8" bv i len))
+              (error "invalid utf8" bv i len))
              ;; 110xxxxx 10xxxxxx
              ((and (> available 1) (= (bitwise-and b0 #xe0) #xc0))
               (check-following-bytes 1)
@@ -742,9 +741,9 @@
                             (cond ((= buffer-len 0)
                                    byte-count)
                                   (else
-                                   (snow-error "trailing utf8 bytes"))))
+                                   (error "trailing utf8 bytes"))))
                            ((>= buffer-len 6)
-                            (snow-error "utf8 buffer overflow"))
+                            (error "utf8 buffer overflow"))
                            (else
                             (bytevector-u8-set! buffer buffer-len b)
                             (set! buffer-len (+ buffer-len 1))
@@ -752,7 +751,7 @@
                                           (utf8->char buffer 0 buffer-len)))
                               (cond (c
                                      (if (not (= buffer-len bytes-used))
-                                         (snow-error "utf8 what?"))
+                                         (error "utf8 what?"))
                                      (string-set! str (+ start char-count) c)
                                      (set! buffer-len 0)
                                      (loop (+ char-count 1)
@@ -775,9 +774,9 @@
                (let ((b (read-u8 port)))
                  (cond ((eof-object? b)
                         (if (= buffer-len 0) b
-                            (snow-error "trailing utf8 bytes")))
+                            (error "trailing utf8 bytes")))
                        ((>= buffer-len 6)
-                        (snow-error "utf8 buffer overflow"))
+                        (error "utf8 buffer overflow"))
                        (else
                         (bytevector-u8-set! buffer buffer-len b)
                         (set! buffer-len (+ buffer-len 1))
@@ -785,7 +784,7 @@
                                       (utf8->char buffer 0 buffer-len)))
                           (cond (c
                                  (if (not (= buffer-len bytes-used))
-                                     (snow-error "utf8 what?"))
+                                     (error "utf8 what?"))
                                  (set! buffer-len 0)
                                  c)
                                 (else (loop char-count byte-count)))))))))

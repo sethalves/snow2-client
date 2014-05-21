@@ -23,7 +23,7 @@
                     (scheme read) (scheme write)))
    ((or gauche sagittarius) (import (scheme char) (snow bytevector)))
    )
-  (import (snow binio))
+  ;; (import (snow binio))
   (begin
 
 

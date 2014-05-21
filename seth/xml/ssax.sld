@@ -65,7 +65,6 @@
    (chicken (import (ssax)))
    (gauche (import (sxml ssax)))
    (sagittarius (import (text sxml ssax))))
-  ;; (import (snow snowlib))
   (begin
     (cond-expand
      (chibi

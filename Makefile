@@ -94,7 +94,7 @@ bootstrap-chicken:
 	make SCHEME=chicken build
 	rm -rf snow seth
 	./snow2 -:a40 install '(seth snow2 types)'
-
+	make SCHEME=chicken build
 
 #
 # chibi

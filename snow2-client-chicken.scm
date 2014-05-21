@@ -7,7 +7,6 @@ exec csi -include-path /usr/local/share/scheme -s $0 "$@"
 ;; (import-for-syntax r7rs)
 (use srfi-69)
 (require-library scheme.process-context)
-(include "snow/snowlib.sld")
 (include "snow/srfi-1-lists.sld")
 (include "snow/srfi-60-integers-as-bits.sld")
 (include "snow/bytevector.sld")

@@ -11,7 +11,6 @@
           find-packages-with-libraries
           gather-depends
           package-from-sexp
-          ;; package-from-filename
 
           depend->sexp
           sibling->sexp
@@ -29,13 +28,11 @@
           local-repository->in-fs-lib-path
           local-repository->in-fs-lib-filename
 
-
           sanity-check-repository
           sanity-check-package
           )
 
   (import (scheme base)
-          ;; (scheme read)
           (scheme write)
           (scheme file)
           (scheme process-context))
@@ -48,27 +45,19 @@
   (cond-expand
    (chibi (import (chibi filesystem)))
    (else))
-  (import (snow snowlib)
-          (snow extio)
+  (import (snow extio)
           (snow srfi-13-strings)
           (seth srfi-69-hash-tables)
+          (snow srfi-29-format)
           (snow filesys)
-          ;; (snow binio)
-          ;; (snow genport)
-          ;; (snow zlib)
-          ;; (snow tar)
           (prefix (seth http) http-)
-          ;; (seth temporary-file)
-          ;; (seth string-read-write)
-          ;; (seth srfi-37-argument-processor)
           (seth uri)
-          (seth snow2 types)
-          )
+          (seth snow2 types))
 
   (begin
 
     (define (depend-from-sexp depend-sexp)
-      ;; depend-sexp will be a library name, like (snow snowlib)
+      ;; depend-sexp will be a library name, like (snow hello)
       depend-sexp)
 
     (define (depend->sexp depend)
@@ -394,23 +383,21 @@
       ;; maybe-error-on-bad-repo is #f.
       (cond ((memq (uri-scheme repository-url) '(http https))
              ;; get repository over http
-             (snow-with-exception-catcher
-              (lambda (exn)
-                (display "unable to fetch repository index: "
-                         (current-error-port))
-                (display (uri->string repository-url) (current-error-port))
-                (newline (current-error-port))
-                (display exn (current-error-port))
-                (newline (current-error-port))
-                #f)
-              (lambda ()
-                (let ((repository
-                       (http-call-with-request-body
-                        (uri->string repository-url)
-                        read-repository)))
-                  (set-snow2-repository-local! repository #f)
-                  (set-snow2-repository-url! repository repository-url)
-                  repository))))
+             (guard
+              (err (#t
+                    (display
+                     (format "unable to fetch repository index: ~a\n~a\n"
+                             (uri->string repository-url)
+                             (error-object-message err))
+                     (current-error-port))
+                    #f))
+              (let ((repository
+                     (http-call-with-request-body
+                      (uri->string repository-url)
+                      read-repository)))
+                (set-snow2-repository-local! repository #f)
+                (set-snow2-repository-url! repository repository-url)
+                repository)))
             (else
              ;; read from local filesystem repository
              (let* ((error-on-bad-repo (if (pair? maybe-error-on-bad-repo)

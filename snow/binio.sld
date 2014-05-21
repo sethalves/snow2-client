@@ -28,8 +28,7 @@
   (cond-expand
    (gauche (import (binary io)))
    (else))
-  (import ;; (snow snowlib)
-          (snow bytevector))
+  (import (snow bytevector))
   (begin
 
     (cond-expand

@@ -69,6 +69,7 @@
             (srfi 1)
             (util file)
             (srfi 14)))
+   (foment)
    (else))
 
   (begin
@@ -79,103 +80,6 @@
 ;;; System dependencies.
 
     (cond-expand
-
-     (bigloo
-
-      (define (snow-directory-files dir)
-        (reverse (directory->list dir)))
-
-      (define (snow-file-exists? filename)
-        (file-exists? filename))
-
-      (define (snow-file-directory? filename)
-        (directory? filename))
-
-      (define (snow-file-regular? filename)
-        (error "write snow-file-regular?"))
-
-      (define (snow-file-symbolic-link? filename)
-        (error "write snow-file-symbolic-link?"))
-
-      (define (snow-delete-file filename)
-        (delete-file filename))
-
-      (define (snow-rename-file orig-filename new-filename)
-        (rename-file orig-filename new-filename))
-
-      (define (snow-create-directory dir)
-        (if (not (make-directory dir))
-            (snow-raise "could not create directory")))
-
-      (define (snow-delete-directory dir)
-        (delete-directory dir))
-
-      (define (snow-create-symbolic-link filename linkname)
-        (error "write snow-create-symbolic-link"))
-      )
-
-     (chez
-
-      (define (snow-directory-files dir)
-
-        (define (read-line port)
-          (let ((c (read-char port)))
-            (if (char? c)
-                (let loop ((lst (list c)))
-                  (let ((c (read-char port)))
-                    (if (and (char? c) (not (char=? c #\newline)))
-                        (loop (cons c lst))
-                        (list->string (reverse lst)))))
-                c)))
-
-        (define (read-lines port)
-          (let loop ((lst '()))
-            (let ((s (read-line port)))
-              (if (string? s)
-                  (loop (cons s lst))
-                  (reverse lst)))))
-
-        (let* ((p (process (string-append "ls -a \"" dir "\" 2> /dev/null")))
-               (i (car p))
-               (o (cadr p))
-               (files (read-lines i)))
-          (close-input-port i)
-          (close-output-port o)
-          (remove "."
-                  (remove ".."
-                          files))))
-
-      (define (snow-file-exists? filename)
-        (file-exists? filename))
-
-      (define (snow-file-directory? filename)
-        (file-exists? (string-append filename "/.")))
-
-      (define (snow-file-regular? filename)
-        (error "write snow-file-regular?"))
-
-      (define (snow-file-symbolic-link? filename)
-        (error "write snow-file-symbolic-link?"))
-
-      (define (snow-delete-file filename)
-        (delete-file filename))
-
-      (define (snow-rename-file orig-filename new-filename)
-        (if (not (= 0 (system (string-append "mv \"" orig-filename "\" \"" new-filename "\" 2> /dev/null"))))
-            (snow-raise "could not rename file")))
-
-      (define (snow-create-directory dir)
-        (if (not (= 0 (system (string-append "mkdir \"" dir "\" 2> /dev/null"))))
-            (snow-raise "could not create directory")))
-
-      (define (snow-delete-directory dir)
-        (if (not (= 0 (system (string-append "rmdir \"" dir "\" 2> /dev/null"))))
-            (snow-raise "could not delete directory")))
-
-      (define (snow-create-symbolic-link filename linkname)
-        (error "write snow-create-symbolic-link"))
-      )
-
 
      (chibi
 
@@ -249,39 +153,6 @@
         (create-symbolic-link filename linkname))
       )
 
-     (gambit
-
-      (define (snow-directory-files dir)
-        (directory-files (list path: dir ignore-hidden: 'dot-and-dot-dot)))
-
-      (define (snow-file-exists? filename)
-        (file-exists? filename))
-
-      (define (snow-file-directory? filename)
-        (eq? (file-type filename) 'directory))
-
-      (define (snow-file-regular? filename)
-        (error "write snow-file-regular?"))
-
-      (define (snow-file-symbolic-link? filename)
-        (error "write snow-file-symbolic-link?"))
-
-      (define (snow-delete-file filename)
-        (delete-file filename))
-
-      (define (snow-rename-file orig-filename new-filename)
-        (rename-file orig-filename new-filename))
-
-      (define (snow-create-directory dir)
-        (create-directory dir))
-
-      (define (snow-delete-directory dir)
-        (delete-directory dir))
-
-      (define (snow-create-symbolic-link filename linkname)
-        (error "write snow-create-symbolic-link"))
-      )
-
      (gauche
 
       (define (snow-directory-files dir)
@@ -296,230 +167,33 @@
         (file-exists? filename))
 
       (define (snow-file-directory? filename)
-        ;; (file-is-directory? filename)
         (eq? (file-type filename) 'directory))
 
       (define (snow-file-regular? filename)
         (eq? (file-type filename) 'regular))
 
       (define (snow-file-symbolic-link? filename)
-        ;; file-is-symlink?
         (eq? (file-type filename :follow-link? #f) 'symlink))
 
       (define (snow-delete-file filename)
-        ;; (sys-unlink filename)
         (remove-files (list filename)))
 
       (define (snow-rename-file orig-filename new-filename)
-        ;; (sys-rename orig-filename new-filename)
         (move-file orig-filename new-filename))
 
       (define (snow-create-directory dir)
-        ;; (sys-mkdir dir #o777)
         (make-directory* dir))
 
       (define (snow-delete-directory dir)
-        ;; (sys-rmdir dir)
         (remove-directory* dir))
 
       (define (snow-create-symbolic-link filename linkname)
-        (sys-symlink filename linkname)
-        ;; (symlink filename linkname)
-        )
+        (sys-symlink filename linkname))
 
       (define current-directory sys-getcwd)
       (define change-directory sys-chdir)
 
       )
-
-     (guile
-
-      (define (snow-directory-files dir)
-        (let ((d (opendir dir)))
-          (let loop ((lst '()))
-            (let ((entry (readdir d)))
-              (if (eof-object? entry)
-                  (begin
-                    (closedir d)
-                    (delete "."
-                            (delete ".."
-                                    lst)))
-                  (loop (cons entry lst)))))))
-
-      (define (snow-file-exists? filename)
-        (file-exists? filename))
-
-      (define (snow-file-directory? filename)
-        (file-exists? (string-append filename "/.")))
-
-      (define (snow-file-regular? filename)
-        (error "write snow-file-regular?"))
-
-      (define (snow-file-symbolic-link? filename)
-        (error "write snow-file-symbolic-link?"))
-
-      (define (snow-delete-file filename)
-        (delete-file filename))
-
-      (define (snow-rename-file orig-filename new-filename)
-        (rename-file orig-filename new-filename))
-
-      (define (snow-create-directory dir)
-        (mkdir dir))
-
-      (define (snow-delete-directory dir)
-        (rmdir dir))
-
-      (define (snow-create-symbolic-link filename linkname)
-        (error "write snow-create-symbolic-link"))
-      )
-
-     (kawa
-
-      (define (snow-directory-files dir)
-        (directory-files dir))
-
-      (define (snow-file-exists? filename)
-        (file-exists? filename))
-
-      (define (snow-file-directory? filename)
-        (file-directory? filename))
-
-      (define (snow-file-regular? filename)
-        (error "write snow-file-regular?"))
-
-      (define (snow-file-symbolic-link? filename)
-        (error "write snow-file-symbolic-link?"))
-
-      (define (snow-delete-file filename)
-        (delete-file filename))
-
-      (define (snow-rename-file orig-filename new-filename)
-        (rename-file orig-filename new-filename))
-
-      (define (snow-create-directory dir)
-        (if (file-exists? dir)
-            (snow-raise "could not create directory")
-            (create-directory dir)))
-
-      (define (snow-delete-directory dir)
-        (if (not (file-exists? dir))
-            (snow-raise "could not delete directory")
-            (delete-file dir)))
-
-      (define (snow-create-symbolic-link filename linkname)
-        (error "write snow-create-symbolic-link"))
-      )
-
-     (larceny
-
-      (define (snow-directory-files dir)
-        (filter (lambda (ent)
-                  (not (or (equal? ent ".")
-                           (equal? ent ".."))))
-                (list-directory dir)))
-
-      (define (snow-file-exists? filename)
-        (file-exists? filename))
-
-      (define (snow-file-directory? filename)
-        (file-exists? (string-append filename "/.")))
-
-      (define (snow-file-regular? filename)
-        (error "write snow-file-regular?"))
-
-      (define (snow-file-symbolic-link? filename)
-        (error "write snow-file-symbolic-link?"))
-
-      (define (snow-delete-file filename)
-        (delete-file filename))
-
-      (define (snow-rename-file orig-filename new-filename)
-        (rename-file orig-filename new-filename))
-
-      (define (snow-create-directory dir)
-        (if (not (= 0 (system (string-append "mkdir \"" dir "\" 2> /dev/null"))))
-            (snow-raise "could not create directory")))
-
-      (define (snow-delete-directory dir)
-        (if (not (= 0 (system (string-append "rmdir \"" dir "\" 2> /dev/null"))))
-            (snow-raise "could not delete directory")))
-
-      (define (snow-create-symbolic-link filename linkname)
-        (error "write snow-create-symbolic-link"))
-      )
-
-     (mit
-
-      (define (snow-directory-files dir)
-        (delete "."
-                (delete ".."
-                        (map file-namestring
-                             (directory-read (string-append dir "/"))))))
-
-      (define (snow-file-exists? filename)
-        (file-exists? filename))
-
-      (define (snow-file-directory? filename)
-        (file-directory? filename))
-
-      (define (snow-file-regular? filename)
-        (error "write snow-file-regular?"))
-
-      (define (snow-file-symbolic-link? filename)
-        (error "write snow-file-symbolic-link?"))
-
-      (define (snow-delete-file filename)
-        (delete-file filename))
-
-      (define (snow-rename-file orig-filename new-filename)
-        (rename-file orig-filename new-filename))
-
-      (define (snow-create-directory dir)
-        (make-directory dir))
-
-      (define (snow-delete-directory dir)
-        (delete-directory dir))
-
-      (define (snow-create-symbolic-link filename linkname)
-        (error "write snow-create-symbolic-link"))
-      )
-
-     (mzscheme
-
-      (define (snow-directory-files dir)
-        (map path->string (directory-list dir)))
-
-      (define (snow-file-exists? filename)
-        (or (file-exists? filename)
-            (directory-exists? filename)))
-
-      (define (snow-file-directory? filename)
-        (and (not (file-exists? filename))
-             (directory-exists? filename)))
-
-      (define (snow-file-regular? filename)
-        (error "write snow-file-regular?"))
-
-      (define (snow-file-symbolic-link? filename)
-        (error "write snow-file-symbolic-link?"))
-
-      (define (snow-delete-file filename)
-        (delete-file filename))
-
-      (define (snow-rename-file orig-filename new-filename)
-        (rename-file-or-directory orig-filename new-filename))
-
-      (define (snow-create-directory dir)
-        (make-directory dir))
-
-      (define (snow-delete-directory dir)
-        (delete-directory dir))
-
-      (define (snow-create-symbolic-link filename linkname)
-        (error "write snow-create-symbolic-link"))
-      )
-
 
      (sagittarius
 
@@ -558,208 +232,7 @@
         )
       )
 
-
-     (scheme48
-
-      (define (snow-directory-files dir)
-        (list-directory dir))
-
-      (define (snow-file-exists? filename)
-        (accessible? filename (access-mode read)))
-
-      (define (snow-file-directory? filename)
-        (snow-file-exists? (string-append filename "/.")))
-
-      (define (snow-file-regular? filename)
-        (error "write snow-file-regular?"))
-
-      (define (snow-file-symbolic-link? filename)
-        (error "write snow-file-symbolic-link?"))
-
-      (define (snow-delete-file filename)
-        (unlink filename))
-
-      (define (snow-rename-file orig-filename new-filename)
-        (if (not (= 0 (system (string-append "mv \"" orig-filename "\" \"" new-filename "\" 2> /dev/null"))))
-            (snow-raise "could not rename file")))
-
-      (define (snow-create-directory dir)
-        (if (not (= 0 (system (string-append "mkdir \"" dir "\" 2> /dev/null"))))
-            (snow-raise "could not create directory")))
-
-      (define (snow-delete-directory dir)
-        (if (not (= 0 (system (string-append "rmdir \"" dir "\" 2> /dev/null"))))
-            (snow-raise "could not delete directory")))
-
-      (define (snow-create-symbolic-link filename linkname)
-        (error "write snow-create-symbolic-link"))
-      )
-
-     (scm
-
-      (require 'common-list-functions)
-      (require 'filename)
-
-      (define (snow-directory-files dir)
-        (call-with-tmpnam
-         (lambda (tmp)
-           (if (and (= 0 (system (string-append "ls -a \"" dir "\" > " tmp)))
-                    (file-exists? tmp))
-               (call-with-input-file tmp
-                 (lambda (port)
-                   (let loop ((rev-filenames '()))
-                     (let ((x (read-line port)))
-                       (if (not (eof-object? x))
-                           (loop (cons x rev-filenames))
-                           (delete "."
-                                   (delete ".."
-                                           (reverse rev-filenames))))))))
-               (snow-raise "could not list directory")))))
-
-      (define (snow-file-exists? filename)
-        (file-exists? filename))
-
-      (define (snow-file-directory? filename)
-        (file-exists? (string-append filename "/.")))
-
-      (define (snow-file-regular? filename)
-        (error "write snow-file-regular?"))
-
-      (define (snow-file-symbolic-link? filename)
-        (error "write snow-file-symbolic-link?"))
-
-      (define (snow-delete-file filename)
-        (if (not (= 0 (system (string-append "rm -f \"" filename "\" 2> /dev/null"))))
-            (snow-raise "could not delete file")))
-
-      (define (snow-rename-file orig-filename new-filename)
-        (if (not (= 0 (system (string-append "mv \"" orig-filename "\" \"" new-filename "\" 2> /dev/null"))))
-            (snow-raise "could not rename file")))
-
-      (define (snow-create-directory dir)
-        (if (not (= 0 (system (string-append "mkdir \"" dir "\" 2> /dev/null"))))
-            (snow-raise "could not create directory")))
-
-      (define (snow-delete-directory dir)
-        (if (not (= 0 (system (string-append "rmdir \"" dir "\" 2> /dev/null"))))
-            (snow-raise "could not delete directory")))
-
-      (define (snow-create-symbolic-link filename linkname)
-        (error "write snow-create-symbolic-link"))
-      )
-
-     (scsh
-
-      (define (snow-directory-files dir)
-        (directory-files dir #t))
-
-      (define (snow-file-exists? filename)
-        (file-exists? filename))
-
-      (define (snow-file-directory? filename)
-        (file-directory? filename))
-
-      (define (snow-file-regular? filename)
-        (error "write snow-file-regular?"))
-
-      (define (snow-file-symbolic-link? filename)
-        (error "write snow-file-symbolic-link?"))
-
-      (define (snow-delete-file filename)
-        (delete-file filename))
-
-      (define (snow-rename-file orig-filename new-filename)
-        (rename-file orig-filename new-filename))
-
-      (define (snow-create-directory dir)
-        (create-directory dir))
-
-      (define (snow-delete-directory dir)
-        (delete-directory dir))
-
-      (define (snow-create-symbolic-link filename linkname)
-        (error "write snow-create-symbolic-link"))
-      )
-
-     (sisc
-
-      (import file-manipulation)
-
-      (define^ (snow-directory-files dir)
-        (directory-list dir))
-
-      (define^ (snow-file-exists? filename)
-        (file-exists? filename))
-
-      (define^ (snow-file-directory? filename)
-        (file-is-directory? filename))
-
-      (define^ (snow-file-regular? filename)
-        (error "write snow-file-regular?"))
-
-      (define^ (snow-file-symbolic-link? filename)
-        (error "write snow-file-symbolic-link?"))
-
-      (define^ (snow-delete-file filename)
-        (file-delete! filename))
-
-      (define^ (snow-rename-file orig-filename new-filename)
-        (if (not (file-rename! orig-filename new-filename))
-            (snow-raise "could not rename file")))
-
-      (define^ (snow-create-directory dir)
-        (if (not (make-directory! dir))
-            (snow-raise "could not create directory")))
-
-      (define^ (snow-delete-directory dir)
-        (if (not (file-delete! dir))
-            (snow-raise "could not delete directory")))
-
-      (define (snow-create-symbolic-link filename linkname)
-        (error "write snow-create-symbolic-link"))
-      )
-
-     (stklos
-
-      ;; Could be improved for STklos 0.82
-
-      (define (snow-directory-files dir)
-        (delete "."
-                (delete ".."
-                        (exec-list (string-append "ls -a \"" dir "\"")))))
-
-      (define (snow-file-exists? filename)
-        (or (file-exists? filename)
-            (file-is-directory? filename)))
-
-      (define (snow-file-directory? filename)
-        (file-is-directory? filename))
-
-      (define (snow-file-regular? filename)
-        (error "write snow-file-regular?"))
-
-      (define (snow-file-symbolic-link? filename)
-        (error "write snow-file-symbolic-link?"))
-
-      (define (snow-delete-file filename)
-        (remove-file filename))
-
-      (define (snow-rename-file orig-filename new-filename)
-        (rename-file orig-filename new-filename))
-
-      (define (snow-create-directory dir)
-        (if (not (= 0 (system
-                       (string-append "mkdir \"" dir "\" 2> /dev/null"))))
-            (snow-raise "could not create directory")))
-
-      (define (snow-delete-directory dir)
-        (if (not (= 0 (system
-                       (string-append "rmdir \"" dir "\" 2> /dev/null"))))
-            (snow-raise "could not delete directory")))
-
-      (define (snow-create-symbolic-link filename linkname)
-        (error "write snow-create-symbolic-link"))
-      ))
+     )
 
 ;;;----------------------------------------------------------------------------
 
@@ -947,43 +420,23 @@
 
 
     (cond-expand
-     (chibi
-      (define snow-file-size file-size)
-      )
-     (chicken
-      (define snow-file-size file-size)
-      )
-     (gauche
-      (define snow-file-size file-size)
-      )
+     ((or chibi chicken foment gauche)
+      (define snow-file-size file-size))
      (sagittarius
       (define snow-file-size file-size-in-bytes)
       ))
 
 
     (cond-expand
-     (bigloo
-      (define snow-file-mtime file-modification-time))
      (chibi
       (define (snow-file-mtime filename)
         (exact (floor (+ 1262271600 (file-modification-time filename))))))
      (chicken
       (define (snow-file-mtime filename)
         (exact (floor (vector-ref (file-stat filename) 8)))))
-     (gambit
-      (define (snow-file-mtime filename)
-        (time->seconds (file-info-last-modification-time (file-info path)))))
      (gauche
       (define (snow-file-mtime filename)
         (exact (floor (file-mtime filename)))))
-     (guile
-      (define (snow-file-mtime filename)
-        (stat:mtime (stat filename))))
-     (mosh
-      (define snow-file-mtime file-stat-mtime))
-     (racket
-      (define (snow-file-mtime filename)
-        (file-or-directory-modify-seconds filename)))
      (sagittarius
       (define (snow-file-mtime filename)
         (exact (floor (file-stat-mtime filename)))))

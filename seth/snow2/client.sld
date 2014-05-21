@@ -10,16 +10,12 @@
           (scheme process-context))
   (cond-expand
    (chibi (import (only (srfi 1) filter make-list any fold)
-                  ;; (only (chibi) read)
                   ))
-   (else (import ;; (scheme read)
-                 (srfi 1)
-                 )))
+   (else (import (srfi 1))))
   (cond-expand
    (chibi (import (chibi filesystem)))
    (else))
-  (import (snow snowlib)
-          (snow srfi-13-strings)
+  (import (snow srfi-13-strings)
           (snow filesys) (snow binio) (snow genport) (snow zlib) (snow tar)
           (snow srfi-29-format)
           (prefix (seth http) http-)
@@ -150,34 +146,14 @@
           (newline)
 
           (let ((download-success
-
-                 ;; (snow-with-exception-catcher
-                 ;;  (lambda (exn)
-                 ;;    (display "unable to install package: "
-                 ;;             (current-error-port))
-                 ;;    (display (uri->string url) (current-error-port))
-                 ;;    (newline (current-error-port))
-                 ;;    (display exn (current-error-port))
-                 ;;    (newline (current-error-port))
-                 ;;    #f)
-                 ;;  (lambda ()
-                 ;;    (http-download-file (uri->string url) write-port)))
-
                  (guard
                   (err (#t
-                        ;; (display
-                        ;;  (format "Unable to install package: ~a ~s ~s\n"
-                        ;;          (uri->string url)
-                        ;;          (error-object-message err)
-                        ;;          (error-object-irritants err)
-                        ;;          ))
                         (display-error
                          (format "Unable to install package: ~a\n"
                                  (uri->string url))
                          err)
                         (raise err)))
-                  (http-download-file (uri->string url) write-port))
-                 ))
+                  (http-download-file (uri->string url) write-port))))
 
             (cond (download-success
                    (let ((success (install-from-tgz
@@ -425,15 +401,14 @@
 
 
     (define (read-library-name library-name-argument)
-      (snow-with-exception-catcher
-       (lambda (exn)
-         (usage
-          (string-append
-           "\nincorrectly formatted library-name argument: \""
-           library-name-argument
-           "\"\n\n")))
-       (lambda ()
-         (read-from-string library-name-argument))))
+      (guard
+       (err (#t
+             (usage
+              (string-append
+               "\nincorrectly formatted library-name argument: \""
+               library-name-argument
+               "\"\n\n"))))
+       (read-from-string library-name-argument)))
 
 
     (define (main-program)

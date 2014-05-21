@@ -33,7 +33,7 @@
      (only (chibi string) string-null? call-with-input-string)
      (only (scheme r5rs) inexact->exact exact->inexact)
      (srfi 1) (srfi 2)
-     (snow snowlib) (snow assert) (snow srfi-13-strings) (snow extio)))
+     (snow assert) (snow srfi-13-strings) (snow extio)))
    (chicken (import (sxpath) (txpath) (sxpath-lolevel)))
    (gauche (import (sxml sxpath)))
    (sagittarius (import (text sxml sxpath))))
@@ -375,7 +375,7 @@
 
 ; sxml error message
 (define (sxml:error . messages)
-  (snow-error
+  (error
    "SXML ERROR"
    (apply string-append (map display-to-string messages)))
   ;; (cerr nl "SXML ERROR: ")
@@ -3364,7 +3364,7 @@
 ; In this case, a default value (usually empty nodeset or 0) is returned by 
 ; a sub-expression which caused an XPath/XPointer runtime error.
 (define (sxml:xpointer-runtime-error . text)
-  (snow-error
+  (error
    "XPath/XPointer runtime error"
    (apply string-append (map display-to-string text)))
   ;; (apply cerr (append

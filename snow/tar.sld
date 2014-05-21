@@ -12,9 +12,7 @@
 
 
 (define-library (snow tar)
-  (export make-tar-condition
-          tar-condition?
-          tar-condition-msg
+  (export tar-condition?
           tar-pack-genport
           tar-pack-file
           tar-pack-u8vector
@@ -42,7 +40,6 @@
   (import (scheme base)
           (scheme write) ;; XXX
           (scheme time)
-          (snow snowlib)
           (snow bytevector)
           (snow srfi-60-integers-as-bits)
           (snow bignum)
@@ -74,20 +71,11 @@
 
 ;;; System dependencies.
 
-    (cond-expand
-
-     (else
-
-      (define (make-tar-condition msg)
-        (make-snow-cond '(tar-condition)
-                        (vector msg)))
-
-      (define (tar-condition? obj)
-        (and (snow-cond? obj)
-             (memq 'tar-condition (snow-cond-type obj))))
-
-      (define (tar-condition-msg cnd)
-        (vector-ref (snow-cond-fields cnd) 0))))
+    (define (tar-condition? obj)
+      (and (error-object? obj)
+           (pair? (error-object-irritants obj))
+           (eq? (car (error-object-irritants obj))
+                'tar-condition?)))
 
 ;;;----------------------------------------------------------------------------
 
@@ -108,10 +96,10 @@
       ;; Error handling.
 
       (define (tar-field-overflow)
-        (make-tar-condition "tar field overflow"))
+        (error "tar field overflow" 'tar-condition))
 
       (define (tar-illegal-field)
-        (make-tar-condition "tar illegal field"))
+        (error "tar illegal field" 'tar-condition))
 
       (define (write-pad n)
         (genport-write-subu8vector
@@ -285,7 +273,7 @@
 
       (let ((exc (write-tar-rec-list tar-rec-list)))
         (if exc
-            (snow-raise exc)
+            (error "write-tar-rec-list" exc)
             (write-pad (* 2 512)))))
 
     (define (tar-pack-file tar-rec-list filename)
@@ -308,14 +296,13 @@
       ;; Error handling.
 
       (define (tar-file-truncated-error)
-        (make-tar-condition "tar file truncated"))
+        (error "tar file truncated" 'tar-condition))
 
       (define (tar-header-format-unrecognized-error)
-        (make-tar-condition
-         (string-append "tar header format unrecognized")))
+        (error "tar header format unrecognized" 'tar-condition))
 
       (define (tar-header-checksum-error)
-        (make-tar-condition "tar header checksum error"))
+        (error "tar header checksum error" 'tar-condition))
 
       (let ((header (make-bytevector (header-size))))
 
@@ -486,9 +473,9 @@
                                          0
                                          pad
                                          genport-in))))
-                              (snow-raise (tar-file-truncated-error)))
+                              (tar-file-truncated-error))
                           (loop))))
-                  (snow-raise tar-rec)))))
+                  (error "read-tar-file" tar-rec)))))
 
 
         (define rev-tar-rec-list '())

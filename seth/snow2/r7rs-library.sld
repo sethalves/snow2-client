@@ -13,7 +13,9 @@
           (scheme read)
           (scheme write)
           (scheme file)
+          (scheme process-context)
           (snow filesys)
+          (snow srfi-29-format)
           (snow srfi-95-sort)
           (seth snow2 types)
           (seth snow2 utils)
@@ -119,10 +121,16 @@
 
 
     (define (r7rs-library-file->sexp filename)
-      (let* ((p (open-input-file filename))
-             (lib-sexp (read p)))
-        (close-input-port p)
-        lib-sexp))
+      (guard
+       (err (#t
+             (display (format "unable to read sld file: ~a ~a\n"
+                              filename
+                              (error-object-message err)))
+             (exit 1)))
+       (let* ((p (open-input-file filename))
+              (lib-sexp (read p)))
+         (close-input-port p)
+         lib-sexp)))
 
 
     (define (r7rs-get-import-decls lib-sexp)

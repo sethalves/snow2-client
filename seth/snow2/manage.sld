@@ -15,8 +15,7 @@
                         fold last lset-difference delete-duplicates
                         drop-right find)))
    (else (import (srfi 1))))
-  (import (snow snowlib)
-          (snow bytevector)
+  (import (snow bytevector)
           (snow tar)
           (snow zlib)
           (snow filesys)
@@ -26,7 +25,6 @@
           (seth uri)
           (seth crypt md5)
           (seth aws common)
-          ;; (seth srfi-69-hash-tables)
           (seth aws s3)
           (seth snow2 types)
           (seth snow2 utils)
@@ -218,27 +216,20 @@
         ;; (display "md5-on-s3=") (write md5-on-s3) (newline)
 
         (cond ((equal? md5-on-s3 local-md5)
-               (display "[")
-               (write local-filename)
-               (display " unchanged]\n"))
+               (display (format "[~a unchanged]\n" local-filename)))
               (else
-               (display "[")
-               (write local-filename)
-               (display " --> s3:")
-               (display bucket)
-               (display s3-path)
-               (display "]")
-               (newline)
-               (snow-with-exception-catcher
-                (lambda (err)
-                  (snow-display-error err)
-                  (exit 1))
-                (lambda ()
-                  (put-object! credentials bucket s3-path local-p
-                               #f ;; (snow-file-size local-filename)
-                               "application/octet-stream"
-                               'public-read)
-                  ))
+               (display (format "[~a --> s3:~a~a]\n"
+                                local-filename bucket s3-path))
+               (guard
+                (err (#t
+                      (display
+                       (format "error uploading ~a to s3.\n~a\n"
+                               local-filename (error-object-message err))
+                       (current-error-port))))
+                (put-object! credentials bucket s3-path local-p
+                             #f ;; (snow-file-size local-filename)
+                             "application/octet-stream"
+                             'public-read))
                (close-input-port local-p)))))
 
 

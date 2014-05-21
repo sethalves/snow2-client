@@ -11,8 +11,7 @@
           )
   (import (scheme base)
           (scheme read)
-          (scheme write)
-          (snow snowlib))
+          (scheme write))
   (cond-expand
    (chibi (import (srfi 1)
                   (scheme char)
@@ -53,7 +52,7 @@
                  (read-char port)
                  curr-char)
                 (else
-                 (snow-error msg (string-append
+                 (error msg (string-append
                                   "got "
                                   (string curr-char)
                                   " rather than "
@@ -238,7 +237,7 @@
           result)))
 
     (define (parser-error port . msg-parts)
-      (snow-error
+      (error
        "parser-error"
        (apply string-append (map display-to-string msg-parts))
        ))

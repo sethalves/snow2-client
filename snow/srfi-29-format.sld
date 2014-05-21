@@ -12,7 +12,6 @@
     (import (srfi 29)))
    (sagittarius
     (import (srfi 29))))
-  (import (snow snowlib))
   (begin
 
 

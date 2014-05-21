@@ -5,11 +5,8 @@
           gunzip-genport
           inflate-genport
           gunzip-u8vector
-          make-zlib-condition
-          zlib-condition?
-          zlib-condition-msg)
+          zlib-condition?)
   (import (scheme base))
-  (import (snow snowlib))
   (import (snow bytevector))
   (import (snow digest))
   (import (snow srfi-60-integers-as-bits))
@@ -20,40 +17,18 @@
 
 ;;; System dependencies.
 
-    (cond-expand
-
-     (gambit
-
-      (declare
-       (standard-bindings)
-       (fixnum)
-       (not safe)))
-
-     (else
-
-      #f))
-
-    (cond-expand
-
-     (else
-
-      (define (make-zlib-condition msg)
-        (make-snow-cond '(zlib-condition)
-                        (vector msg)))
-
-      (define (zlib-condition? obj)
-        (and (snow-cond? obj)
-             (memq 'zlib-condition (snow-cond-type obj))))
-
-      (define (zlib-condition-msg cnd)
-        (vector-ref (snow-cond-fields cnd) 0))))
+    (define (zlib-condition? obj)
+      (and (error-object? obj)
+           (pair? (error-object-irritants obj))
+           (eq? (car (error-object-irritants obj))
+                'zlib-condition?)))
 
 ;;;----------------------------------------------------------------------------
 
     (define (gzip-signature) 35615) ;; #x1F #x8B
 
     (define (zlib-error msg)
-      (snow-raise (make-zlib-condition msg)))
+      (error msg 'zlib-condition))
 
 ;;;----------------------------------------------------------------------------
 
