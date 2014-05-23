@@ -44,23 +44,34 @@ endif
 
 all:
 
+links:
+	rm -rf snow seth srfi
+	ln -s ../snow2-packages/snow/snow snow
+	ln -s ../snow2-packages/seth/seth seth
+	ln -s ../r7rs-srfis/srfi srfi
+
+
 build: build-$(SCHEME)
 
 install: build install-libs install-$(SCHEME)
 
 install-libs:
-	sudo mkdir -p $(PACKAGE_DIR)/snow
-	sudo cp snow/*.sld $(PACKAGE_DIR)/snow/
-	sudo mkdir -p $(PACKAGE_DIR)/seth
-	sudo cp seth/*.sld $(PACKAGE_DIR)/seth/
+	sudo mkdir -p $(PACKAGE_DIR)
+	find srfi -type f | while read I; do sudo install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
+	find snow -type f | while read I; do sudo install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
+	find seth -type f | while read I; do sudo install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
+
 
 uninstall: uninstall-$(SCHEME) uninstall-libs
 
 uninstall-libs:
-	sudo rm -f $(PACKAGE_DIR)/seth/*.sld
-	- sudo rmdir $(PACKAGE_DIR)/seth
-	sudo rm -f $(PACKAGE_DIR)/snow/*.sld
-	- sudo rmdir $(PACKAGE_DIR)/snow
+	find srfi -type f | while read I; do sudo rm -f "$(PACKAGE_DIR)/$$I"; done
+	find snow -type f | while read I; do sudo rm -f "$(PACKAGE_DIR)/$$I"; done
+	find seth -type f | while read I; do sudo rm -f "$(PACKAGE_DIR)/$$I"; done
+	- sudo rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*/*/*
+	- sudo rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*/*
+	- sudo rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*
+	sudo rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)
 
 
 clean: clean-$(SCHEME)
@@ -86,12 +97,8 @@ uninstall-chicken:
 clean-chicken:
 	rm -f snow2
 
-bootstrap-chicken:
+bootstrap-chicken: links
 	rm -f snow2
-	rm -rf snow seth srfi
-	ln -s ../snow2-packages/snow/snow snow
-	ln -s ../snow2-packages/seth/seth seth
-	ln -s ../r7rs-srfis/srfi srfi
 	make SCHEME=chicken build
 	rm -rf snow seth srfi
 	./snow2 -:a40 install '(seth snow2 types)'
