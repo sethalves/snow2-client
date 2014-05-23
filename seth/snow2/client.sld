@@ -15,13 +15,13 @@
   (cond-expand
    (chibi (import (chibi filesystem)))
    (else))
-  (import (snow srfi-13-strings)
+  (import (srfi 13)
           (snow filesys) (snow binio) (snow genport) (snow zlib) (snow tar)
-          (snow srfi-29-format)
+          (srfi 29)
           (prefix (seth http) http-)
           (seth temporary-file)
           (seth string-read-write)
-          (seth srfi-37-argument-processor)
+          (srfi 37)
           (seth uri)
           (seth crypt md5)
           (seth snow2 types)
@@ -35,9 +35,13 @@
     (define (display-error msg err . maybe-depth)
       (let* ((depth (if (pair? maybe-depth) (car maybe-depth) 0))
              (depth-s (make-string (* depth 2) #\space)))
-        (display
-         (format "~aError -- ~a ~s\n" depth-s msg (error-object-message err))
-         (current-error-port))
+        (display  depth-s)
+        (display "Error -- ")
+        (display msg)
+        (display " ")
+        (write (error-object-message err))
+        (newline)
+        (write (error-object-irritants err))
         (for-each (lambda (irr)
                     (cond ((error-object? irr)
                            (display-error "" irr (+ depth 1)))
@@ -103,28 +107,29 @@
            (cond ((and pkg-md5-sum
                        (not (eq? pkg-md5-sum
                                  (filename->md5 local-package-tgz-file))))
-                  (display
-                   (format
-                    (string-append "Error: checksum mismatch on ~a (~a) -- "
-                                   "expected ~a and got ~a\n")
-                    (uri->string (snow2-package-url package))
-                    local-package-tgz-file
-                    pkg-md5-sum (filename->md5 local-package-tgz-file))
-                   (current-error-port))
+                  (display "Error: checksum mismatch on ")
+                  (display (uri->string (snow2-package-url package)))
+                  (display " (")
+                  (display local-package-tgz-file)
+                  (display ") -- expected ")
+                  (write pkg-md5-sum)
+                  (display " and got ")
+                  (write (filename->md5 local-package-tgz-file))
+                  (newline)
                   (exit 1))
 
-                 ((and pkg-tgz-size
+                 ((and (number? pkg-tgz-size)
                        (not (= pkg-tgz-size
                                (snow-file-size local-package-tgz-file))))
-                  (display
-                   (format
-                    (string-append "Error: size mismatch on ~a (~a) -- "
-                                   "expected ~a and got ~a\n")
-                    (uri->string (snow2-package-url package))
-                    local-package-tgz-file
-                    pkg-tgz-size
-                    (snow-file-size local-package-tgz-file))
-                   (current-error-port))
+                  (display "Error: size mismatch on ")
+                  (display (uri->string (snow2-package-url package)))
+                  (display " (")
+                  (display local-package-tgz-file)
+                  (display ") -- expected ")
+                  (write pkg-tgz-size)
+                  (display " and got ")
+                  (write (snow-file-size local-package-tgz-file))
+                  (newline)
                   (exit 1)))
 
            (let* ((bin-port (binio-open-input-file
@@ -149,8 +154,9 @@
                  (guard
                   (err (#t
                         (display-error
-                         (format "Unable to install package: ~a\n"
-                                 (uri->string url))
+                         (string-append
+                          "Unable to install package: "
+                          (uri->string url))
                          err)
                         (raise err)))
                   (http-download-file (uri->string url) write-port))))

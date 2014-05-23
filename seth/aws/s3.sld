@@ -13,7 +13,7 @@
   (import (scheme base)
           (scheme write)
           (snow bytevector)
-          (snow srfi-13-strings)
+          (srfi 13)
           (snow extio)
           (seth uri)
           (seth port-extras)

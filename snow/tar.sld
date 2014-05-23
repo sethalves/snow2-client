@@ -41,7 +41,7 @@
           (scheme write) ;; XXX
           (scheme time)
           (snow bytevector)
-          (snow srfi-60-integers-as-bits)
+          (srfi 60)
           (snow bignum)
           (snow genport)
           (snow filesys)

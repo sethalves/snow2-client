@@ -56,7 +56,7 @@
             (scheme cxr)
             (only (chibi) call-with-input-string)
             (snow assert)
-            (snow srfi-13-strings)
+            (srfi 13)
             (snow input-parse)
             (chibi io)
             (only (chibi string) string-null?)

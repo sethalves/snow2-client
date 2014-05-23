@@ -1,4 +1,4 @@
-(define-library (snow srfi-19-time)
+(define-library (srfi 19)
   (export
    ;; Constants
    time-duration
@@ -106,8 +106,16 @@
             (scheme time)
             (chibi time)
             ))
+   (sagittarius (import (srfi :19)))
    (else
-    (import (srfi 19))))
+    (import (scheme char)
+            (scheme cxr)
+            (scheme read)
+            (scheme write)
+            (scheme time)
+            (scheme file)
+            )
+    ))
 
   (begin
 
@@ -134,6 +142,30 @@
       (define (current-process-milliseconds)
         0 ;; XXX
         ))
+
+     (foment
+      (define (seconds->date seconds)
+        (error "write seconds->date")
+        (make-date
+         0 ;; nanoseconds
+         0 ;; XXX seconds
+         0 ;; XXX minute
+         0 ;; XXX hour
+         0 ;; XXX day
+         0 ;; XXX month
+         0 ;; XXX year
+         0 ;; XXX tz offset
+         ))
+      (define (date-time-zone-offset x)
+        0 ;; XXX
+        )
+      (define (current-gc-milliseconds)
+        0 ;; XXX
+        )
+      (define (current-process-milliseconds)
+        0 ;; XXX
+        )
+      )
 
      (else))
 

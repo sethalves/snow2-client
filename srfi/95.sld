@@ -1,4 +1,4 @@
-(define-library (snow srfi-95-sort)
+(define-library (srfi 95)
   (export sorted?
           merge
           merge!
@@ -9,13 +9,14 @@
   (cond-expand
    ((or chibi chicken)
     (import (srfi 95)))
-   (gauche (import (snow gauche-sort-utils)))
+   ;; (gauche (import (srfi gauche-sort-utils)))
+   ;; (gauche (import (srfi-95)))
    (else))
   ;; (import (snow bytevector))
 
   (begin
     (cond-expand
-     ((or chibi chicken gauche))
+     ((or chibi chicken))
      (else
 
 

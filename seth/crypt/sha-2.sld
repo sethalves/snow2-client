@@ -6,12 +6,12 @@
   (cond-expand
    (chibi
     (import (snow bytevector)
-            (snow srfi-60-integers-as-bits)))
+            (srfi 60)))
    (chicken
     (import (message-digest)
             (sha2)
             (snow bytevector)
-            (snow srfi-60-integers-as-bits)))
+            (srfi 60)))
    (gauche
     (import (util digest)
             (rfc sha)

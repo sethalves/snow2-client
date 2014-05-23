@@ -17,7 +17,7 @@
                   (scheme char)
                   (scheme cxr)
                   (chibi io)
-                  (snow srfi-13-strings)
+                  (srfi 13)
                   ))
    (chicken (import (input-parse)))
    (gauche (import (text parse)))

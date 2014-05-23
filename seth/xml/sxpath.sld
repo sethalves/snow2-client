@@ -33,7 +33,7 @@
      (only (chibi string) string-null? call-with-input-string)
      (only (scheme r5rs) inexact->exact exact->inexact)
      (srfi 1) (srfi 2)
-     (snow assert) (snow srfi-13-strings) (snow extio)))
+     (snow assert) (srfi 13) (snow extio)))
    (chicken (import (sxpath) (txpath) (sxpath-lolevel)))
    (gauche (import (sxml sxpath)))
    (sagittarius (import (text sxml sxpath))))

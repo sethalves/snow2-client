@@ -6,6 +6,7 @@
   (import (scheme base)
           (scheme read)
           (scheme write)
+          (scheme char)
           (scheme file)
           (scheme time)
           (scheme process-context)
@@ -19,23 +20,34 @@
           (snow tar)
           (snow zlib)
           (snow filesys)
-          (snow srfi-13-strings)
+          (srfi 13)
           (snow extio)
-          (snow srfi-29-format)
+          (srfi 29)
           (seth uri)
           (seth crypt md5)
           (seth aws common)
           (seth aws s3)
           (seth snow2 types)
           (seth snow2 utils)
-          (seth snow2 r7rs-library))
+          (seth snow2 r7rs-library)
+          (srfi 95)
+          (seth string-read-write)
+          )
 
   (begin
 
-    (define (make-package-archive local-repository package verbose)
+    (define (make-package-archive
+             repositories local-repository package verbose)
       ;; create the .tgz file that gets uploaded to a repository.
       ;; update the size and md5 sum and depends in the package meta-data
       ;; in index.scm.
+
+      (cond
+       (verbose
+        (display "-- packaging ")
+        (write (uri->string (snow2-package-url package)))
+        (newline)))
+
       (let* ((repo-path (uri-path (snow2-repository-url local-repository))))
 
         (define (lib-file->tar-recs lib-filename)
@@ -134,26 +146,49 @@
           ;; get a list of libraries this package depends on and
           ;; set library names.
           (for-each (lambda (lib lib-sexp)
-                      ;; (cond (verbose
-                      ;;        (display (format "-- depends for ~a --\n"
-                      ;;                         (snow2-library-path lib)))))
-                      (set-snow2-library-depends!
-                       lib (r7rs-get-imported-library-names lib-sexp verbose))
+
+                      ;; if the depends have changes from what's in index.scm
+                      ;; mark the package dirty
+                      (let* ((all-deps (r7rs-get-imported-library-names
+                                        lib-sexp verbose))
+                             ;; remove dependencies that we can't find
+                             ;; packages for.
+                             (deps
+                              (filter
+                               (lambda (dep-lib-name)
+                                 (find-package-with-library
+                                  repositories dep-lib-name))
+                               all-deps)))
+
+                        (define (lib-name<? a b)
+                          (string-ci<? (write-to-string a)
+                                       (write-to-string b)))
+
+                        (cond
+                         ((not (equal?
+                                (sort (snow2-library-depends lib) lib-name<?)
+                                (sort deps lib-name<?)))
+                          (set-snow2-package-dirty! package #t)
+                          (set-snow2-library-depends! lib deps)
+                          (cond (verbose
+                                 (display "  setting depends to ")
+                                 (write deps)
+                                 (newline))))))
+
                       (cond ((or (not (snow2-library-name lib))
                                  (null? (snow2-library-name lib)))
                              (cond (verbose
-                                    (display
-                                     (format "  setting library name to ~a\n"
-                                             (lib-sexp->name lib-sexp)))))
+                                    (display "  setting library name to ")
+                                    (write (lib-sexp->name lib-sexp))
+                                    (newline)))
                              (set-snow2-package-dirty! package #t)
                              (set-snow2-library-name!
                               lib (lib-sexp->name lib-sexp)))
                             (else
                              (cond (verbose
-                                    (display
-                                     (format "  keeping library name of ~a\n"
-                                             (snow2-library-name lib))))))
-                            ))
+                                    (display "  keeping library name of ")
+                                    (write (snow2-library-name lib))
+                                    (newline))))))
                     libraries lib-sexps)
 
           ;; find the most recent file mtime and set the mtimes of
@@ -186,10 +221,16 @@
                    (bytes->hex-string
                     (filename->md5 local-package-filename)))
                   (local-package-size (snow-file-size local-package-filename)))
-              (display (format "  size=~a md5=~a\n"
-                               local-package-size local-package-md5))
 
-              (cond ((not (= (snow2-package-size package) local-package-size))
+              (display "  size=")
+              (write local-package-size)
+              (display " md5=")
+              (write local-package-md5)
+              (newline)
+
+              (cond ((and (number? (snow2-package-size package))
+                          (not (= (snow2-package-size package)
+                                  local-package-size)))
                      (set-snow2-package-size! package local-package-size)
                      (set-snow2-package-dirty! package #t)
                      (display "setting package dirty due to size\n")))
@@ -216,16 +257,27 @@
         ;; (display "md5-on-s3=") (write md5-on-s3) (newline)
 
         (cond ((equal? md5-on-s3 local-md5)
-               (display (format "[~a unchanged]\n" local-filename)))
+               (display "[")
+               (write local-filename)
+               (display " unchanged]\n"))
               (else
-               (display (format "[~a --> s3:~a~a]\n"
-                                local-filename bucket s3-path))
+               (display "[")
+               (write local-filename)
+               (display " --> s3:")
+               (display bucket)
+               (display s3-path)
+               (display "]\n")
                (guard
                 (err (#t
-                      (display
-                       (format "error uploading ~a to s3.\n~a\n"
-                               local-filename (error-object-message err))
-                       (current-error-port))))
+                      (display "error uploading ")
+                      (write local-filename)
+                      (display " to s3.\n")
+                      (write (error-object-message err))
+                      (newline)
+                      (write (error-object-irritants err))
+                      (newline)
+                      (raise err)
+                      ))
                 (put-object! credentials bucket s3-path local-p
                              #f ;; (snow-file-size local-filename)
                              "application/octet-stream"
@@ -269,7 +321,10 @@
              (packages-dirname (snow-make-filename repo-dirname "packages")))
         (map (lambda (package-filename)
                (snow-make-filename packages-dirname package-filename))
-             (snow-directory-files packages-dirname))))
+             (filter
+              (lambda (filename)
+                (not (string-suffix? "~" filename)))
+              (snow-directory-files packages-dirname)))))
 
 
     (define (resolve-package-metafile local-repository package-metafile)
@@ -364,8 +419,10 @@
                                 (local-repository->in-fs-index-filename
                                  repository))
                                (p (open-output-file index-scm-filename)))
-                          (if verbose (display (format "rewriting ~a\n"
-                                                       index-scm-filename)))
+                          (cond (verbose
+                                 (display "rewriting ")
+                                 (write index-scm-filename)
+                                 (newline)))
                           (snow-pretty-print (repository->sexp repository) p)
                           (close-output-port p)))))
                 (else
@@ -422,7 +479,9 @@
        (lambda (local-repository package-metafile package)
          (refresh-package-from-filename
           local-repository package-metafile verbose)
-         (make-package-archive local-repository package verbose))
+         (make-package-archive
+          (cons local-repository repositories)
+          local-repository package verbose))
        verbose))
 
 
@@ -481,12 +540,11 @@
            (for-each
             (lambda (unwanted-clause-name)
               (cond ((get-child-by-type meta-data unwanted-clause-name #f)
-                     (display
-                      (format
-                       "package meta-file ~a has (~a ...).\n"
-                       package-metafile
-
-                       unwanted-clause-name)))))
+                     (display "package meta-file ")
+                     (write package-metafile)
+                     (display " has (")
+                     (display unwanted-clause-name)
+                     (display " ...).\n"))))
             (list 'size 'checksum))
 
            (for-each
@@ -495,12 +553,13 @@
                (lambda (unwanted-clause-name)
                  (cond ((get-child-by-type
                          lib-meta-sexp unwanted-clause-name #f)
-                        (display
-                         (format
-                          "in package meta-file ~a library ~a has (~a ...)\n"
-                          package-metafile
-                          (cadr (get-child-by-type lib-meta-sexp 'path))
-                          unwanted-clause-name)))))
+                        (display "in package meta-file ")
+                        (write package-metafile)
+                        (display " library ")
+                        (write (cadr (get-child-by-type lib-meta-sexp 'path)))
+                        (display " has (")
+                        (display unwanted-clause-name)
+                        (display " ...)\n"))))
                (list 'name 'depends)))
             (get-children-by-type meta-data 'library))
 

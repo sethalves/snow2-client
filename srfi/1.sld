@@ -2,7 +2,7 @@
 ;; srfi-1, List Library
 
 
-(define-library (snow srfi-1-lists)
+(define-library (srfi 1)
   (export
    xcons cons*
    list-tabulate circular-list iota
@@ -29,6 +29,8 @@
 
   (import (scheme base))
   (cond-expand
+   (sagittarius
+    (import (srfi :1)))
    (foment
     (import (scheme cxr))
     (include "srfi-1/predicates.scm"
@@ -41,5 +43,6 @@
              "srfi-1/alists.scm"
              "srfi-1/lset.scm"))
    (else
-    (import (srfi 1)))))
+    ;; (import (srfi 1))
+    )))
 

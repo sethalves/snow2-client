@@ -25,7 +25,7 @@
           digest-subu8vector
           digest-file)
   (import (scheme base) (scheme cxr) (scheme char))
-  (import (snow srfi-60-integers-as-bits))
+  (import (srfi 60))
   (cond-expand
    (chibi (import (scheme cxr)))
    (else))

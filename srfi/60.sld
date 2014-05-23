@@ -1,4 +1,4 @@
-(define-library (snow srfi-60-integers-as-bits)
+(define-library (srfi 60)
   (export powers-of-two
           integer64->bitvector
           bitvector->integer64
@@ -17,7 +17,7 @@
                           bitwise-and
                           bitwise-not
                           bitwise-xor)))
-   (gauche (import (srfi 60)))
+   ;; (gauche (import (srfi 60)))
    (sagittarius (import (rnrs arithmetic bitwise (6))))
    (else))
   (begin

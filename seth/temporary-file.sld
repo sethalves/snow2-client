@@ -5,10 +5,10 @@
    (chibi
     (import (scheme file)
             (chibi io) (chibi process)
-            (seth srfi-27-random)))
+            (srfi 27)))
    (chicken
     (import (posix)))
-   (gauche (import (scheme file) (file util) (seth srfi-27-random)))
+   (gauche (import (scheme file) (file util) (srfi 27)))
    (sagittarius (import (scheme file)
                         (util file)
                         (only (rnrs)
@@ -16,7 +16,7 @@
                               make-transcoder
                               latin-1-codec
                               eol-style)
-                        (seth srfi-27-random)
+                        (srfi 27)
                         ))
    )
   (begin

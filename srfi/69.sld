@@ -1,6 +1,6 @@
 ;; http://srfi.schemers.org/srfi-69/srfi-69.html
 
-(define-library (seth srfi-69-hash-tables)
+(define-library (srfi 69)
   (export make-hash-table
           hash-table?
           hash-table-copy
@@ -21,17 +21,12 @@
           )
   (import (scheme base))
   (cond-expand
-   (chibi (import (srfi 69)))
-   (chicken (import (srfi 69)))
-   (gauche (import (scheme char) (scheme cxr)))
+   ((or foment gauche) (import (scheme char)
+                               (scheme cxr)
+                               (scheme complex)))
    (sagittarius (import (rnrs))))
   (begin
     (cond-expand
-
-     (chicken)
-
-     (chibi)
-
      ;; XXX I can't figure out how to access Gauche's native hash-tables
      ;; from inside this library.  Gauche is currently using the
      ;; srfi-69 reference implementation.
@@ -303,7 +298,7 @@
          (hash-table-entries hash-table)))
 
       (define (hash-table-fold hash-table f acc)
-        (hash-table-walk hash-table 
+        (hash-table-walk hash-table
                          (lambda (key value) (set! acc (f key value acc))))
         acc)
 

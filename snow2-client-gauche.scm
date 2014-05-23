@@ -1,9 +1,8 @@
 #! /bin/sh
 #| -*- scheme -*-
 exec gosh \
--e '(push! *load-suffixes* ".sld")' \
--e '(push! *load-path* ".")' \
--e '(push! *load-path* "/usr/local/share/scheme")' \
+-e '(append! *load-suffixes* (list ".sld"))' \
+-e '(append! *load-path* (list "/usr/local/share/scheme" "."))' \
 -r7 $0 "$@"
 |#
 

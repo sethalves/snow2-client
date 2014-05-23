@@ -34,8 +34,8 @@
    (foment)
    )
   (import (snow bytevector)
-          (snow srfi-60-integers-as-bits)
-          (snow srfi-13-strings)
+          (srfi 60)
+          (srfi 13)
           )
   (begin
 

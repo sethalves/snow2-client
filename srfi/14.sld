@@ -1,4 +1,4 @@
-(define-library (snow srfi-14-character-sets)
+(define-library (srfi 14)
   (export char-set? char-set= char-set<=
           char-set-hash
           char-set-cursor char-set-ref char-set-cursor-next end-of-char-set?
@@ -35,8 +35,9 @@
 
   (import (scheme base))
   (cond-expand
-   ((or chicken gauche sagittarius)
-    (import (srfi 14)))
+   ;; ((or chicken gauche sagittarius)
+   ;;  (import (srfi 14)))
+   (sagittarius (import (srfi :14)))
    (chibi
     (import (only (srfi 1) fold filter)
             (chibi char-set)
@@ -52,7 +53,7 @@
             (chibi iset iterators)
             ))
    (else
-    (import (only (snow srfi-60-integers-as-bits) bitwise-and))))
+    (import (only (srfi 60) bitwise-and))))
 
   (cond-expand
    ((or chicken gauche sagittarius))

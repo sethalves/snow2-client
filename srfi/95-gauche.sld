@@ -1,5 +1,5 @@
 ;; -*- scheme -*-
 
-(define-module snow.gauche-sort-utils
+(define-module srfi.95-gauche
   (export sorted? merge merge! sort sort!)
   (import (srfi-95)))

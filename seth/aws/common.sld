@@ -16,16 +16,13 @@
           (scheme file)
           (srfi 1)
           (snow bytevector)
-          (snow srfi-13-strings)
-          (snow srfi-95-sort)
-          (snow srfi-29-format)
-          (snow srfi-19-time)
+          (srfi 13)
+          (srfi 95)
+          (srfi 29)
+          (srfi 19)
           (snow extio)
-          ;; (seth xml ssax)
-          ;; (seth xml sxpath)
           (seth http)
           (seth crypt hmac-sha-1)
-          ;; (seth port-extras)
           (seth uri)
           (prefix (seth base64) base64-)
           )
@@ -97,6 +94,7 @@
                          amz-headers)
                     (lambda (v1 v2)
                       (string<? (car v1) (car v2)))))
+             (->str (lambda (x) (if (string? x) x (symbol->string x))))
              (can-string
               (string-append
                (string-upcase verb) "\n"
@@ -104,7 +102,10 @@
                (if content-type content-type "") "\n"
                (if date date "") "\n"
                (fold (lambda (e o)
-                       (string-append o (format "~a:~a~%" (car e) (cdr e))))
+                       ;; (string-append o (format "~a:~a~%" (car e) (cdr e)))
+                       (string-append (->str o)
+                                      (->str (car e)) ":" (->str (cdr e))
+                                      "\n"))
                      ""
                      can-amz-headers)
                resource)))

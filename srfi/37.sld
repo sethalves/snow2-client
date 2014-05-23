@@ -5,7 +5,7 @@
 ;; http://practical-scheme.net/gauche/man/gauche-refe_120.html
 
 
-(define-library (seth srfi-37-argument-processor)
+(define-library (srfi 37)
   (export args-fold
           option
           option?
@@ -16,10 +16,11 @@
           )
   (import (scheme base))
   (cond-expand
-   (chibi (import (only (srfi 1) find)))
-   (chicken (import (srfi 37)))
-   (gauche (import (srfi 37)))
-   (sagittarius (import (srfi 37))))
+   ((or chibi foment)
+    (import (only (srfi 1) find)))
+   (sagittarius
+    (import (srfi :37)))
+   (else))
   (begin
     (cond-expand
      ((or chicken gauche sagittarius))

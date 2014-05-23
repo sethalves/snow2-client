@@ -44,7 +44,7 @@
           (scheme file)
           ;; (snow bytevector)
           ;; (snow random)
-          (snow srfi-13-strings))
+          (srfi 13))
   (cond-expand
    (chibi
     ;; http://synthcode.com/scheme/chibi/lib/chibi/filesystem.html

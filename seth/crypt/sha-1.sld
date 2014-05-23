@@ -2,7 +2,7 @@
   (export sha-1)
   (import (scheme base))
   (cond-expand
-   (chibi (import (snow bytevector) (snow srfi-60-integers-as-bits)))
+   (chibi (import (snow bytevector) (srfi 60)))
    (chicken (import (message-digest) (sha1)))
    (gauche (import (rfc sha) (snow bytevector)))
    (sagittarius (import (math hash) (snow bytevector))))

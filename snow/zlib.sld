@@ -9,7 +9,7 @@
   (import (scheme base))
   (import (snow bytevector))
   (import (snow digest))
-  (import (snow srfi-60-integers-as-bits))
+  (import (srfi 60))
   (import (snow genport))
   (begin
 

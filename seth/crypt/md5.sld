@@ -17,7 +17,7 @@
             (snow bytevector))
     )
    (else
-    (import (snow srfi-60-integers-as-bits))))
+    (import (srfi 60))))
 
   (begin
 

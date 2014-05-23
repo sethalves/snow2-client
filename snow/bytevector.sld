@@ -46,7 +46,7 @@
           )
   (import (scheme base)
           (scheme char)
-          (snow srfi-1-lists))
+          (srfi 1))
   (cond-expand
    (chibi (import (chibi io)))
    (chicken (import (chicken) (srfi 4)))

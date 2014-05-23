@@ -46,9 +46,9 @@
    (chibi (import (chibi filesystem)))
    (else))
   (import (snow extio)
-          (snow srfi-13-strings)
-          (seth srfi-69-hash-tables)
-          (snow srfi-29-format)
+          (srfi 13)
+          (srfi 69)
+          (srfi 29)
           (snow filesys)
           (prefix (seth http) http-)
           (seth uri)
@@ -385,11 +385,13 @@
              ;; get repository over http
              (guard
               (err (#t
-                    (display
-                     (format "unable to fetch repository index: ~a\n~a\n"
-                             (uri->string repository-url)
-                             (error-object-message err))
-                     (current-error-port))
+                    (display "unable to fetch repository index: ")
+                    (write (uri->string repository-url))
+                    (newline)
+                    (write (error-object-message err))
+                    (newline)
+                    (write (error-object-irritants err))
+                    (newline)
                     #f))
               (let ((repository
                      (http-call-with-request-body

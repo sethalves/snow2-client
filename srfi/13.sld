@@ -3,7 +3,7 @@
 ;; http://srfi.schemers.org/srfi-13/srfi-13.html
 ;; http://wiki.call-cc.org/man/4/Unit%20srfi-13
 
-(define-library (snow srfi-13-strings)
+(define-library (srfi 13)
   (export
    string-tokenize
    string-pad
@@ -39,10 +39,10 @@
    (chibi (import (scheme char) (chibi char-set) (chibi char-set full)
                   (srfi 8) (srfi 33) (chibi optional)
                   ))
-   (chicken (import (srfi 13)))
-   (gauche (import (gauche) (srfi 13)))
-   (sagittarius (import (srfi 13)))
-   (foment (import (scheme char) (snow srfi-14-character-sets)))
+   ;; (chicken (import (srfi 13)))
+   ;; (gauche (import (gauche) (srfi 13)))
+   (sagittarius (import (srfi :13)))
+   (foment (import (scheme char) (srfi 14)))
    )
   (begin
 

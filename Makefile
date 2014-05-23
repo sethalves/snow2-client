@@ -88,11 +88,12 @@ clean-chicken:
 
 bootstrap-chicken:
 	rm -f snow2
-	rm -rf snow seth
+	rm -rf snow seth srfi
 	ln -s ../snow2-packages/snow/snow snow
 	ln -s ../snow2-packages/seth/seth seth
+	ln -s ../r7rs-srfis/srfi srfi
 	make SCHEME=chicken build
-	rm -rf snow seth
+	rm -rf snow seth srfi
 	./snow2 -:a40 install '(seth snow2 types)'
 	make SCHEME=chicken build
 

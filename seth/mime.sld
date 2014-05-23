@@ -14,16 +14,14 @@
             (ports)
             (prefix (seth base64) base64-)
             (scheme write)
-            (snow srfi-13-strings)
+            (srfi 13)
             (seth quoted-printable)))
    (gauche
     (import (rfc mime)
-            (snow srfi-13-strings)))
+            (srfi 13)))
    (sagittarius
     (import (rfc mime)
-            (snow srfi-13-strings)
-            ;; (snow extio)
-            )
+            (srfi 13))
     ))
   (import (snow binio))
 
