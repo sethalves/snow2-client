@@ -1,6 +1,6 @@
 #! /bin/sh
 #| -*- scheme -*-
-exec sash -A . -S .sld $0 "$@"
+exec sash -A /usr/local/share/scheme -A . -S .sld $0 "$@"
 |#
 
 (import (scheme base) (prefix (seth snow2 client) snow2-))

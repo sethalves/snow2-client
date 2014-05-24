@@ -22,7 +22,7 @@
   (begin
     (cond-expand
      (chicken
-      (define (temporary-file)
+      (define (temporary-file . maybe-binary)
         ;; hm http://wiki.call-cc.org/man/4/Unit%20files
         ;; has create-temporary-file
         (let-values (((fd temp-path)
@@ -30,51 +30,55 @@
                        (string-append "/tmp/tmp-"
                                       (number->string (current-process-id))
                                       ".XXXXXX"))))
-          (values
-           (open-output-file* fd)
-           temp-path))))
+          (values (open-output-file* fd) temp-path))))
      (chibi
-      (define (temporary-file)
-        (let ((temp-path
-               (string-append "/tmp/tmp-"
-                              (number->string (current-process-id))
-                              "."
-                              (number->string
-                               (+ 100000 (random-integer 899999))))))
-          (values (open-output-file temp-path)
-                  temp-path))))
+      (define (temporary-file . maybe-binary)
+        (let ((opener (if (and (pair? maybe-binary) (car maybe-binary))
+                          open-binary-output-file
+                          open-output-file)))
+          (let ((temp-path
+                 (string-append "/tmp/tmp-"
+                                (number->string (current-process-id))
+                                "."
+                                (number->string
+                                 (+ 100000 (random-integer 899999))))))
+            (values (opener temp-path) temp-path)))))
 
      (sagittarius
-      (define (temporary-file)
-        ;; (make-temporary-file (string-append (temporary-directory) "/"))
-        (let ((temp-path
-               (string-append (temporary-directory)
-                              "/tmp-"
-                              "sagittarius"
-                              "."
-                              (number->string
-                               (+ 100000 (random-integer 899999))))))
-          (values (open-output-file temp-path
-                                    ;; :transcoder #f
-                                    :transcoder (make-transcoder
-                                                 (latin-1-codec)
-                                                 (eol-style none)))
-                  temp-path))
-        ))
+      (define (temporary-file . maybe-binary)
+        (let ((bin (and (pair? maybe-binary) (car maybe-binary))))
+          ;; (make-temporary-file (string-append (temporary-directory) "/"))
+          (let ((temp-path
+                 (string-append (temporary-directory)
+                                "/tmp-"
+                                "sagittarius"
+                                "."
+                                (number->string
+                                 (+ 100000 (random-integer 899999))))))
+            (values (if bin
+                        (open-binary-output-file temp-path)
+                        (open-output-file temp-path))
+                        ;; (opener temp-path
+                        ;;     ;; :transcoder #f
+                        ;;     :transcoder (make-transcoder
+                        ;;                  (latin-1-codec)
+                        ;;                  (eol-style none)))
+                    temp-path))))
+      )
 
      (gauche
-      (define (temporary-file)
-        (let ((temp-path
-               (string-append (temporary-directory)
-                              "/tmp-"
-                              ;; (number->string (sys-getpid))
-                              "gauche"
-                              "."
-                              (number->string
-                               (+ 100000 (random-integer 899999))))))
-          (values (open-output-file temp-path)
-                  temp-path))
-
-        ))
+      (define (temporary-file . maybe-binary)
+        (let ((opener (if (and (pair? maybe-binary) (car maybe-binary))
+                          open-binary-output-file
+                          open-output-file)))
+          (let ((temp-path
+                 (string-append (temporary-directory)
+                                "/tmp-"
+                                ;; (number->string (sys-getpid))
+                                "gauche"
+                                "."
+                                (number->string
+                                 (+ 100000 (random-integer 899999))))))
+            (values (opener temp-path) temp-path)))))
 
      )))

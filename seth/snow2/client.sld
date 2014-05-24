@@ -17,6 +17,7 @@
    (else))
   (import (srfi 13)
           (snow filesys) (snow binio) (snow genport) (snow zlib) (snow tar)
+          (srfi 27)
           (srfi 29)
           (prefix (seth http) http-)
           (seth temporary-file)
@@ -143,7 +144,7 @@
 
       (define (install-from-http repo package url)
         (let-values (((write-port local-package-tgz-file)
-                      (temporary-file)))
+                      (temporary-file #t)))
           (display "downloading ")
           (display (snow-filename-strip-directory (uri->string url)))
           (display " from ")
@@ -418,6 +419,7 @@
 
 
     (define (main-program)
+      (random-source-randomize! default-random-source)
       (let-values
           (((operation repository-urls use-symlinks args verbose)
             (args-fold
@@ -441,12 +443,12 @@
              '() ;; initial value of args
              #f ;; initial value of verbose
              )))
-        (let ((repository-urls
-               (if (null? repository-urls)
-                   (list
-                    (uri-reference
-                     "http://snow2.s3-website-us-east-1.amazonaws.com/"))
-                   repository-urls)))
+        (let* ((default-repo-url
+                 "http://snow2.s3-website-us-east-1.amazonaws.com/")
+               (repository-urls
+                (if (null? repository-urls)
+                    (list (uri-reference default-repo-url))
+                    repository-urls)))
           (cond ((not operation) (usage ""))
                 ;; search operation
                 ((member operation '("search"))
@@ -489,6 +491,3 @@
                    (client repository-urls operation
                            library-names use-symlinks verbose))
                  )))))))
-
-;; "http://snow2.s3-website-us-east-1.amazonaws.com/"
-;; "http://snow-repository.s3-website-us-east-1.amazonaws.com/"
