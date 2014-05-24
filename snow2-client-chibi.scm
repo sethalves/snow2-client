@@ -1,7 +1,7 @@
 #! /bin/sh
 #| -*- scheme -*-
 X=$CHIBI_MODULE_PATH
-CHIBI_MODULE_PATH="" exec chibi-scheme -A /usr/local/share/scheme -A $X -s $0 "$@"
+CHIBI_MODULE_PATH="" exec chibi-scheme -A /usr/local/share/scheme -A . -A $X -s $0 "$@"
 |#
 
 (import (scheme base)
