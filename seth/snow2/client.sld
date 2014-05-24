@@ -444,7 +444,7 @@
              #f ;; initial value of verbose
              )))
         (let* ((default-repo-url
-                 "http://snow2.s3-website-us-east-1.amazonaws.com/")
+                 "http://snow2.s3-website-us-east-1.amazonaws.com/index.scm")
                (repository-urls
                 (if (null? repository-urls)
                     (list (uri-reference default-repo-url))
