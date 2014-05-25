@@ -113,6 +113,11 @@ used, the installed libraries will be symbolic links to the source
 files in the local repository.  This can be useful when working on
 changes to a library.
 
+If no repository urls (or filesystem paths) are indicated on
+the command-line, the default repository will be used.
+
+  http://snow2.s3-website-us-east-1.amazonaws.com/
+
 #### uninstall
 
 This currently does nothing.

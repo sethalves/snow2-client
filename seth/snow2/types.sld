@@ -46,15 +46,17 @@
 
           snow2-libraries-equal?
           snow2-packages-equal?
+          snow2-package-get-readable-name
           )
 
 
   (import (scheme base))
   (cond-expand
-   (chibi (import (only (srfi 1) filter make-list any fold)))
+   (chibi (import (only (srfi 1) filter make-list any fold last)))
    (else (import (srfi 1))))
 
-  (import (seth uri))
+  (import (seth uri)
+          (srfi 13))
 
   (begin
     (define-record-type <snow2-repository>
@@ -253,5 +255,18 @@
                                        (snow2-package-libraries b))
            ))
 
+    (define (snow2-package-get-readable-name package)
+      (let* ((name (snow2-package-name package))
+             (url (snow2-package-url package)))
+        (cond ((and name
+                    (not (equal? name ""))
+                    (not (equal? name '()))) name)
+              ((and url (pair? (uri-path url)))
+               (let ((tgz-name (last (uri-path url))))
+                 (if (string-suffix? ".tgz" tgz-name)
+                     (substring tgz-name 0
+                                (- (string-length tgz-name) 4))
+                     tgz-name)))
+              (else "unknown"))))
 
     ))

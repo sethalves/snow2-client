@@ -280,7 +280,9 @@
                       ))
                 (put-object! credentials bucket s3-path local-p
                              #f ;; (snow-file-size local-filename)
-                             "application/octet-stream"
+                             (if (string-suffix? ".html" s3-path)
+                                 "text/html"
+                                 "application/octet-stream")
                              'public-read))
                (close-input-port local-p)))))
 
@@ -413,8 +415,9 @@
                  (sanity-check-repository repository)
                  (op repository)
                  (sanity-check-repository repository)
-                 ;; update index.scm if the repository is "dirty"
                  (cond ((snow2-repository-dirty repository)
+
+                        ;; update index.scm if the repository is "dirty"
                         (let* ((index-scm-filename
                                 (local-repository->in-fs-index-filename
                                  repository))
@@ -424,6 +427,18 @@
                                  (write index-scm-filename)
                                  (newline)))
                           (snow-pretty-print (repository->sexp repository) p)
+                          (close-output-port p))
+
+                        ;; update index.html if the repository is "dirty"
+                        (let* ((index-html-filename
+                                (local-repository->in-fs-html-filename
+                                 repository))
+                               (p (open-output-file index-html-filename)))
+                          (cond (verbose
+                                 (display "rewriting ")
+                                 (write index-html-filename)
+                                 (newline)))
+                          (write-string (repository->html repository) p)
                           (close-output-port p)))))
                 (else
                  (error
@@ -500,22 +515,39 @@
          ;; s3 repository.
          (let* ((package-uri (snow2-package-url package))
                 ;; take the package's uri and replace the filename
-                ;; with index.scm
+                ;; with index.scm and index.html and index.css
                 (package-path (uri-path package-uri))
                 (index-path (list-replace-last package-path "index.scm"))
+                (html-path (list-replace-last package-path "index.html"))
+                (css-path (list-replace-last package-path "index.css"))
                 (index-uri (update-uri package-uri 'path index-path))
+                (html-uri (update-uri package-uri 'path html-path))
+                (css-uri (update-uri package-uri 'path css-path))
                 ;; figure out which s3 bucket we're uploading to
                 (index-bucket (uri->bucket index-uri))
                 ;; figure out s3 path
                 (index-s3-path (uri->path-string index-uri))
+                (html-s3-path (uri->path-string html-uri))
+                (css-s3-path (uri->path-string css-uri))
                 ;; ready credentials for the intended bucket
                 (credentials
                  (if credentials credentials
                      (get-credentials-for-s3-bucket index-bucket))))
+           ;; upload index.scm
            (conditional-put-object!
             credentials index-bucket
             index-s3-path
-            (local-repository->in-fs-index-filename local-repository))))
+            (local-repository->in-fs-index-filename local-repository))
+           ;; upload index.html
+           (conditional-put-object!
+            credentials index-bucket
+            html-s3-path
+            (local-repository->in-fs-html-filename local-repository))
+           ;; upload index.css
+           (conditional-put-object!
+            credentials index-bucket
+            css-s3-path
+            (local-repository->in-fs-css-filename local-repository))))
        verbose))
 
 

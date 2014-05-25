@@ -37,13 +37,9 @@
   (import (scheme base))
   (cond-expand
    (chibi (import (scheme char) (chibi char-set) (chibi char-set full)
-                  (srfi 8) (srfi 33) (chibi optional)
-                  ))
-   ;; (chicken (import (srfi 13)))
-   ;; (gauche (import (gauche) (srfi 13)))
+                  (srfi 8) (srfi 33) (chibi optional)))
    (sagittarius (import (srfi :13)))
-   (foment (import (scheme char) (srfi 14)))
-   )
+   (foment (import (scheme char) (srfi 14))))
   (begin
 
     (cond-expand

@@ -19,6 +19,7 @@ exec csi -include-path /usr/local/share/scheme -s $0 "$@"
 (include "snow/tar.sld")
 (include "seth/xml/ssax.sld")
 (include "seth/xml/sxpath.sld")
+(include "seth/xml/sxml-serializer.sld")
 (include "seth/string-read-write.sld")
 (include "seth/uri.sld")
 (include "seth/port-extras.sld")

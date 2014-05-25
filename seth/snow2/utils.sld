@@ -23,6 +23,10 @@
 
           local-repository->in-fs-index-path
           local-repository->in-fs-index-filename
+          local-repository->in-fs-html-path
+          local-repository->in-fs-html-filename
+          local-repository->in-fs-css-path
+          local-repository->in-fs-css-filename
           local-repository->in-fs-tgz-path
           local-repository->in-fs-tgz-filename
           local-repository->in-fs-lib-path
@@ -30,6 +34,8 @@
 
           sanity-check-repository
           sanity-check-package
+
+          repository->html
           )
 
   (import (scheme base)
@@ -51,8 +57,10 @@
           (srfi 29)
           (snow filesys)
           (prefix (seth http) http-)
+          (seth string-read-write)
           (seth uri)
-          (seth snow2 types))
+          (seth snow2 types)
+          (seth xml sxml-serializer))
 
   (begin
 
@@ -82,6 +90,23 @@
         (name ,(snow2-sibling-name sibling))
         (url ,(uri->string (snow2-sibling-url sibling)))
         (trust ,(snow2-sibling-trust sibling))))
+
+
+    (define (list-replace-last lst new-elt)
+      ;; what's the srfi-1 one-liner for this?
+      (reverse (cons new-elt (cdr (reverse lst)))))
+
+    (define (sibling->html sibling)
+      (let* ((name (snow2-sibling-name sibling))
+             ;; adjust url to point to index.html rather than index.scm
+             (scm-uri (snow2-sibling-url sibling))
+             (scm-path (uri-path scm-uri))
+             (html-path (list-replace-last scm-path "index.html"))
+             (html-uri (update-uri scm-uri 'path html-path))
+             ;; trust level
+             (trust (snow2-sibling-trust sibling)))
+        `(html:p (html:a (@ (href ,(uri->string html-uri))) ,name)
+                 " trust=" ,trust)))
 
 
     (define (library-from-sexp library-sexp)
@@ -132,6 +157,47 @@
         ))
 
 
+    (define (library->html library)
+      (let ((name (snow2-library-name library))
+            (path (snow2-library-path library))
+            (version (snow2-library-version library))
+            (homepage (cond ((pair? (snow2-library-homepage library))
+                             (car (snow2-library-homepage library)))
+                            (else #f)))
+            (maintainers
+             (string-join
+              (map write-to-string (snow2-library-maintainers library))
+              ", "))
+            (authors
+             (string-join
+              (map write-to-string (snow2-library-authors library))
+              ", "))
+            (description (snow2-library-description library))
+            (license (snow2-library-license library))
+            (depends
+             (string-join
+              (map display-to-string (snow2-library-depends library))
+              " ")))
+        `(html:li
+          (html:p
+           ,@(if homepage
+                 `((html:a (@ (class "lib-a") (href ,homepage))
+                           ,(display-to-string name)))
+                 `())
+           " -- "
+           ,description)
+          (html:p (@ (class "lib-details"))
+                  "Version: " ,(display-to-string version))
+          (html:p (@ (class "lib-details"))
+                  "Authors: " ,(display-to-string authors))
+          (html:p (@ (class "lib-details"))
+                  "Maintainers: " ,(display-to-string maintainers))
+          (html:p (@ (class "lib-details"))
+                  "License: " ,(display-to-string license))
+          (html:p (@ (class "lib-details"))
+                  "Depends: " ,depends))))
+
+
     (define (package-from-sexp package-sexp)
       ;; convert a s-exp into a package record
       (let ((url (get-string-by-type package-sexp 'url ""))
@@ -161,6 +227,21 @@
         ,@(let ((checksum (snow2-package-checksum package)))
             (if (not (eq? checksum 'unset)) `((checksum ,checksum)) '()))
         ,@(map library->sexp (snow2-package-libraries package))))
+
+
+    (define (package->html package)
+      `(html:tr
+        (@ (class "package-tr"))
+        (html:td
+         (@ (class "package-td"))
+         (html:a
+          (@ (class "package-a")
+             (href ,(uri->string (snow2-package-url package))))
+          ,(snow2-package-get-readable-name package)))
+        (html:td
+         (@ (class "library-td"))
+         (html:ul
+          ,@(map library->html (snow2-package-libraries package))))))
 
 
     (define (package-from-metafile-name package-filename)
@@ -213,6 +294,28 @@
         ,@(map sibling->sexp (snow2-repository-siblings repository))
         ,@(map package->sexp (snow2-repository-packages repository))
         ))
+
+    (define (repository->html repository)
+      (serialize-sxml
+       `(*TOP* (@ (*NAMESPACES* (html "http://www.w3.org/1999/xhtml")))
+               (html:html
+                (html:head (html:link (@ (rel "stylesheet")
+                                         (type "text/css")
+                                         (href "index.css"))))
+                (html:body
+                 (html:h1 "Snow2 Repository")
+
+                 (html:h2 "Siblings")
+                 ,@(map sibling->html (snow2-repository-siblings repository))
+
+                 (html:h2 "Packages")
+                 (html:table
+                  (html:thead
+                   (html:tr (html:th "Packages") (html:th "Libraries")))
+                  (html:tbody
+                   ,@(map package->html (snow2-repository-packages repository))
+                   )))))
+       'ns-prefixes '((*default* . "http://www.w3.org/1999/xhtml"))))
 
 
     (define (read-repository in-port)
@@ -559,6 +662,33 @@
       ;; path and filename of index.scm
       (snow-combine-filename-parts
        (local-repository->in-fs-index-path local-repository)))
+
+
+    (define (local-repository->in-fs-html-path local-repository)
+      ;; given an on-disk repository, return a path to index.html
+      (let* ((repo-path (uri-path (snow2-repository-url local-repository))))
+        (append repo-path (list "index.html"))))
+
+    (define (local-repository->in-fs-html-filename local-repository)
+      ;; given an on-disk repository, return the (perhaps relative)
+      ;; path and filename of index.html
+      (snow-combine-filename-parts
+       (local-repository->in-fs-html-path local-repository)))
+
+
+    (define (local-repository->in-fs-css-path local-repository)
+      ;; given an on-disk repository, return a path to index.css
+      (let* ((repo-path (uri-path (snow2-repository-url local-repository))))
+        (append repo-path (list "index.css"))))
+
+    (define (local-repository->in-fs-css-filename local-repository)
+      ;; given an on-disk repository, return the (perhaps relative)
+      ;; path and filename of index.css
+      (snow-combine-filename-parts
+       (local-repository->in-fs-css-path local-repository)))
+
+
+
 
     (define (local-repository->in-fs-tgz-path local-repository package)
       ;; within a local repository, return a path on the filesystem to

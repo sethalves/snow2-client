@@ -1,3 +1,7 @@
+
+
+;; http://ssax.sourceforge.net/
+
 (define-library (seth xml ssax)
   (export
    ;; xml-token?
