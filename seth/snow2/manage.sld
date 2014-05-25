@@ -145,51 +145,53 @@
 
           ;; get a list of libraries this package depends on and
           ;; set library names.
-          (for-each (lambda (lib lib-sexp)
+          (for-each
+           (lambda (lib lib-sexp)
+             ;; if the depends have changes from what's in index.scm
+             ;; mark the package dirty
+             (let* ((all-deps (r7rs-get-imported-library-names
+                               lib-sexp verbose))
+                    ;; remove dependencies that we can't find
+                    ;; packages for.
+                    (deps
+                     (filter
+                      (lambda (dep-lib-name)
+                        (find-package-with-library
+                         repositories dep-lib-name))
+                      all-deps)))
 
-                      ;; if the depends have changes from what's in index.scm
-                      ;; mark the package dirty
-                      (let* ((all-deps (r7rs-get-imported-library-names
-                                        lib-sexp verbose))
-                             ;; remove dependencies that we can't find
-                             ;; packages for.
-                             (deps
-                              (filter
-                               (lambda (dep-lib-name)
-                                 (find-package-with-library
-                                  repositories dep-lib-name))
-                               all-deps)))
+               (define (lib-name<? a b)
+                 (string-ci<? (write-to-string a)
+                              (write-to-string b)))
 
-                        (define (lib-name<? a b)
-                          (string-ci<? (write-to-string a)
-                                       (write-to-string b)))
+               (cond
+                ((not (equal? (sort (snow2-library-depends lib) lib-name<?)
+                              (sort deps lib-name<?)))
+                 (set-snow2-library-depends! lib deps)
+                 (set-snow2-package-dirty! package #t)
+                 (set-snow2-repository-dirty! local-repository #t)
 
-                        (cond
-                         ((not (equal?
-                                (sort (snow2-library-depends lib) lib-name<?)
-                                (sort deps lib-name<?)))
-                          (set-snow2-package-dirty! package #t)
-                          (set-snow2-library-depends! lib deps)
-                          (cond (verbose
-                                 (display "  setting depends to ")
-                                 (write deps)
-                                 (newline))))))
+                 (cond (verbose
+                        (display "  setting depends to ")
+                        (write deps)
+                        (newline))))))
 
-                      (cond ((or (not (snow2-library-name lib))
-                                 (null? (snow2-library-name lib)))
-                             (cond (verbose
-                                    (display "  setting library name to ")
-                                    (write (lib-sexp->name lib-sexp))
-                                    (newline)))
-                             (set-snow2-package-dirty! package #t)
-                             (set-snow2-library-name!
-                              lib (lib-sexp->name lib-sexp)))
-                            (else
-                             (cond (verbose
-                                    (display "  keeping library name of ")
-                                    (write (snow2-library-name lib))
-                                    (newline))))))
-                    libraries lib-sexps)
+             (cond ((or (not (snow2-library-name lib))
+                        (null? (snow2-library-name lib)))
+                    (cond (verbose
+                           (display "  setting library name to ")
+                           (write (lib-sexp->name lib-sexp))
+                           (newline)))
+                    (set-snow2-package-dirty! package #t)
+                    (set-snow2-repository-dirty! local-repository #t)
+                    (set-snow2-library-name!
+                     lib (lib-sexp->name lib-sexp)))
+                   (else
+                    (cond (verbose
+                           (display "  keeping library name of ")
+                           (write (snow2-library-name lib))
+                           (newline))))))
+           libraries lib-sexps)
 
           ;; find the most recent file mtime and set the mtimes of
           ;; all the directories to this.  this keeps the md5 of
@@ -233,16 +235,15 @@
                                   local-package-size)))
                      (set-snow2-package-size! package local-package-size)
                      (set-snow2-package-dirty! package #t)
+                     (set-snow2-repository-dirty! local-repository #t)
                      (display "setting package dirty due to size\n")))
               (cond ((not (equal? (snow2-package-checksum package)
                                   `(md5 ,local-package-md5)))
                      (set-snow2-package-checksum!
                       package `(md5 ,local-package-md5))
                      (set-snow2-package-dirty! package #t)
+                     (set-snow2-repository-dirty! local-repository #t)
                      (display "setting package dirty due to md5\n")))
-
-              ;; (set-snow2-package-dirty! package #t)
-              ;; (set-snow2-repository-dirty! local-repository #t)
               )))))
 
 
@@ -412,6 +413,7 @@
           ;; (write (uri-path (snow2-repository-url repository)))
           ;; (newline)
           (cond (repository
+                 (set-snow2-repository-dirty! repository #t)
                  (sanity-check-repository repository)
                  (op repository)
                  (sanity-check-repository repository)
@@ -439,7 +441,11 @@
                                  (write index-html-filename)
                                  (newline)))
                           (write-string (repository->html repository) p)
-                          (close-output-port p)))))
+                          (close-output-port p))
+
+                        ;; we've rewritten the repo files, no longer dirty.
+                        (set-snow2-repository-dirty! repository #f)
+                        )))
                 (else
                  (error
                   "Unable to determine which repository to operate on."))))))
@@ -461,28 +467,11 @@
                 (result
                  (map
                   (lambda (package-metafile)
-
-                    ;; (display "operating on package: ")
-                    ;; (write package-metafile)
-                    ;; (newline)
-
                     (let* ((package
-                            ;; (package-from-filename package-metafile)
                             (refresh-package-from-filename
-                             local-repository package-metafile verbose))
-                           (result (op local-repository
-                                       package-metafile
-                                       package)))
-
-                      ;; if the package changed, we'll need to rewrite index.scm
-                      (cond ((snow2-package-dirty package)
-                             (set-snow2-repository-dirty! local-repository #t)
-                             (if verbose
-                                 (display "set repo dirty because package is\n")
-                             )))
-                      result))
+                             local-repository package-metafile verbose)))
+                      (op local-repository package-metafile package)))
                   package-metafiles)))
-
            result))
        verbose))
 
@@ -507,47 +496,58 @@
 
     (define (upload-packages-to-s3 credentials repositories
                                    package-metafiles verbose)
+      ;; to avoid re-uploading indexes, use dirty flag on
+      ;; repository to keep track.
+      (for-each (lambda (repository)
+                  (set-snow2-repository-dirty! repository #t))
+                repositories)
+      ;; call upload-package-to-s3 for each pacakge
       (local-packages-operation
        repositories package-metafiles
        (lambda (local-repository package-metafile package)
          (upload-package-to-s3 credentials local-repository package)
-         ;; assume that index.scm lives next to the tgz file in the
-         ;; s3 repository.
-         (let* ((package-uri (snow2-package-url package))
-                ;; take the package's uri and replace the filename
-                ;; with index.scm and index.html and index.css
-                (package-path (uri-path package-uri))
-                (index-path (list-replace-last package-path "index.scm"))
-                (html-path (list-replace-last package-path "index.html"))
-                (css-path (list-replace-last package-path "index.css"))
-                (index-uri (update-uri package-uri 'path index-path))
-                (html-uri (update-uri package-uri 'path html-path))
-                (css-uri (update-uri package-uri 'path css-path))
-                ;; figure out which s3 bucket we're uploading to
-                (index-bucket (uri->bucket index-uri))
-                ;; figure out s3 path
-                (index-s3-path (uri->path-string index-uri))
-                (html-s3-path (uri->path-string html-uri))
-                (css-s3-path (uri->path-string css-uri))
-                ;; ready credentials for the intended bucket
-                (credentials
-                 (if credentials credentials
-                     (get-credentials-for-s3-bucket index-bucket))))
-           ;; upload index.scm
-           (conditional-put-object!
-            credentials index-bucket
-            index-s3-path
-            (local-repository->in-fs-index-filename local-repository))
-           ;; upload index.html
-           (conditional-put-object!
-            credentials index-bucket
-            html-s3-path
-            (local-repository->in-fs-html-filename local-repository))
-           ;; upload index.css
-           (conditional-put-object!
-            credentials index-bucket
-            css-s3-path
-            (local-repository->in-fs-css-filename local-repository))))
+         ;; if this repository is still dirty, upload its index files
+         ;; and set dirty to #f.
+         (cond ((snow2-repository-dirty local-repository)
+                ;; assume that index.scm lives next to the tgz file in the
+                ;; s3 repository.
+                (let* ((package-uri (snow2-package-url package))
+                       ;; take the package's uri and replace the filename
+                       ;; with index.scm and index.html and index.css
+                       (package-path (uri-path package-uri))
+                       (index-path (list-replace-last package-path "index.scm"))
+                       (html-path (list-replace-last package-path "index.html"))
+                       (css-path (list-replace-last package-path "index.css"))
+                       (index-uri (update-uri package-uri 'path index-path))
+                       (html-uri (update-uri package-uri 'path html-path))
+                       (css-uri (update-uri package-uri 'path css-path))
+                       ;; figure out which s3 bucket we're uploading to
+                       (index-bucket (uri->bucket index-uri))
+                       ;; figure out s3 path
+                       (index-s3-path (uri->path-string index-uri))
+                       (html-s3-path (uri->path-string html-uri))
+                       (css-s3-path (uri->path-string css-uri))
+                       ;; ready credentials for the intended bucket
+                       (credentials
+                        (if credentials credentials
+                            (get-credentials-for-s3-bucket index-bucket))))
+
+                  ;; upload index.scm
+                  (conditional-put-object!
+                   credentials index-bucket
+                   index-s3-path
+                   (local-repository->in-fs-index-filename local-repository))
+                  ;; upload index.html
+                  (conditional-put-object!
+                   credentials index-bucket
+                   html-s3-path
+                   (local-repository->in-fs-html-filename local-repository))
+                  ;; upload index.css
+                  (conditional-put-object!
+                   credentials index-bucket
+                   css-s3-path
+                   (local-repository->in-fs-css-filename local-repository))
+                  (set-snow2-repository-dirty! local-repository #f)))))
        verbose))
 
 

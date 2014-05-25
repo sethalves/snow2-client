@@ -21,6 +21,8 @@
           find-libraries-by-name
           lib-sexp->name
 
+          copy-snow2-library
+
           local-repository->in-fs-index-path
           local-repository->in-fs-index-filename
           local-repository->in-fs-html-path
@@ -60,7 +62,8 @@
           (seth string-read-write)
           (seth uri)
           (seth snow2 types)
-          (seth xml sxml-serializer))
+          (seth xml sxml-serializer)
+          (seth deep-copy))
 
   (begin
 
@@ -121,16 +124,7 @@
             (description (get-args-by-type library-sexp 'description '()))
             (license (get-args-by-type library-sexp 'license '()))
             )
-
-        ;; (define (delist what)
-        ;;   (cond ((and (list? what)
-        ;;               (= (length what) 1))
-        ;;          (delist (car what)))
-        ;;         (else
-        ;;          (list what))))
-
-        (cond ;; ((not name) #f)
-              ((not path) #f)
+        (cond ((not path) #f)
               (else
                (make-snow2-library
                 name path
@@ -142,6 +136,21 @@
                 description
                 license
                 #f)))))
+
+
+    (define (copy-snow2-library library)
+      (make-snow2-library
+       (deep-copy (snow2-library-name library))
+       (deep-copy (snow2-library-path library))
+       (deep-copy (snow2-library-depends library))
+       (deep-copy (snow2-library-version library))
+       (deep-copy (snow2-library-homepage library))
+       (deep-copy (snow2-library-maintainers library))
+       (deep-copy (snow2-library-authors library))
+       (deep-copy (snow2-library-description library))
+       (deep-copy (snow2-library-license library))
+       (snow2-library-package library)))
+
 
     (define (library->sexp library)
       `(library
@@ -571,51 +580,64 @@
                              repositories (cdr repository-urls))))))))))
 
 
+    (define (merge-packages! dst-package src-package verbose)
+      (cond (verbose
+             (display "package file changed.\n")
+             (write (package->sexp dst-package))
+             (newline)
+             (write (package->sexp src-package))
+             (newline)))
+      ;; update dst-package's list of libraries
+      (set-snow2-package-libraries!
+       dst-package
+       (map copy-snow2-library (snow2-package-libraries src-package)))
+      ;; set library backpointers to package
+      (for-each
+       (lambda (library)
+         (set-snow2-library-package! library dst-package))
+       (snow2-package-libraries dst-package))
+      (set-snow2-package-dirty! dst-package #t))
+
+
     (define (refresh-package-from-filename repository package-filename verbose)
       ;; read a file that contains a package s-exp and update the copy
-      ;; in repository.
+      ;; in repository.  return the updated package.
       (let ((updated-package (package-from-metafile-name package-filename)))
         (cond ((not updated-package)
                (error "can't read package metafile." package-filename)))
         (let loop ((repo-packages (snow2-repository-packages repository)))
           (cond ((null? repo-packages)
                  ;; we found a package file, but it's not in the repository's
-                 ;; index.scm file.
+                 ;; index.scm file.  just add it to the list.
                  (set-snow2-repository-packages!
                   repository
                   (cons updated-package
                         (snow2-repository-packages repository)))
                  (set-snow2-package-repository! updated-package repository)
+                 (set-snow2-repository-dirty! repository #t)
+                 (set-snow2-package-dirty! updated-package #t)
                  updated-package)
                 (else
                  (let ((repo-package (car repo-packages)))
-                   (cond ((and
-                           (equal? (snow2-package-name repo-package)
-                                   (snow2-package-name updated-package))
-                           (uri-equal?
-                            (snow2-package-url repo-package)
-                            (snow2-package-url updated-package)))
-                          (cond ((not (snow2-packages-equal? repo-package
-                                                             updated-package))
-                                 (cond (verbose
-                                        (display "package file changed.\n")
-                                        (write (package->sexp repo-package))
-                                        (newline)
-                                        (write (package->sexp updated-package))
-                                        (newline)
-                                        ))
-                                 (set-snow2-package-libraries!
-                                  repo-package
-                                  (snow2-package-libraries updated-package))
-                                 (for-each
-                                  (lambda (library)
-                                    (set-snow2-library-package!
-                                     library repo-package))
-                                  (snow2-package-libraries updated-package))
+                   (cond ((and (equal? (snow2-package-name repo-package)
+                                       (snow2-package-name updated-package))
+                               (uri-equal? (snow2-package-url repo-package)
+                                           (snow2-package-url updated-package)))
+                          ;; we found the package to update
+                          (cond ((not (snow2-packages-equal?
+                                       repo-package updated-package))
+                                 ;; merge the fields in updated-package
+                                 ;; into repo-package
+                                 (merge-packages! repo-package
+                                                  updated-package
+                                                  verbose)
                                  (set-snow2-repository-dirty! repository #t)))
                           repo-package)
                          (else
+                          ;; this package didn't match the one we read
+                          ;; from package-filename, keep searching.
                           (loop (cdr repo-packages))))))))))
+
 
 
     (define (find-libraries-by-name container library-name)

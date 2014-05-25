@@ -55,8 +55,8 @@
    (chibi (import (only (srfi 1) filter make-list any fold last)))
    (else (import (srfi 1))))
 
-  (import (seth uri)
-          (srfi 13))
+  (import (srfi 13)
+          (seth uri))
 
   (begin
     (define-record-type <snow2-repository>
@@ -103,6 +103,7 @@
       (description snow2-library-description set-snow2-library-description!)
       (license snow2-library-license set-snow2-library-license!)
       (package snow2-library-package set-snow2-library-package!))
+
 
     (define (get-tag child)
       ;; extract the tag from an element that is assumed to be shaped like:
