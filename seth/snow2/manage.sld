@@ -48,12 +48,12 @@
         (write (uri->string (snow2-package-url package)))
         (newline)))
 
-      (let* ((repo-path (uri-path (snow2-repository-url local-repository))))
+      (let* ((repo-path (uri-path (snow2-repository-local local-repository))))
 
         (define (lib-file->tar-recs lib-filename)
           ;; create a tar-rec for a file
           (let* ((lib-rel-path (snow-split-filename lib-filename))
-                 (lib-full-path (append repo-path lib-rel-path))
+                 (lib-full-path (repo-path->file-path repo-path lib-rel-path))
                  (lib-full-filename
                   (snow-combine-filename-parts lib-full-path)))
             (cond ((not (file-exists? lib-full-filename))
@@ -82,7 +82,7 @@
                    ;; (exact (floor (current-second))) ;; mtime
                    (snow-file-mtime
                     (snow-combine-filename-parts
-                     (append repo-path lib-rel-path)))
+                     (repo-path->file-path repo-path lib-rel-path)))
                    'directory
                    "" ;; linkname
                    "root" ;; uname
@@ -134,12 +134,13 @@
                ;; combine them
                (all-tar-recs (append dir-tar-recs file-tar-recs))
                ;; figure out the name of the tgz file within the local repo
-               (package-url (snow2-package-url package))
+               (package-url (snow2-package-absolute-path package))
                (package-filename
                 (if (and package-url (pair? (uri-path package-url)))
                     (last (uri-path package-url))
                     "unknown.tgz"))
-               (local-package-path (append repo-path (list package-filename)))
+               (local-package-path
+                (repo-path->file-path repo-path (list package-filename)))
                (local-package-filename
                 (snow-combine-filename-parts local-package-path)))
 
@@ -230,9 +231,9 @@
               (write local-package-md5)
               (newline)
 
-              (cond ((and (number? (snow2-package-size package))
-                          (not (= (snow2-package-size package)
-                                  local-package-size)))
+              (cond ((or (not (number? (snow2-package-size package)))
+                         (not (= (snow2-package-size package)
+                                 local-package-size)))
                      (set-snow2-package-size! package local-package-size)
                      (set-snow2-package-dirty! package #t)
                      (set-snow2-repository-dirty! local-repository #t)
@@ -243,8 +244,7 @@
                       package `(md5 ,local-package-md5))
                      (set-snow2-package-dirty! package #t)
                      (set-snow2-repository-dirty! local-repository #t)
-                     (display "setting package dirty due to md5\n")))
-              )))))
+                     (display "setting package dirty due to md5\n"))))))))
 
 
     (define (conditional-put-object! credentials bucket s3-path local-filename)
@@ -289,14 +289,24 @@
 
 
     (define (upload-package-to-s3 credentials local-repository package)
-      (let* ((url (snow2-package-url package))
-             (bucket (uri->bucket url))
-             (s3-path (uri->path-string url))
-             (credentials (if credentials credentials
-                              (get-credentials-for-s3-bucket bucket))))
-        (conditional-put-object!
-         credentials bucket s3-path
-         (local-repository->in-fs-tgz-filename local-repository package))))
+      (let ((url (snow2-package-absolute-url package)))
+        (cond (url
+               (let* ((bucket (uri->bucket url))
+                      (s3-path (uri->path-string url)))
+                 (cond (bucket
+                        (conditional-put-object!
+                         (if credentials credentials
+                             (get-credentials-for-s3-bucket bucket))
+                         bucket s3-path
+                         (local-repository->in-fs-tgz-filename
+                          local-repository package)))
+                       (else
+                        (error "unable to determine s3 bucket from url"
+                               (uri->string (snow2-package-url package)))))))
+              (else
+               (error "can't determine packages absolute url."
+                      (uri->string (snow2-repository-url local-repository))
+                      (uri->string (snow2-package-url package)))))))
 
 
     (define (find-implied-local-repository)
@@ -319,7 +329,7 @@
     (define (all-package-metafiles local-repository)
       ;; return a list of package-metafile filenames for the given
       ;; local repository
-      (let* ((repo-path (uri-path (snow2-repository-url local-repository)))
+      (let* ((repo-path (uri-path (snow2-repository-local local-repository)))
              (repo-dirname (snow-combine-filename-parts repo-path))
              (packages-dirname (snow-make-filename repo-dirname "packages")))
         (map (lambda (package-filename)
@@ -336,13 +346,14 @@
       ;; just NAME.  either way, return the former.
       (cond ((string-suffix? ".package" package-metafile) package-metafile)
             (else
-             (let* ((repo-uri (snow2-repository-url local-repository))
+             (let* ((repo-uri (snow2-repository-local local-repository))
                     (repo-path (uri-path repo-uri)))
                (snow-combine-filename-parts
-                (append repo-path
-                        (list "packages" (string-append
-                                          package-metafile
-                                          ".package"))))))))
+                (repo-path->file-path
+                 repo-path
+                 (list "packages" (string-append
+                                   package-metafile
+                                   ".package"))))))))
 
 
 
@@ -357,7 +368,7 @@
       ;; look at the current working directory and see if
       ;; the user intends to operate on a specific package in the
       ;; repository, or on all of them.
-      (let* ((repo-path (uri-path (snow2-repository-url local-repository)))
+      (let* ((repo-path (uri-path (snow2-repository-local local-repository)))
              (cwd (get-environment-variable "PWD"))
              (cwd-parts (snow-split-filename cwd))
              (cwd-parts-len (length cwd-parts))
@@ -374,10 +385,10 @@
          ((and (equal? "tests" (cwd-from-end 2))
                (let ((package-filename
                       (snow-combine-filename-parts
-                       (append
+                       (repo-path->file-path
                         repo-path
-                        (list "packages")
-                        (list (string-append (cwd-from-end 1) ".package"))))))
+                        (list "packages"
+                              (string-append (cwd-from-end 1) ".package"))))))
                  (if (snow-file-exists? package-filename)
                      package-filename
                      #f))) =>
@@ -508,19 +519,14 @@
          (upload-package-to-s3 credentials local-repository package)
          ;; if this repository is still dirty, upload its index files
          ;; and set dirty to #f.
-         (cond ((snow2-repository-dirty local-repository)
-                ;; assume that index.scm lives next to the tgz file in the
-                ;; s3 repository.
-                (let* ((package-uri (snow2-package-url package))
-                       ;; take the package's uri and replace the filename
-                       ;; with index.scm and index.html and index.css
-                       (package-path (uri-path package-uri))
-                       (index-path (list-replace-last package-path "index.scm"))
-                       (html-path (list-replace-last package-path "index.html"))
-                       (css-path (list-replace-last package-path "index.css"))
-                       (index-uri (update-uri package-uri 'path index-path))
-                       (html-uri (update-uri package-uri 'path html-path))
-                       (css-uri (update-uri package-uri 'path css-path))
+         (cond ((not (snow2-repository-url local-repository))
+                (display "can't determine upload uri for repository.\n")
+                (exit 1))
+               ((snow2-repository-dirty local-repository)
+                (let* ((repo-uri (snow2-repository-url local-repository))
+                       (index-uri (repo-url->file-url repo-uri '("index.scm")))
+                       (html-uri (repo-url->file-url repo-uri '("index.html")))
+                       (css-uri (repo-url->file-url repo-uri '("index.css")))
                        ;; figure out which s3 bucket we're uploading to
                        (index-bucket (uri->bucket index-uri))
                        ;; figure out s3 path

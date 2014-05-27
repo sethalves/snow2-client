@@ -195,10 +195,10 @@
 
 
     (define (uri->bucket uri)
-      (let* ((uri (if (uri? uri) uri (uri-reference uri)))
+      (let* ((uri (if (uri-reference? uri) uri (uri-reference uri)))
              (host (uri-host uri))
              (cs (char-set-complement (string->char-set ".")))
-             (host-parts (string-tokenize host cs))
+             (host-parts (if host (string-tokenize host cs) '()))
              )
         (cond ((not (= (length host-parts) 4)) #f)
               ((not (equal? (list-ref host-parts 2) "amazonaws")) #f)

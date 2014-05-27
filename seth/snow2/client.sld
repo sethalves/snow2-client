@@ -181,7 +181,7 @@
                (manifest (fold append '()
                                (map r7rs-get-library-manifest
                                     libraries lib-sexps)))
-               (repo-path (uri-path (snow2-repository-url local-repository))))
+               (repo-path (uri-path (snow2-repository-local local-repository))))
           (for-each
            (lambda (library-member-filename)
              (let* ((dst-path (snow-split-filename library-member-filename))
@@ -248,13 +248,16 @@
         (for-each
          (lambda (package)
            (let* ((package-repo (snow2-package-repository package))
-                  (url (snow2-package-url package))
                   (success
                    (cond
                     ((snow2-repository-local package-repo)
-                     (install-from-directory package-repo package url))
+                     (install-from-directory
+                      package-repo package
+                      (snow2-repository-local package-repo)))
                     (else
-                     (install-from-http package-repo package url)))))
+                     (install-from-http
+                      package-repo package
+                      (snow2-package-absolute-url package))))))
              (cond
               ((not success)
                (display "Failed to install " (current-error-port))

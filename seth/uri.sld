@@ -1104,14 +1104,14 @@
               (update-URI ref
                           'path (just-segments ref)
                           'scheme (uri-scheme base)))
-	     ((let ((p (uri-path ref))) (and (not (null? p)) p)) =>
-	      (lambda (ref-path)
-		(if (and (pair? ref-path) (eq? '/ (car ref-path)))
-		    (update-URI ref
+             ((let ((p (uri-path ref))) (and (not (null? p)) p)) =>
+              (lambda (ref-path)
+                (if (and (pair? ref-path) (eq? '/ (car ref-path)))
+                    (update-URI ref
                                 'scheme (uri-scheme base)
                                 'authority (uri-auth base)
                                 'path (just-segments ref))
-		    (update-URI ref
+                    (update-URI ref
                                 'scheme (uri-scheme base)
                                 'authority (uri-auth base)
                                 'path (merge-paths base ref-path)))))
@@ -1120,7 +1120,7 @@
                           'scheme (uri-scheme base)
                           'authority (uri-auth base)
                           'path (merge-paths base (list ""))))
-	     (else (update-URI ref
+             (else (update-URI ref
                                'path (URI-path base)
                                'scheme (URI-scheme base)
                                'authority (URI-authority base)

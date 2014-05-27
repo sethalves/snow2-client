@@ -10,8 +10,13 @@
           find-package-with-library
           find-packages-with-libraries
           gather-depends
-          package-from-sexp
 
+          snow2-package-absolute-url
+          snow2-package-absolute-path
+          repo-path->file-path
+          repo-url->file-url
+
+          package-from-sexp
           depend->sexp
           sibling->sexp
           library->sexp
@@ -67,12 +72,52 @@
 
   (begin
 
+    (define (list-replace-last lst new-elt)
+      ;; what's the srfi-1 one-liner for this?
+      (reverse (cons new-elt (cdr (reverse lst)))))
+
+
+    (define (snow2-package-absolute-url/path repo-url package)
+      (let* ((pkg-url (snow2-package-url package)))
+        (cond ((absolute-uri? pkg-url) pkg-url)
+              ((and repo-url
+                    (pair? (uri-path repo-url))
+                    (eq? '/ (car (uri-path repo-url))))
+               (uri-relative-to pkg-url repo-url))
+              (else
+               (update-uri
+                pkg-url
+                'path (append (uri-path repo-url) (uri-path pkg-url)))))))
+
+
+    (define (snow2-package-absolute-url package)
+      ;; the url for a package may be relative to the repository's url.
+      ;; this will return an absolute version.
+      (let ((repository (snow2-package-repository package)))
+        (cond ((not (snow2-repository-url repository)) #f)
+              (else
+               (snow2-package-absolute-url/path
+                (snow2-repository-url repository) package)))))
+
+
+    (define (snow2-package-absolute-path package)
+      ;; combine a local repsitory's in-filesystem path
+      ;; with the package url
+      (let ((repository (snow2-package-repository package)))
+        (cond ((not (snow2-repository-local repository)) #f)
+              (else
+               (snow2-package-absolute-url/path
+                (snow2-repository-local repository) package)))))
+
+
     (define (depend-from-sexp depend-sexp)
       ;; depend-sexp will be a library name, like (snow hello)
       depend-sexp)
 
+
     (define (depend->sexp depend)
       depend)
+
 
     (define (sibling-from-sexp sibling-sexp)
       ;; siblings look like
@@ -94,10 +139,6 @@
         (url ,(uri->string (snow2-sibling-url sibling)))
         (trust ,(snow2-sibling-trust sibling))))
 
-
-    (define (list-replace-last lst new-elt)
-      ;; what's the srfi-1 one-liner for this?
-      (reverse (cons new-elt (cdr (reverse lst)))))
 
     (define (sibling->html sibling)
       (let* ((name (snow2-sibling-name sibling))
@@ -225,12 +266,13 @@
            libraries)
           package)))
 
+
     (define (package->sexp package)
       `(package
         (name ,(snow2-package-name package))
         (url ,(if (snow2-package-url package)
                   (uri->string (snow2-package-url package))
-                  ""))
+                  "")) ;; XXX why ""?  why not #f
         ,@(let ((size (snow2-package-size package)))
             (if (not (eq? size 'unset)) `((size ,size)) '()))
         ,@(let ((checksum (snow2-package-checksum package)))
@@ -289,7 +331,12 @@
                     (sibling-sexps
                      (get-children-by-type repository-sexp 'sibling))
                     (siblings (map sibling-from-sexp sibling-sexps))
-                    (repo (make-snow2-repository siblings packages #f #f #f)))
+                    (url (get-string-by-type repository-sexp 'url #f))
+                    (name (get-string-by-type repository-sexp 'name #f))
+                    (repo (make-snow2-repository
+                           name siblings packages #f
+                           (if url (uri-reference url) #f)
+                           #f)))
                ;; backlink package to repository
                (for-each
                 (lambda (package)
@@ -300,6 +347,12 @@
 
     (define (repository->sexp repository)
       `(repository
+        ,@(if (snow2-repository-url repository)
+              `((url ,(uri->string (snow2-repository-url repository))))
+              '())
+        ,@(if (snow2-repository-name repository)
+              `((name ,(snow2-repository-name repository)))
+              '())
         ,@(map sibling->sexp (snow2-repository-siblings repository))
         ,@(map package->sexp (snow2-repository-packages repository))
         ))
@@ -423,7 +476,7 @@
              (cond (package
                     (hash-table-set!
                      package-url-ht
-                     (uri->hashtable-key (snow2-package-url package))
+                     (uri->hashtable-key (snow2-package-absolute-url package))
                      package)))))
          library-names)
         (hash-table-values package-url-ht)))
@@ -457,7 +510,8 @@
                       (hash-table-set! lib-name-ht lib-name library)
                       (hash-table-set!
                        package-url-ht
-                       (uri->hashtable-key (snow2-package-url package))
+                       (uri->hashtable-key
+                        (snow2-package-absolute-url package))
                        package))))
 
              (for-each
@@ -467,7 +521,8 @@
                          (let ((libs (snow2-package-libraries package)))
                            (hash-table-set!
                             package-url-ht
-                            (uri->hashtable-key (snow2-package-url package))
+                            (uri->hashtable-key
+                             (snow2-package-absolute-url package))
                             package)
                            ;; XXX if the same lib is in more than one
                            ;; package, there should be some reason to pick one
@@ -541,14 +596,19 @@
                       (bad-local-repo "missing packages subdirectory"))
                      ((not (file-exists? index-filename))
                       (let* ((repository (repository-from-sexp '(repository))))
-                        (set-snow2-repository-local! repository #t)
-                        (set-snow2-repository-url! repository repository-url)
+                        (set-snow2-repository-local! repository repository-url)
+                        ;; (set-snow2-repository-url! repository repository-url)
                         repository))
                      (else
                       (let* ((in-port (open-binary-input-file index-filename))
                              (repository (read-repository in-port)))
-                        (set-snow2-repository-local! repository #t)
-                        (set-snow2-repository-url! repository repository-url)
+                        (set-snow2-repository-local! repository repository-url)
+
+                        ;; XXX
+                        ;; should the repository s-expression have name
+                        ;; and url fields?
+                        ;; (set-snow2-repository-url! repository repository-url)
+
                         (close-input-port in-port)
                         repository)))))))
 
@@ -556,7 +616,8 @@
     (define (get-repositories-and-siblings repositories repository-urls)
       (define (make-repo-has-url? url)
         (lambda (repository)
-          (uri-equal? (snow2-repository-url repository) url)))
+          (and (snow2-repository-url repository)
+               (uri-equal? (snow2-repository-url repository) url))))
       (define (get-sibling-urls repository)
         (map snow2-sibling-url (snow2-repository-siblings repository)))
       (cond ((null? repository-urls) repositories)
@@ -603,6 +664,7 @@
       ;; read a file that contains a package s-exp and update the copy
       ;; in repository.  return the updated package.
       (let ((updated-package (package-from-metafile-name package-filename)))
+        (set-snow2-package-repository! updated-package repository)
         (cond ((not updated-package)
                (error "can't read package metafile." package-filename)))
         (let loop ((repo-packages (snow2-repository-packages repository)))
@@ -621,8 +683,9 @@
                  (let ((repo-package (car repo-packages)))
                    (cond ((and (equal? (snow2-package-name repo-package)
                                        (snow2-package-name updated-package))
-                               (uri-equal? (snow2-package-url repo-package)
-                                           (snow2-package-url updated-package)))
+                               (uri-equal?
+                                (snow2-package-absolute-url repo-package)
+                                (snow2-package-absolute-url updated-package)))
                           ;; we found the package to update
                           (cond ((not (snow2-packages-equal?
                                        repo-package updated-package))
@@ -676,7 +739,7 @@
 
     (define (local-repository->in-fs-index-path local-repository)
       ;; given an on-disk repository, return a path to index.scm
-      (let* ((repo-path (uri-path (snow2-repository-url local-repository))))
+      (let* ((repo-path (uri-path (snow2-repository-local local-repository))))
         (append repo-path (list "index.scm"))))
 
     (define (local-repository->in-fs-index-filename local-repository)
@@ -688,7 +751,7 @@
 
     (define (local-repository->in-fs-html-path local-repository)
       ;; given an on-disk repository, return a path to index.html
-      (let* ((repo-path (uri-path (snow2-repository-url local-repository))))
+      (let* ((repo-path (uri-path (snow2-repository-local local-repository))))
         (append repo-path (list "index.html"))))
 
     (define (local-repository->in-fs-html-filename local-repository)
@@ -700,7 +763,7 @@
 
     (define (local-repository->in-fs-css-path local-repository)
       ;; given an on-disk repository, return a path to index.css
-      (let* ((repo-path (uri-path (snow2-repository-url local-repository))))
+      (let* ((repo-path (uri-path (snow2-repository-local local-repository))))
         (append repo-path (list "index.css"))))
 
     (define (local-repository->in-fs-css-filename local-repository)
@@ -715,8 +778,9 @@
     (define (local-repository->in-fs-tgz-path local-repository package)
       ;; within a local repository, return a path on the filesystem to
       ;; a tgz for the given package
-      (let* ((repo-path (uri-path (snow2-repository-url local-repository)))
-             (url (snow2-package-url package)))
+      ;; XXX this isn't right
+      (let* ((repo-path (uri-path (snow2-repository-local local-repository)))
+             (url (snow2-package-absolute-path package)))
         (reverse (cons (last (uri-path url)) (reverse repo-path)))))
 
     (define (local-repository->in-fs-tgz-filename local-repository package)
@@ -728,7 +792,7 @@
 
     (define (local-repository->in-fs-lib-path local-repository lib)
       ;; return path to library source file within a local repository
-      (let* ((repo-path (uri-path (snow2-repository-url local-repository)))
+      (let* ((repo-path (uri-path (snow2-repository-local local-repository)))
              (in-pkg-lib-path (snow-split-filename (snow2-library-path lib))))
         (append repo-path in-pkg-lib-path)))
 
@@ -736,6 +800,22 @@
       ;; return filename of library source file within a local repository
       (snow-combine-filename-parts
        (local-repository->in-fs-lib-path local-repository lib)))
+
+
+    (define (repo-path->file-path repo-path file-path)
+      ;;; repo-path might be .../index.scm or just .../
+      (cond ((equal? (last repo-path) "index.scm")
+             (append (reverse (cdr (reverse repo-path))) file-path))
+            (else
+             (append repo-path file-path))))
+
+    (define (repo-url->file-url repo-url file-path)
+      (cond ((not repo-url) #f)
+            (else
+             (update-uri repo-url 'path
+                         (repo-path->file-path
+                          (uri-path repo-url)
+                          file-path)))))
 
 
     (define (sanity-check-repository repository)
@@ -777,3 +857,4 @@
 
 
     ))
+

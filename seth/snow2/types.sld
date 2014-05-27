@@ -1,6 +1,7 @@
 (define-library (seth snow2 types)
   (export make-snow2-repository
           snow2-repository?
+          snow2-repository-name set-snow2-repository-name!
           snow2-repository-siblings set-snow2-repository-siblings!
           snow2-repository-packages set-snow2-repository-packages!
           snow2-repository-local set-snow2-repository-local!
@@ -60,8 +61,9 @@
 
   (begin
     (define-record-type <snow2-repository>
-      (make-snow2-repository siblings packages local url dirty)
+      (make-snow2-repository name siblings packages local url dirty)
       snow2-repository?
+      (name snow2-repository-name set-snow2-repository-name!)
       (siblings snow2-repository-siblings set-snow2-repository-siblings!)
       (packages snow2-repository-packages set-snow2-repository-packages!)
       (local snow2-repository-local set-snow2-repository-local!)

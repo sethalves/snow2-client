@@ -304,8 +304,13 @@
 
 
     (define (snow-combine-filename-parts parts)
-      (let loop ((result "")
-                 (parts parts))
+      (let loop (
+;;                  (result "")
+;;                  (parts parts)
+                 (result (if (and (pair? parts) (eq? (car parts) '/)) "/" ""))
+                 (parts (if (and (pair? parts) (eq? (car parts) '/))
+                            (cdr parts) parts))
+                 )
         (cond ((null? parts) result)
               ((null? (cdr parts))
                (loop (string-append result (car parts))
