@@ -208,9 +208,9 @@
           (newline)
 
           ;; if the .tgz file already exists, delete it
-          (cond ((or (snow-file-exists? local-package-filename)
+          (cond ((or (file-exists? local-package-filename)
                      (snow-file-symbolic-link? local-package-filename))
-                 (snow-delete-file local-package-filename)))
+                 (delete-file local-package-filename)))
 
           ;; save out the new .tgz file
           (let* ((tar-data (tar-pack-u8vector all-tar-recs))
@@ -389,7 +389,7 @@
                         repo-path
                         (list "packages"
                               (string-append (cwd-from-end 1) ".package"))))))
-                 (if (snow-file-exists? package-filename)
+                 (if (file-exists? package-filename)
                      package-filename
                      #f))) =>
                      (lambda (package-filename)

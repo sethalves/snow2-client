@@ -14,6 +14,7 @@
     (import (chibi base64) (chibi io)))
    (chicken
     (import (base64) (srfi 1) (srfi 4)))
+   (foment (import (srfi 60)))
    (gauche
     (import (rfc base64) (gauche uvector)))
    (sagittarius

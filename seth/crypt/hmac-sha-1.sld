@@ -15,6 +15,13 @@
             (scheme write)
             ))
    (chicken (import (hmac) (sha1) (snow bytevector)))
+   (foment
+    (import (snow bytevector)
+            (srfi 60)
+            (seth port-extras)
+            (seth crypt sha-1)
+            (scheme write)
+            ))
    (gauche (import (rfc hmac) (rfc sha) (snow bytevector)))
    (sagittarius
     (import (rfc hmac) (math) (snow bytevector))

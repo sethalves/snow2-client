@@ -85,30 +85,30 @@
                        (cons sep (cons (car strs) parts)))))))
 
 
-;;
+;; 
 ;; Definitions and parsing routines for Uniform Resource Identifiers (RFC 3986).
-;;
+;; 
 ;; Based on the Haskell URI library by  Graham Klyne <gk@ninebynine.org>.
 ;;
-;; Copyright 2008-2014 Ivan Raikov, Peter Bex.
+;; Copyright 2008-2014 Ivan Raikov, Peter Bex, Seth Alves.
 ;;
-;;
+;; 
 ;;  Redistribution and use in source and binary forms, with or without
 ;;  modification, are permitted provided that the following conditions
 ;;  are met:
-;;
+;; 
 ;;  - Redistributions of source code must retain the above copyright
 ;;  notice, this list of conditions and the following disclaimer.
-;;
+;; 
 ;;  - Redistributions in binary form must reproduce the above
 ;;  copyright notice, this list of conditions and the following
 ;;  disclaimer in the documentation and/or other materials provided
 ;;  with the distribution.
-;;
+;; 
 ;;  - Neither name of the copyright holders nor the names of its
 ;;  contributors may be used to endorse or promote products derived
 ;;  from this software without specific prior written permission.
-;;
+;; 
 ;;  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND THE
 ;;  CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
 ;;  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -230,7 +230,7 @@
 (define update-authority update-URIAuth)
 
 
-(define update-uri~
+(define update-uri*
   (let ((unset (list 'unset)))
     (lambda (uri . args)
       (let loop ((key/values args)
@@ -302,15 +302,15 @@
  ;;                  (args (if (not (eq? port unset))
  ;;                            (append args (list 'port port)) args))
  ;;                  )
- ;;             (apply update-uri~ uri args)))
+ ;;             (apply update-uri* uri args)))
  ;;         key/values)))))
 
  (else
-  (define update-uri update-uri~)))
+  (define update-uri update-uri*)))
 
 
-(define (make-uri~ . key/values)
-  (apply update-uri~ (make-URI #f #f '() #f #f) key/values))
+(define (make-uri* . key/values)
+  (apply update-uri* (make-URI #f #f '() #f #f) key/values))
 
 (cond-expand
 
@@ -319,7 +319,7 @@
     (apply update-uri (make-URI #f #f '() #f #f) key/values)))
 
  (else
-  (define make-uri make-uri~)))
+  (define make-uri make-uri*)))
 
 
 (define (uri-equal? a b)
@@ -1277,7 +1277,7 @@
                           (normalize-pct-encoding (uri->string uri (lambda (user pass) (conc user ":" pass))))))
          (scheme (string->symbol (string-downcase (->string (uri-scheme uri)))))
          (host           (normalize-pct-encoding (string-downcase (uri-host uri)))))
-    (update-uri~ normalized-uri 'scheme scheme 'host host)))
+    (update-uri* normalized-uri 'scheme scheme 'host host)))
 
 (define (normalize-pct-encoding str)
   (let ((str1 (uri-string->normalized-char-list str)))

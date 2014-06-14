@@ -200,9 +200,9 @@
 
              (snow-create-directory-recursive dst-dirname)
 
-             (cond ((or (snow-file-exists? dst-filename)
+             (cond ((or (file-exists? dst-filename)
                         (snow-file-symbolic-link? dst-filename))
-                    (snow-delete-file dst-filename)))
+                    (delete-file dst-filename)))
 
                (snow-create-symbolic-link
                 (cond ((snow-filename-relative? src-filename)

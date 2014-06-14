@@ -4,6 +4,7 @@
   (cond-expand
    (chibi (import (snow bytevector) (srfi 60)))
    (chicken (import (message-digest) (sha1)))
+   (foment (import (snow bytevector) (srfi 60)))
    (gauche (import (rfc sha) (snow bytevector)))
    (sagittarius (import (math hash) (snow bytevector))))
   (begin

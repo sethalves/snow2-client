@@ -365,7 +365,12 @@
                                          (type "text/css")
                                          (href "index.css"))))
                 (html:body
-                 (html:h1 "Snow2 Repository")
+                 (html:h1
+                  (if (and
+                       (snow2-repository-name repository)
+                       (not (equal? "" (snow2-repository-name repository))))
+                      (snow2-repository-name repository)
+                      "Snow2 Repository"))
 
                  (html:h2 "Siblings")
                  ,@(map sibling->html (snow2-repository-siblings repository))
@@ -588,7 +593,7 @@
                         (newline)
                         (exit 1))
                        (else #f)))
-               (cond ((or (not (snow-file-exists? tests-dirname))
+               (cond ((or (not (file-exists? tests-dirname))
                           (not (snow-file-directory? tests-dirname)))
                       (bad-local-repo "missing tests subdirectory"))
                      ((or (not (file-exists? packages-dirname))

@@ -2,51 +2,25 @@
 
 (define-library (seth port-extras)
   (export read-all-chars
-          ;; read-all-latin-1-chars
           read-all-u8
           read-available-chars
           read-available-u8
-          ;; read-n
-          ;; read-n-u8
           read-0
           consume-whitespace
           read-word
           read-words
-          port-find-byte
-          )
+          port-find-byte)
+
   (import (scheme base)
           (scheme write)
-          )
+          (scheme char)
+          (snow bytevector))
   (cond-expand
-   (chibi (import (chibi io) (scheme write) (scheme char) (snow bytevector)))
-   (chicken (import (scheme char) (snow bytevector)
-                    (scheme read) (scheme write)))
-   ((or gauche sagittarius) (import (scheme char) (snow bytevector)))
-   )
-  ;; (import (snow binio))
+   (chibi (import (chibi io)))
+   (chicken (import (scheme read)))
+   (else))
+
   (begin
-
-
-    (cond-expand
-     (chicken
-      ;; (define u8-ready? char-ready?)
-
-      ;; (define (peek-u8 . opt)
-      ;;   (let ((c (apply peek-char opt)))
-      ;;     (if (eof-object? c) c
-      ;;         (char->integer c))))
-
-      ;; (define (read-u8 . opt)
-      ;;   (let ((c (apply read-char opt)))
-      ;;     (if (eof-object? c) c
-      ;;         (char->integer c))))
-
-      ;; (define (write-u8 data . opt)
-      ;;   (apply write-char (cons (integer->char data) opt)))
-      )
-     (else))
-
-
 
     (define (read-all-main f reader)
       ;; read until eof

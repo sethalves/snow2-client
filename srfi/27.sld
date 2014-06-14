@@ -19,14 +19,13 @@
    random-source-make-reals)
 
   (import (scheme base)
-          (scheme time))
+          (scheme time)
+          (scheme write) ;; XXX
+          )
   (cond-expand
    (foment
     (include "srfi-27/srfi-27-a.scm"
              "srfi-27/mrg32k3a-a.scm"
-             "srfi-27/mrg32k3a.scm")
-    )
-   (gauche (import
-            ;; (gauche)
-            (srfi-27)))
+             "srfi-27/mrg32k3a.scm"))
+   (gauche (import (srfi-27)))
    (sagittarius (import (srfi :27)))))

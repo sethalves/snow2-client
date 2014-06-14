@@ -12,6 +12,9 @@
             (sha2)
             (snow bytevector)
             (srfi 60)))
+   (foment
+    (import (snow bytevector)
+            (srfi 60)))
    (gauche
     (import (util digest)
             (rfc sha)
@@ -97,7 +100,7 @@
 
 
     (cond-expand
-     ((or chicken chibi)
+     ((or chicken chibi foment)
 
 
 
@@ -314,13 +317,13 @@
 
 
 (cond-expand
- ((or chicken chibi)
+ ((or chicken chibi foment)
   (define (sha-224 src)
     (sha-224-256 src sha-224-inits #f)))
  (else))
 
 (cond-expand
- (chibi
+ ((or chibi foment)
   (define (sha-256 src)
     (sha-224-256 src sha-256-inits #t)))
  (else))
