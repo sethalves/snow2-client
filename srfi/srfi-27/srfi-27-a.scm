@@ -45,4 +45,4 @@
   (make-reals :random-source-make-reals))
 
 (define (:random-source-current-time)
-  (current-second))
+  (exact (round (current-second))))

@@ -116,7 +116,7 @@
             ((eq? (car r7rs-import) 'rename)
              (r7rs-import-set->libs (cadr r7rs-import)))
             ((eq? (car r7rs-import) 'except)
-             (error "write this")) ;; XXX
+             (r7rs-import-set->libs (cadr r7rs-import)))
             (else r7rs-import)))
 
 
@@ -195,6 +195,17 @@
                                    (else identifier))))
                          sub-identifiers)))))
 
+
+      (define (r7rs-get-exports-from-import-set-except repositories import-set)
+        (let ((excepts (cddr import-set)))
+          (let-values (((sub-lib sub-identifiers)
+                        (r7rs-get-exports-from-import-set
+                         repositories (cadr import-set))))
+            (values sub-lib
+                    (filter (lambda (identifier)
+                              (not (member identifier excepts)))
+                            sub-identifiers)))))
+
       (cond ((not (list? import-set))
              (error "import-set isn't a list"))
             ((null? import-set)
@@ -207,7 +218,8 @@
             ((eq? (car import-set) 'rename)
              (r7rs-get-exports-from-import-set-rename repositories import-set))
             ((eq? (car import-set) 'except)
-             (error "write this")) ;; XXX
+             (r7rs-get-exports-from-import-set-except repositories import-set)
+             )
             (else
              (let* ((local-repos (filter snow2-repository-local repositories))
                     (libs (find-libraries-by-name local-repos import-set))

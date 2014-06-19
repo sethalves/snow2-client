@@ -18,6 +18,7 @@
                           bitwise-not
                           bitwise-xor)))
    ;; (gauche (import (srfi 60)))
+   (foment)
    (sagittarius (import (rnrs arithmetic bitwise (6))))
    (else))
   (begin
@@ -87,7 +88,7 @@
     (cond-expand
 
      ;; these have srfi-33 or srfi-60 available
-     ((or chibi chicken gauche sagittarius))
+     ((or chibi chicken gauche sagittarius foment))
 
      ;; (else
      ;;  (define (arithmetic-shift n sft)
@@ -172,7 +173,7 @@
 
 
     (cond-expand
-     ((or chicken chibi))
+     ((or chicken chibi foment))
      (gauche
       (define bitwise-ior bitwise-ior)
       (define bitwise-xor bitwise-xor)
