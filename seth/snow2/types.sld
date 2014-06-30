@@ -17,6 +17,7 @@
           make-snow2-package
           snow2-package?
           snow2-package-name set-snow2-package-name!
+          snow2-package-version set-snow2-package-version!
           snow2-package-url set-snow2-package-url!
           snow2-package-libraries set-snow2-package-libraries!
           snow2-package-repository set-snow2-package-repository!
@@ -80,9 +81,10 @@
 
 
     (define-record-type <snow2-package>
-      (make-snow2-package name url libraries repo size checksum dirty)
+      (make-snow2-package name version url libraries repo size checksum dirty)
       snow2-package?
       (name snow2-package-name set-snow2-package-name!)
+      (version snow2-package-version set-snow2-package-version!)
       (url snow2-package-url set-snow2-package-url!)
       (libraries snow2-package-libraries set-snow2-package-libraries!)
       (repo snow2-package-repository set-snow2-package-repository!)
@@ -252,6 +254,7 @@
 
     (define (snow2-packages-equal? a b)
       (and (equal? (snow2-package-name a) (snow2-package-name b))
+           (equal? (snow2-package-version a) (snow2-package-version b))
            (uri-equal? (snow2-package-url a) (snow2-package-url b))
            ;; (equal? (snow2-package-libraries a) (snow2-package-libraries b))
            (snow2-library-lists-equal? (snow2-package-libraries a)

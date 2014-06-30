@@ -252,12 +252,13 @@
       ;; convert a s-exp into a package record
       (let ((url (get-string-by-type package-sexp 'url ""))
             (name (get-list-by-type package-sexp 'name '()))
+            (version (get-string-by-type package-sexp 'version "1.0"))
             (size (get-number-by-type package-sexp 'size 'unset))
             (checksum (get-list-by-type package-sexp 'checksum 'unset))
             (library-sexps (get-children-by-type package-sexp 'library)))
         (let* ((libraries (map library-from-sexp library-sexps))
                (package (make-snow2-package
-                         name (uri-reference url) libraries #f
+                         name version (uri-reference url) libraries #f
                          size checksum #f)))
           ;; backlink to packages
           (for-each
@@ -270,6 +271,7 @@
     (define (package->sexp package)
       `(package
         (name ,(snow2-package-name package))
+        (version ,(snow2-package-version package))
         (url ,(if (snow2-package-url package)
                   (uri->string (snow2-package-url package))
                   "")) ;; XXX why ""?  why not #f

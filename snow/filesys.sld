@@ -11,13 +11,11 @@
 
 (define-library (snow filesys)
   (export snow-directory-files
-          snow-file-exists?
           snow-file-directory?
           snow-file-regular?
           snow-file-symbolic-link?
           snow-file-size
           snow-file-mtime
-          snow-delete-file
           snow-rename-file
           snow-create-directory
           snow-delete-directory
@@ -58,6 +56,7 @@
     (import (chicken)
             (posix)
             (srfi 14)))
+   (foment)
    (gauche
     ;; (import (only (gauche) symlink))
     (import (snow gauche-filesys-utils)
@@ -69,7 +68,6 @@
             (srfi 1)
             (util file)
             (srfi 14)))
-   (foment)
    (else))
 
   (begin
@@ -79,160 +77,144 @@
 
 ;;; System dependencies.
 
+
     (cond-expand
-
      (chibi
-
       (define (snow-directory-files dir)
         (filter (lambda (ent)
                   (not (or (equal? ent ".")
                            (equal? ent ".."))))
-                (directory-files dir)))
-
-      (define (snow-file-exists? filename)
-        (file-exists? filename))
-
-      (define (snow-file-directory? filename)
-        (file-directory? filename))
-
-      (define (snow-file-regular? filename)
-        (file-regular? filename))
-
-      (define (snow-file-symbolic-link? filename)
-        (file-link? filename))
-
-      (define (snow-delete-file filename)
-        (delete-file filename))
-
-      (define (snow-rename-file orig-filename new-filename)
-        (rename-file orig-filename new-filename))
-
-      (define (snow-create-directory dir)
-        (create-directory* dir))
-
-      (define (snow-delete-directory dir)
-        (delete-directory dir))
-
-      (define (snow-create-symbolic-link filename linkname)
-        (if (symbolic-link-file filename linkname)
-            #t
-            (error "snow-create-symbolic-link failed" filename linkname)))
-      )
-
-
+                (directory-files dir))))
      (chicken
-
       (define (snow-directory-files dir)
-        (directory dir #t))
-
-      (define (snow-file-exists? filename)
-        (file-exists? filename))
-
-      (define (snow-file-directory? filename)
-        (directory? filename))
-
-      (define (snow-file-regular? filename)
-        (regular-file? filename))
-
-      (define (snow-file-symbolic-link? filename)
-        (symbolic-link? filename))
-
-      (define (snow-delete-file filename)
-        (delete-file filename))
-
-      (define (snow-rename-file orig-filename new-filename)
-        (rename-file orig-filename new-filename))
-
-      (define (snow-create-directory dir)
-        (create-directory dir))
-
-      (define (snow-delete-directory dir)
-        (delete-directory dir))
-
-      (define (snow-create-symbolic-link filename linkname)
-        (create-symbolic-link filename linkname))
-      )
-
+        (directory dir #t)))
+     (foment)
      (gauche
-
       (define (snow-directory-files dir)
         (let loop ((filenames (directory-list dir))
                    (result (list)))
           (cond ((null? filenames) (reverse result))
                 ((equal? (car filenames) ".") (loop (cdr filenames) result))
                 ((equal? (car filenames) "..") (loop (cdr filenames) result))
-                (else (loop (cdr filenames) (cons (car filenames) result))))))
-
-      (define (snow-file-exists? filename)
-        (file-exists? filename))
-
-      (define (snow-file-directory? filename)
-        (eq? (file-type filename) 'directory))
-
-      (define (snow-file-regular? filename)
-        (eq? (file-type filename) 'regular))
-
-      (define (snow-file-symbolic-link? filename)
-        (eq? (file-type filename :follow-link? #f) 'symlink))
-
-      (define (snow-delete-file filename)
-        (remove-files (list filename)))
-
-      (define (snow-rename-file orig-filename new-filename)
-        (move-file orig-filename new-filename))
-
-      (define (snow-create-directory dir)
-        (make-directory* dir))
-
-      (define (snow-delete-directory dir)
-        (remove-directory* dir))
-
-      (define (snow-create-symbolic-link filename linkname)
-        (sys-symlink filename linkname))
-
-      (define current-directory sys-getcwd)
-      (define change-directory sys-chdir)
-
-      )
-
+                (else (loop (cdr filenames) (cons (car filenames) result)))))))
      (sagittarius
-
       (define (snow-directory-files dir)
         (filter (lambda (ent)
                   (not (or (equal? ent ".")
                            (equal? ent ".."))))
-                (read-directory dir)))
+                (read-directory dir)))))
 
-      (define (snow-file-exists? filename)
-        (file-exists? filename))
 
-      (define (snow-file-directory? filename)
+    (define (snow-file-directory? filename)
+      (cond-expand
+       ((or chibi sagittarius)
         (file-directory? filename))
+       (chicken
+        (directory? filename))
+       (foment)
+       (gauche
+        (eq? (file-type filename) 'directory))))
 
-      (define (snow-file-regular? filename)
+
+    (define (snow-file-regular? filename)
+      (cond-expand
+       ((or chibi sagittarius)
         (file-regular? filename))
+       (chicken
+        (regular-file? filename))
+       (foment)
+       (gauche
+        (eq? (file-type filename) 'regular))))
 
-      (define (snow-file-symbolic-link? filename)
-        (file-symbolic-link? filename))
 
-      (define (snow-delete-file filename)
-        (delete-file filename))
+    (define (snow-file-symbolic-link? filename)
+      (cond-expand
+       (chibi
+        (file-link? filename))
+       (chicken
+        (symbolic-link? filename))
+       (foment)
+       (gauche
+        (eq? (file-type filename :follow-link? #f) 'symlink))
+       (sagittarius
+        (file-symbolic-link? filename))))
 
-      (define (snow-rename-file orig-filename new-filename)
+
+    (define (snow-rename-file orig-filename new-filename)
+      (cond-expand
+       ((or chibi chicken sagittarius)
         (rename-file orig-filename new-filename))
+       (foment)
+       (gauche
+        (move-file orig-filename new-filename))))
 
-      (define (snow-create-directory dir)
+
+    (define (snow-create-directory dir)
+      (cond-expand
+       (chibi
+        (create-directory* dir))
+       ((or chicken sagittarius)
         (create-directory dir))
+       (foment)
+       (gauche
+        (make-directory* dir))))
 
-      (define (snow-delete-directory dir)
+
+    (define (snow-delete-directory dir)
+      (cond-expand
+       ((or chibi chicken sagittarius)
         (delete-directory dir))
+       (foment)
+       (gauche
+        (remove-directory* dir))))
 
-      (define (snow-create-symbolic-link filename linkname)
-        (create-symbolic-link filename linkname)
-        )
-      )
 
-     )
+    (define (snow-create-symbolic-link filename linkname)
+      (cond-expand
+       (chibi
+        (or (symbolic-link-file filename linkname)
+            (error "snow-create-symbolic-link failed" filename linkname)))
+       ((or chicken sagittarius)
+        (create-symbolic-link filename linkname))
+       (foment)
+       (gauche
+        (sys-symlink filename linkname))))
+
+
+    (cond-expand
+     ((or chibi chicken foment sagittarius))
+     (gauche
+      (define current-directory sys-getcwd)))
+
+
+    (cond-expand
+     ((or chibi chicken foment))
+     (sagittarius
+      (define change-directory current-directory))
+     (gauche
+      (define change-directory sys-chdir)))
+
+
+    (cond-expand
+     ((or chibi chicken foment gauche)
+      (define snow-file-size file-size))
+     (sagittarius
+      (define snow-file-size file-size-in-bytes)))
+
+
+    (define (snow-file-mtime filename)
+      (cond-expand
+       (chibi
+        (exact (floor (+ 1262271600 (file-modification-time filename)))))
+       (chicken
+        (exact (floor (vector-ref (file-stat filename) 8))))
+       (foment)
+       (gauche
+        (exact (floor (file-mtime filename))))
+       (sagittarius
+        (exact (floor (file-stat-mtime filename))))))
+
+
 
 ;;;----------------------------------------------------------------------------
 
@@ -346,7 +328,7 @@
     ;; (define (snow-make-temp-filename)
     ;;   (let loop ()
     ;;     (let ((filename (snow-u8vector->hex-string (make-random-u8vector 6))))
-    ;;       (if (snow-file-exists? filename)
+    ;;       (if (file-exists? filename)
     ;;           (loop)
     ;;           filename))))
 
@@ -415,37 +397,12 @@
       (let ((d (snow-filename-strip-trailing-directory-separator dir)))
         (if (not (string=? d dir))
             (snow-create-directory-recursive d)
-            (if (not (snow-file-exists? dir))
+            (if (not (file-exists? dir))
                 (let ((p (snow-filename-directory dir)))
                   (if (not (string=? p dir))
                       (begin
                         (snow-create-directory-recursive p)
                         (snow-create-directory dir))))))))
-
-
-
-    (cond-expand
-     ((or chibi chicken foment gauche)
-      (define snow-file-size file-size))
-     (sagittarius
-      (define snow-file-size file-size-in-bytes)
-      ))
-
-
-    (cond-expand
-     (chibi
-      (define (snow-file-mtime filename)
-        (exact (floor (+ 1262271600 (file-modification-time filename))))))
-     (chicken
-      (define (snow-file-mtime filename)
-        (exact (floor (vector-ref (file-stat filename) 8)))))
-     (gauche
-      (define (snow-file-mtime filename)
-        (exact (floor (file-mtime filename)))))
-     (sagittarius
-      (define (snow-file-mtime filename)
-        (exact (floor (file-stat-mtime filename)))))
-     (else))
 
 
      ))

@@ -59,6 +59,16 @@
         (cond ((null? tar-recs) #t)
               (else
                (let ((t (car tar-recs)))
+
+                 ;; the package tgz files are all contained within a single
+                 ;; toplevel directory.  when we install the package for use,
+                 ;; we pretend they aren't.
+                 ;; XXX this is a hack, do something better here.
+                 (let* ((path (snow-split-filename (tar-rec-name t)))
+                        (name-san-container
+                         (snow-combine-filename-parts (cdr path))))
+                   (tar-rec-name-set! t name-san-container))
+
                  (cond
                   ((eq? (tar-rec-type t) 'directory)
                    (snow-create-directory-recursive

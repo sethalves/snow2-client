@@ -48,6 +48,7 @@
    (chicken (import (only (chicken) blob?)
                     (ports)
                     (srfi 4)))
+   (foment)
    (gauche (import (snow gauche-genport-utils)))
    (sagittarius))
   (begin

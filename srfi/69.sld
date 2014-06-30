@@ -18,6 +18,7 @@
           hash-table->alist
           alist->hash-table
           hash-table-cons!
+          hash-table-size
           )
   (import (scheme base))
   (cond-expand

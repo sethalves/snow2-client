@@ -20,18 +20,20 @@
                   (srfi 13)
                   ))
    (chicken (import (input-parse)))
+   (foment (import (srfi 1)
+                   (scheme char)
+                   (scheme cxr)
+                   (srfi 13)))
    (gauche (import (text parse)))
    (sagittarius (import (text parse))))
   (begin
 
     (cond-expand
-     ((or chibi chicken)
+     ((or gauche sagittarius))
+     (else
       ;; (define-syntax inc
       ;;   (syntax-rules () ((inc x) (+ 1 x))))
-      (define (inc x) (+ 1 x))
-      )
-     (else))
-
+      (define (inc x) (+ 1 x))))
 
     (cond-expand
 
@@ -129,7 +131,8 @@
 
 
     (cond-expand
-     ((or chibi chicken)
+     ((or gauche sagittarius))
+     (else
 
 ;; -- Function: find-string-from-port? STR IN-PORT MAX-NO-CHARS
 ;;    Looks for a string STR within the first MAX-NO-CHARS chars of the
@@ -225,8 +228,7 @@
 
       (define find-string-from-port? MISCIO:find-string-from-port?)
 
-      )
-     (else))
+      ))
 
 
     (define (display-to-string obj)

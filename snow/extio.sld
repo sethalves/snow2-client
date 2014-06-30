@@ -5,7 +5,7 @@
           make-delimited-input-port
           binary-port->textual-port
           textual-port->binary-port
-          read-line
+          ;; read-line
           snow-port-position
           snow-set-port-position!
           snow-set-port-position-from-current!
@@ -47,7 +47,7 @@
      ((or chicken)
       (define snow-read-string read-string))
 
-     ((or chibi gauche sagittarius foment)
+     ((or chibi foment gauche sagittarius)
       (define (read-string-until-eof port)
         (let loop ((strings '()))
           (let ((s (read-string 4000 port)))
@@ -582,50 +582,50 @@
 
       ))
 
-    (cond-expand
-     (sagittarius
-      ;; Sagittarius' read-line doesn't accept an upper length.
-      ;; These are from chibi.
-      (define (%read-line n in)
-        (let ((out (open-output-string)))
-          (let lp ((i 0))
-            (let ((ch (peek-char in)))
-              (cond
-               ((eof-object? ch)
-                (let ((res (get-output-string out)))
-                  (and (not (equal? res "")) res)))
-               ((eqv? ch #\newline)
-                (read-char in)
-                (get-output-string out))
-               ((eqv? ch #\return)
-                (read-char in)
-                (if (eqv? #\newline (peek-char in))
-                    (read-char in))
-                (get-output-string out))
-               ((and n (>= i n))
-                (get-output-string out))
-               (else
-                (write-char (read-char in) out)
-                (lp (+ i 1))))))))
+    ;; (cond-expand
+    ;;  (sagittarius
+    ;;   ;; Sagittarius' read-line doesn't accept an upper length.
+    ;;   ;; These are from chibi.
+    ;;   (define (%read-line n in)
+    ;;     (let ((out (open-output-string)))
+    ;;       (let lp ((i 0))
+    ;;         (let ((ch (peek-char in)))
+    ;;           (cond
+    ;;            ((eof-object? ch)
+    ;;             (let ((res (get-output-string out)))
+    ;;               (and (not (equal? res "")) res)))
+    ;;            ((eqv? ch #\newline)
+    ;;             (read-char in)
+    ;;             (get-output-string out))
+    ;;            ((eqv? ch #\return)
+    ;;             (read-char in)
+    ;;             (if (eqv? #\newline (peek-char in))
+    ;;                 (read-char in))
+    ;;             (get-output-string out))
+    ;;            ((and n (>= i n))
+    ;;             (get-output-string out))
+    ;;            (else
+    ;;             (write-char (read-char in) out)
+    ;;             (lp (+ i 1))))))))
 
-      (define (read-line . o)
-        (let ((in (if (pair? o) (car o) (current-input-port)))
-              (n (if (and (pair? o) (pair? (cdr o))) (car (cdr o)) #f)))
-          (let ((res (%read-line n in)))
-            (if (not res)
-                (eof-object)
-                (let ((len (string-length res)))
-                  (cond
-                   ((and (> len 0) (eqv? #\newline (string-ref res (- len 1))))
-                    (if (and (> len 1)
-                             (eqv? #\return (string-ref res (- len 2))))
-                        (substring res 0 (- len 2))
-                        (substring res 0 (- len 1))))
-                   ((and (> len 0) (eqv? #\return (string-ref res (- len 1))))
-                    (substring res 0 (- len 1)))
-                   (else
-                    res))))))))
-     (else))
+    ;;   (define (read-line . o)
+    ;;     (let ((in (if (pair? o) (car o) (current-input-port)))
+    ;;           (n (if (and (pair? o) (pair? (cdr o))) (car (cdr o)) #f)))
+    ;;       (let ((res (%read-line n in)))
+    ;;         (if (not res)
+    ;;             (eof-object)
+    ;;             (let ((len (string-length res)))
+    ;;               (cond
+    ;;                ((and (> len 0) (eqv? #\newline (string-ref res (- len 1))))
+    ;;                 (if (and (> len 1)
+    ;;                          (eqv? #\return (string-ref res (- len 2))))
+    ;;                     (substring res 0 (- len 2))
+    ;;                     (substring res 0 (- len 1))))
+    ;;                ((and (> len 0) (eqv? #\return (string-ref res (- len 1))))
+    ;;                 (substring res 0 (- len 1)))
+    ;;                (else
+    ;;                 res))))))))
+    ;;  (else))
 
 
 

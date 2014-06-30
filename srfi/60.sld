@@ -7,11 +7,14 @@
           bitwise-ior
           bitwise-and
           bitwise-not
-          bitwise-xor)
+          bitwise-xor
+          bitwise-if
+          copy-bit-field
+          )
   (import (scheme base))
   (cond-expand
    (chibi (import (srfi 33)))
-   (chicken (import (only (chicken)
+   (chicken (import (only (numbers)
                           arithmetic-shift
                           bitwise-ior
                           bitwise-and
@@ -209,4 +212,18 @@
               (else v))
         ;;   #xffffffffffffffff)
         )))
+
+
+
+    (define (bitwise-if ei1 ei2 ei3)
+      (bitwise-ior (bitwise-and ei1 ei2)
+                   (bitwise-and (bitwise-not ei1) ei3)))
+
+
+    (define (copy-bit-field to from start end)
+      (let* ((mask1 (arithmetic-shift -1 start))
+             (mask2 (bitwise-not (arithmetic-shift -1 end)))
+             (mask (bitwise-and mask1 mask2)))
+        (bitwise-if mask (arithmetic-shift from start) to)))
+
     ))

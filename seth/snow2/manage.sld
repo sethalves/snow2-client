@@ -48,7 +48,12 @@
         (write (uri->string (snow2-package-url package)))
         (newline)))
 
-      (let* ((repo-path (uri-path (snow2-repository-local local-repository))))
+      (let* ((repo-path (uri-path (snow2-repository-local local-repository)))
+             ;; put everything inside a toplevel directory to avoid
+             ;; the resulting tgz being a tar bomb.
+             (container-dirname
+              (string-append (snow2-package-get-readable-name package)
+                             "-" (snow2-package-version package))))
 
         (define (lib-file->tar-recs lib-filename)
           ;; create a tar-rec for a file
@@ -66,7 +71,10 @@
                      (cond ((not (= (length tar-recs) 1))
                             (error "unexpected tar-rec count"
                                    lib-filename tar-recs)))
-                     (tar-rec-name-set! (car tar-recs) lib-filename)
+                     (tar-rec-name-set!
+                      (car tar-recs)
+                      (snow-combine-filename-parts
+                       (cons container-dirname lib-rel-path)))
                      (car tar-recs))))))
 
         (define (lib-dir->tar-recs lib-dirname)
@@ -75,11 +83,10 @@
                  (tar-rec
                   (make-tar-rec
                    (snow-combine-filename-parts
-                    (append lib-rel-path (list "")))
+                    (append (list container-dirname) lib-rel-path (list "")))
                    493 ;; mode
                    0 ;; uid
                    0 ;; gid
-                   ;; (exact (floor (current-second))) ;; mtime
                    (snow-file-mtime
                     (snow-combine-filename-parts
                      (repo-path->file-path repo-path lib-rel-path)))
