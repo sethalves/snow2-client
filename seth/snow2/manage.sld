@@ -37,7 +37,7 @@
   (begin
 
     (define (make-package-archive
-             repositories local-repository package verbose)
+             repositories local-repository package-metafile package verbose)
       ;; create the .tgz file that gets uploaded to a repository.
       ;; update the size and md5 sum and depends in the package meta-data
       ;; in index.scm.
@@ -119,6 +119,20 @@
            (fold append '() (map file->directories manifest))
            equal?))
 
+        (define (make-package-meta-tar-rec)
+          ;; make a tar-rec for the metafile for the package.  set
+          ;; the name so it ends up in the same place as in chibi's
+          ;; packages: container-dirname/package.scm
+          (let ((rel-meta-name (snow-combine-filename-parts
+                                (list container-dirname "package.scm")))
+                (tar-recs (tar-read-file package-metafile)))
+            (cond ((not (= (length tar-recs) 1))
+                   (error "unexpected tar-rec count"
+                          rel-meta-name tar-recs)))
+            (tar-rec-name-set! (car tar-recs) rel-meta-name)
+            (car tar-recs)))
+
+
         (let* ((libraries (snow2-package-libraries package))
                ;; read in the files indicated by the (path ...) clauses
                ;; in the library definitions.
@@ -138,8 +152,12 @@
                (dir-tar-recs (fold append '() (map lib-dir->tar-recs dirs)))
                ;; make tar records for the files
                (file-tar-recs (map lib-file->tar-recs manifest))
+               ;; throw in a package.scm file
+               (package-meta-tar-rec (make-package-meta-tar-rec))
                ;; combine them
-               (all-tar-recs (append dir-tar-recs file-tar-recs))
+               (all-tar-recs (append dir-tar-recs
+                                     (list package-meta-tar-rec)
+                                     file-tar-recs))
                ;; figure out the name of the tgz file within the local repo
                (package-url (snow2-package-absolute-path package))
                (package-filename
@@ -227,10 +245,8 @@
             (write-bytevector tgz-data out-p)
             (close-output-port out-p)
 
-            (let ((local-package-md5
-                   (bytes->hex-string
-                    (filename->md5 local-package-filename)))
-                  (local-package-size (snow-file-size local-package-filename)))
+            (let ((local-package-md5 (bytes->hex-string (md5 tar-data)))
+                  (local-package-size (bytevector-length tar-data)))
 
               (display "  size=")
               (write local-package-size)
@@ -503,7 +519,7 @@
           local-repository package-metafile verbose)
          (make-package-archive
           (cons local-repository repositories)
-          local-repository package verbose))
+          local-repository package-metafile package verbose))
        verbose))
 
 

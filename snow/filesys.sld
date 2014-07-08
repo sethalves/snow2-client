@@ -51,12 +51,17 @@
             (chibi char-set)
             (chibi char-set ascii)))
    (chicken
-    ;; (import (posix-extras))
-    ;; (import (directory-utils))
     (import (chicken)
             (posix)
             (srfi 14)))
-   (foment)
+   (foment
+    ;; https://code.google.com/p/foment/wiki/FileSystemAPI
+    (import
+     (srfi 1)
+     (only (foment base) file-directory? rename-file file-stat-mtime
+           filter list-directory delete-directory file-regular?
+           create-symbolic-link file-symbolic-link? file-size
+           create-directory current-directory)))
    (gauche
     ;; (import (only (gauche) symlink))
     (import (snow gauche-filesys-utils)
@@ -88,7 +93,12 @@
      (chicken
       (define (snow-directory-files dir)
         (directory dir #t)))
-     (foment)
+     (foment
+      (define (snow-directory-files dir)
+        (filter (lambda (ent)
+                  (not (or (equal? ent ".")
+                           (equal? ent ".."))))
+                (list-directory dir))))
      (gauche
       (define (snow-directory-files dir)
         (let loop ((filenames (directory-list dir))
@@ -107,22 +117,20 @@
 
     (define (snow-file-directory? filename)
       (cond-expand
-       ((or chibi sagittarius)
+       ((or chibi foment sagittarius)
         (file-directory? filename))
        (chicken
         (directory? filename))
-       (foment)
        (gauche
         (eq? (file-type filename) 'directory))))
 
 
     (define (snow-file-regular? filename)
       (cond-expand
-       ((or chibi sagittarius)
+       ((or chibi foment sagittarius)
         (file-regular? filename))
        (chicken
         (regular-file? filename))
-       (foment)
        (gauche
         (eq? (file-type filename) 'regular))))
 
@@ -133,18 +141,16 @@
         (file-link? filename))
        (chicken
         (symbolic-link? filename))
-       (foment)
        (gauche
         (eq? (file-type filename :follow-link? #f) 'symlink))
-       (sagittarius
+       ((or foment sagittarius)
         (file-symbolic-link? filename))))
 
 
     (define (snow-rename-file orig-filename new-filename)
       (cond-expand
-       ((or chibi chicken sagittarius)
+       ((or chibi chicken foment sagittarius)
         (rename-file orig-filename new-filename))
-       (foment)
        (gauche
         (move-file orig-filename new-filename))))
 
@@ -153,18 +159,16 @@
       (cond-expand
        (chibi
         (create-directory* dir))
-       ((or chicken sagittarius)
+       ((or chicken foment sagittarius)
         (create-directory dir))
-       (foment)
        (gauche
         (make-directory* dir))))
 
 
     (define (snow-delete-directory dir)
       (cond-expand
-       ((or chibi chicken sagittarius)
+       ((or chibi chicken foment sagittarius)
         (delete-directory dir))
-       (foment)
        (gauche
         (remove-directory* dir))))
 
@@ -174,9 +178,8 @@
        (chibi
         (or (symbolic-link-file filename linkname)
             (error "snow-create-symbolic-link failed" filename linkname)))
-       ((or chicken sagittarius)
+       ((or chicken foment sagittarius)
         (create-symbolic-link filename linkname))
-       (foment)
        (gauche
         (sys-symlink filename linkname))))
 
@@ -188,8 +191,8 @@
 
 
     (cond-expand
-     ((or chibi chicken foment))
-     (sagittarius
+     ((or chibi chicken))
+     ((or foment sagittarius)
       (define change-directory current-directory))
      (gauche
       (define change-directory sys-chdir)))
@@ -198,7 +201,7 @@
     (cond-expand
      ((or chibi chicken foment gauche)
       (define snow-file-size file-size))
-     (sagittarius
+     ((or foment sagittarius)
       (define snow-file-size file-size-in-bytes)))
 
 
@@ -208,10 +211,9 @@
         (exact (floor (+ 1262271600 (file-modification-time filename)))))
        (chicken
         (exact (floor (vector-ref (file-stat filename) 8))))
-       (foment)
        (gauche
         (exact (floor (file-mtime filename))))
-       (sagittarius
+       ((or foment sagittarius)
         (exact (floor (file-stat-mtime filename))))))
 
 

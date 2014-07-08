@@ -559,7 +559,7 @@
              ;; get repository over http
              (guard
               (err (#t
-                    (display "unable to fetch repository index: ")
+                    (display "Warning: unable to fetch repository index: ")
                     (write (uri->string repository-url))
                     (newline)
                     (write (error-object-message err))

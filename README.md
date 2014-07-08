@@ -177,14 +177,16 @@ See <a href="https://github.com/sethalves/snow2-test-chicken">snow2-test-chicken
 Other Scheme Package Managers
 =============================
 
-http://home.gna.org/dorodango/manual/
+http://gna.org/projects/spells
 
-http://wiki.call-cc.org/eggs
+http://home.gna.org/dorodango/manual/
 
 http://planet.racket-lang.org/
 
 http://synthcode.com/scheme/common-scheme/doc/common-scheme.html
 
-http://gna.org/projects/spells
+http://wiki.call-cc.org/eggs
 
 http://www.gnu.org/software/guix/
+
+http://www.schemespheres.org/
