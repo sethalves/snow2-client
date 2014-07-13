@@ -36,6 +36,10 @@
             (srfi 1)
             (srfi 14))
     )
+   (foment
+    (import (srfi 1)
+            (srfi 14)
+            (chibi match)))
    (gauche
     (import (scheme cxr)
             (util match)
@@ -991,7 +995,7 @@
 (define (display-fragments b)
   (let loop ((fragments b))
     (cond
-      ((null? fragments) (begin))
+      ((null? fragments) (begin #t))
       ((not (car fragments)) 
        (loop (cdr fragments) ))
       ((null? (car fragments)) 

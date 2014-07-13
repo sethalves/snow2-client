@@ -6,6 +6,8 @@
           display-to-string
           ->string
           with-output-to-string
+          call-with-output-string
+          call-with-input-string
           )
   (import (scheme base) (scheme read) (scheme write))
 
@@ -16,6 +18,7 @@
             ))
    (chicken
     (import (ports)))
+   (foment)
    (gauche)
    (sagittarius
     (import (sagittarius io))))
@@ -45,8 +48,19 @@
     (define ->string display-to-string)
 
     (cond-expand
+     ((or chibi foment)
+      (define (call-with-output-string func)
+        (let ((out-port (open-output-string)))
+          (func out-port)
+          (get-output-string out-port)))
+
+      (define (call-with-input-string str proc)
+        (proc (open-input-string str))))
+     (else))
+
+    (cond-expand
      (chicken)
-     (gauche
+     ((or foment gauche)
       (define (with-output-to-string thunk)
         (let ((s (open-output-string)))
           (let ((save-output-port (current-output-port)))

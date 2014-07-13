@@ -16,6 +16,9 @@
     (import (ports)))
    (gauche
     (import (rfc quoted-printable)))
+   (foment
+    (import (seth string-read-write))
+    )
    (sagittarius
     (import (sagittarius io))
     ))

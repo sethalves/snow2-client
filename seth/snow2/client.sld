@@ -74,6 +74,11 @@
                   ((eq? (tar-rec-type t) 'directory)
                    (snow-create-directory-recursive (tar-rec-name t)))
 
+                  ((and (eq? (tar-rec-type t) 'regular)
+                        (equal? (tar-rec-name t) "package.scm"))
+                   ;; don't write out package.scm file, here
+                   #t)
+
                   ((eq? (tar-rec-type t) 'regular)
                    ;; create the directory that contains this file
                    (let* ((path (snow-split-filename (tar-rec-name t)))

@@ -31,7 +31,7 @@
                        utf-8-codec
                        latin-1-codec
                        eol-style)))
-   (foment)
+   (foment (import (only (foment base) port-position set-port-position!)))
    )
   (import (snow bytevector)
           (srfi 60)
@@ -939,26 +939,22 @@
        (chibi (file-position p))
        (chicken (file-position p))
        (gauche (port-tell p))
-       (sagittarius (port-position p))
-       (foment (error "write this"))
-       ))
+       ((or foment sagittarius) (port-position p))))
 
     (define (snow-set-port-position! port pos)
       (cond-expand
        (chibi (set-file-position! port pos seek/set))
        (chicken (set-file-position! port pos))
        (gauche (port-seek port pos SEEK_SET))
-       (sagittarius (set-port-position! port pos))
-       (foment (error "write this"))))
+       ((or foment sagittarius) (set-port-position! port pos))))
 
     (define (snow-set-port-position-from-current! port offset)
       (cond-expand
        (chibi (set-file-position! port offset seek/cur))
        (chicken (set-file-position! port offset seek/cur))
        (gauche (port-seek port offset SEEK_CUR))
-       (sagittarius (set-port-position!
-                     port (+ (port-position port) offset)))
-       (foment (error "write this"))))
+       ((or foment sagittarius) (set-port-position!
+                                 port (+ (port-position port) offset)))))
 
     (define (snow-set-port-position-from-end! port offset)
       (let ((offset (if (< offset 0) offset (- offset))))
@@ -966,20 +962,21 @@
          (chibi (set-file-position! port offset seek/end))
          (chicken (set-file-position! port offset seek/end))
          (gauche (port-seek port offset SEEK_END))
-         (sagittarius
-          ;; XXX is there a better way?
-          (cond ((textual-port? port)
-                 (let loop ()
-                   (let ((c (read-char port)))
-                     (if (eof-object? c) #t
-                         (loop)))))
-                (else
-                 (let loop ()
-                   (let ((c (read-u8 port)))
-                     (if (eof-object? c) #t
-                         (loop))))))
-          (set-port-position!
-           port (+ (port-position port) offset)))
-         (foment (error "write this")))))
+         ((or foment sagittarius)
+          (set-port-position! port offset 'end))
+          ;; ;; XXX is there a better way?
+          ;; (cond ((textual-port? port)
+          ;;        (let loop ()
+          ;;          (let ((c (read-char port)))
+          ;;            (if (eof-object? c) #t
+          ;;                (loop)))))
+          ;;       (else
+          ;;        (let loop ()
+          ;;          (let ((c (read-u8 port)))
+          ;;            (if (eof-object? c) #t
+          ;;                (loop))))))
+          ;; (set-port-position!
+          ;;  port (+ (port-position port) offset))
+        )))
 
     ))

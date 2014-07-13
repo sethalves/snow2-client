@@ -29,12 +29,7 @@
 
   (cond-expand
    (chibi (import (chibi char-set)))
-   (chicken (import (srfi 14)))
-   (gauche (import (srfi 14)))
-   (sagittarius (import (srfi 14)))
-   (else))
-
-
+   (else (import (srfi 14))))
   (begin
 
     ;; http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html

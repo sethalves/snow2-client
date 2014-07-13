@@ -7,10 +7,13 @@
 ;; http://trac.sacrideo.us/wg/wiki/NetworkPortsCowan
 ;; http://trac.sacrideo.us/wg/wiki/DatagramChannelsCowan
 
+;; http://srfi.schemers.org/srfi-106/srfi-106.html
 
 ;; http://synthcode.com/scheme/chibi/lib/chibi/net.html
 ;; http://practical-scheme.net/gauche/man/gauche-refe_88.html#Networking
 ;; http://practical-scheme.net/gauche/man/gauche-refe_91.html
+;; https://code.google.com/p/foment/wiki/Sockets
+
 
 (define-library (seth network-socket)
   (export make-network-listener
@@ -78,9 +81,11 @@
     ;; https://code.google.com/p/foment/wiki/Sockets
     (import (scheme read)
             (scheme write)
-            (foment base)
-            (snow bytevector)
-            ))
+            (only (foment base) accept-socket address-family bind-socket
+                  connect-socket inet ip-protocol listen-socket make-socket
+                  shutdown-socket *shut-rdwr* *shut-wr* socket-close
+                  socket-domain socket-output-port stream tcp)
+            (snow bytevector)))
 
    (gauche (import (scheme read) (scheme write)
                    (gauche)
@@ -125,7 +130,7 @@
 
     ;; http://trac.sacrideo.us/wg/wiki/NetworkEndpointsCowan
     (cond-expand
-     ((or chibi chicken sagittarius)
+     ((or chibi chicken foment sagittarius)
       (define (network-endpoint-host addr) (car addr))
       (define (network-endpoint-port addr) (cadr addr))
       (define (make-network-endpoint hostname port) (list hostname port)))
@@ -172,6 +177,18 @@
             ;;   (socket-listen sock 4)
             ;;   sock)
             )))
+     (foment
+      (define (make-network-listener settings-list)
+        (let* ((host (settings-list-get 'host settings-list "127.0.0.1"))
+               (port (settings-list-get 'port settings-list 0))
+               (s (make-socket (address-family inet)
+                               (socket-domain stream) (ip-protocol tcp))))
+          (bind-socket s (if host host "127.0.0.1")
+                       (number->string port)
+                       (address-family inet) (socket-domain stream)
+                       (ip-protocol tcp))
+          (listen-socket s)
+          s)))
      (gauche
       (define (make-network-listener settings-list)
         (let* ((host (settings-list-get 'host settings-list "127.0.0.1"))
@@ -200,6 +217,9 @@
       (define (open-network-server listen-sock)
         (let-values (((in-port out-port) (tcp-accept listen-sock)))
           (list in-port out-port))))
+     (foment
+      (define (open-network-server listen-sock)
+        (accept-socket listen-sock)))
      ((or gauche sagittarius)
       (define (open-network-server listen-sock)
         (socket-accept listen-sock))))
@@ -211,6 +231,9 @@
      (chicken
       (define (close-network-listener sock)
         (tcp-close sock)))
+     (foment
+      (define (close-network-listener sock)
+        (shutdown-socket sock *shut-rdwr*)))
      ((or gauche sagittarius)
       (define (close-network-listener sock)
         (socket-close sock))))
@@ -244,6 +267,20 @@
           (let-values (((read-port write-port)
                         (tcp-connect host port)))
             (list read-port write-port)))))
+     (foment
+      (define (open-network-client settings-list)
+        (let* ((addr (make-network-endpoint
+                      (settings-list-get 'host settings-list #f)
+                      (settings-list-get 'port settings-list 0)))
+               (host (network-endpoint-host addr))
+               (port (network-endpoint-port addr))
+               (s (make-socket (address-family inet)
+                               (socket-domain stream)
+                               (ip-protocol tcp))))
+          (connect-socket s host (number->string port)
+                          (address-family inet) (socket-domain stream)
+                          0 (ip-protocol tcp))
+          s)))
      (gauche
       (define (open-network-client settings-list)
         (let* ((addr (make-network-endpoint
@@ -272,12 +309,14 @@
         (cadr sock))
       (define (socket:inbound-read-port sock)
         (car sock)))
+     (foment
+      (define (socket:outbound-write-port sock) sock)
+      (define (socket:inbound-read-port sock) sock))
      (gauche
       (define (socket:outbound-write-port sock)
         (socket-output-port sock))
       (define (socket:inbound-read-port sock)
         (socket-input-port sock)))
-
      (sagittarius
       ;; (define (bin->textual port)
       ;;   (transcoded-port port (make-transcoder
@@ -307,6 +346,9 @@
       (define (socket:send-eof sock)
         ;; (tcp-shutdown (cadr sock) tcp/wr)
         (close-output-port (cadr sock))))
+     (foment
+      (define (socket:send-eof sock)
+        (shutdown-socket sock *shut-wr*)))
      ((or gauche sagittarius)
       (define (socket:send-eof sock)
         (socket-shutdown sock SHUT_WR))))
@@ -321,12 +363,15 @@
       (define (socket:close sock)
         (close-input-port (car sock))
         (close-output-port (cadr sock))))
+     (foment
+      (define (socket:close sock)
+        (shutdown-socket sock *shut-rdwr*)))
      ((or gauche sagittarius)
       (define (socket:close sock)
         (socket-close sock))))
 
     (cond-expand
-     (chibi
+     ((or chibi foment)
       (define (socket:local-address sock)
         (error "not implemented -- socket:local-address"))
       (define (socket:remote-address sock)
@@ -355,7 +400,7 @@
     ;;
 
     (cond-expand
-     (chibi
+     ((or chibi foment)
       (define (socket:ssl-listen local-addr)
         (error "not implemented -- socket:ssl-listen")))
      (chicken
@@ -369,7 +414,7 @@
         (error "not implemented -- socket:ssl-listen"))))
 
     (cond-expand
-     (chibi
+     ((or chibi foment)
       (define (socket:ssl-accept listen-sock)
         (error "not implemented -- socket:ssl-accept")))
      (chicken
@@ -381,7 +426,7 @@
         (error "not implemented -- socket:ssl-accept"))))
 
     (cond-expand
-     (chibi
+     ((or chibi foment)
       (define (socket:make-ssl-client local-addr remote-addr)
         (error "not implemented -- socket:make-ssl-client")))
      (chicken
@@ -403,7 +448,7 @@
         (error "not implemented -- socket:make-ssl-client"))))
 
     (cond-expand
-     (chibi
+     ((or chibi foment)
       (define (socket:tls-outbound-write-port sock)
         (error "not implemented -- socket:tls-outbound-write-port"))
       (define (socket:tls-inbound-read-port sock)
@@ -420,7 +465,7 @@
         (cadr sock))))
 
     (cond-expand
-     (chibi
+     ((or chibi foment)
       (define (socket:tls-close sock session)
         (error "not implemented -- socket:tls-close")))
      (chicken
@@ -433,7 +478,7 @@
         (close-output-port (cadr sock)))))
 
     (cond-expand
-     ((or chibi chicken)
+     ((or chibi chicken foment)
       (define (socket:tls-local-address sock)
         (make-network-endpoint #f 0))
       (define (socket:tls-remote-address sock)
@@ -488,6 +533,9 @@
                      (network-endpoint-port local-addr))
           sock)
         ))
+     (foment
+      (define (socket:udp-server local-addr)
+        (error "not implemented -- socket:udp-server")))
      ((or gauche sagittarius)
       (define (socket:udp-server local-addr)
         (let ((sock (make-socket PF_INET SOCK_DGRAM)))
@@ -522,6 +570,9 @@
                         (network-endpoint-host remote-addr)
                         (network-endpoint-port remote-addr))
           sock)))
+     (foment
+      (define (socket:make-udp-client local-addr remote-addr)
+        (error "not implemented -- socket:make-udp-client")))
      ((or gauche sagittarius)
       (define (socket:make-udp-client local-addr remote-addr)
         (let ((sock (make-socket PF_INET SOCK_DGRAM)))
@@ -559,6 +610,9 @@
                result)))
          (lambda () #t) ;; ready?
          (lambda () #t)))) ;; close
+     (foment
+      (define (socket:udp-outbound-write-port sock) sock)
+      (define (socket:udp-inbound-read-port sock) sock))
      ((or gauche sagittarius)
       (define (socket:udp-outbound-write-port sock)
         (socket-output-port sock))
@@ -566,7 +620,7 @@
         (socket-input-port sock))))
 
     (cond-expand
-     (chibi
+     ((or chibi foment)
       (define (socket:udp-read-from sock)
         (error "not implemented -- socket:udp-read-from"))
       (define (socket:udp-write-to data sock remote-addr)
@@ -609,7 +663,6 @@
         (error "not implemented -- socket:udp-write-to"))))
 
 
-
     (cond-expand
      (chibi
       (define (socket:udp-close sock)
@@ -619,6 +672,9 @@
      (chicken
       (define (socket:udp-close sock)
         (udp-close-socket sock)))
+     (foment
+      (define (socket:udp-close sock)
+        (shutdown-socket sock *shut-rdwr*)))
      ((or gauche sagittarius)
       (define (socket:udp-close sock)
         (socket-close sock))))
@@ -633,6 +689,9 @@
                     (udp-bound? (car sock)))
                (make-network-endpoint #f (udp-bound-port (car sock))))
               (else (make-network-endpoint #f 0)))))
+     (foment
+      (define (socket:udp-local-address sock)
+        (error "not implemented -- socket:udp-local-address")))
      ((or gauche sagittarius)
       (define (socket:udp-local-address sock)
         (socket-getsockname sock))))
@@ -644,6 +703,9 @@
      (chicken
       (define (socket:udp-remote-address sock)
         (make-network-endpoint #f 0)))
+     (foment
+      (define (socket:udp-remote-address sock)
+        (error "not implemented -- socket:udp-remote-address")))
      ((or gauche sagittarius)
       (define (socket:udp-remote-address sock)
         (socket-getpeername sock))))
@@ -653,7 +715,7 @@
     ;;
 
     (cond-expand
-     ((or chibi chicken gauche sagittarius)
+     ((or chibi chicken foment gauche sagittarius)
       (define (socket:make-port-pair readable-port writable-port)
         (list readable-port writable-port))
 

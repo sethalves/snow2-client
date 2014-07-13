@@ -16,6 +16,12 @@
             (scheme write)
             (srfi 13)
             (seth quoted-printable)))
+   (foment
+    (import (srfi 13)
+            (seth quoted-printable)
+            (seth string-read-write)
+            (prefix (seth base64) base64-)
+            ))
    (gauche
     (import (rfc mime)
             (srfi 13)))
