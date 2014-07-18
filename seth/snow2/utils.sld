@@ -3,8 +3,6 @@
           read-repository
           get-repositories-and-siblings
           find-packages-with-library
-          find-package-with-library
-          snow2-package-libraries
           snow2-packages-libraries
           get-snow2-repo-name
           find-package-with-library

@@ -9,8 +9,7 @@
           (scheme file)
           (scheme process-context))
   (cond-expand
-   (chibi (import (only (srfi 1) filter make-list any fold)
-                  ))
+   (chibi (import (only (srfi 1) filter make-list any fold)))
    (else (import (srfi 1))))
   (cond-expand
    (chibi (import (chibi filesystem)))

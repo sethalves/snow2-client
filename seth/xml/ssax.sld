@@ -53,25 +53,26 @@
    )
   (import (scheme base)
           (scheme write))
+
   (cond-expand
-   (chibi
+   (chibi (import (chibi io)))
+   (else))
+
+  (cond-expand
+   ((or chibi foment)
     (import (srfi 1)
             (scheme char)
             (scheme cxr)
-            (only (chibi) call-with-input-string)
-            (snow assert)
             (srfi 13)
             (snow input-parse)
-            (chibi io)
-            (only (chibi string) string-null?)
-            )
-    )
+            (snow assert)
+            (only (seth string-read-write) call-with-input-string)))
    (chicken (import (ssax)))
    (gauche (import (sxml ssax)))
    (sagittarius (import (text sxml ssax))))
   (begin
     (cond-expand
-     (chibi
+     ((or chibi foment)
 
 
 ;; a few defines to make SSAX.scm run under chibi...
@@ -100,8 +101,9 @@
     ((assert should-be-true)
      (snow-assert should-be-true))
     ((assert should-be-true-0 should-be-true-1)
-     (snow-assert should-be-true-0)
-     (snow-assert should-be-true-1))))
+     (begin
+       (snow-assert should-be-true-0)
+       (snow-assert should-be-true-1)))))
 
 
 (define (ssax:warn port . warn-args)
@@ -761,17 +763,17 @@
       (loop (cdr alist) (cons (car alist) scanned))))))
 
 ; From SRFI-1
-(define (fold-right kons knil lis1)
-    (let recur ((lis lis1))
-       (if (null? lis) knil
-	    (let ((head (car lis)))
-	      (kons head (recur (cdr lis)))))))
+;; (define (fold-right kons knil lis1)
+;;     (let recur ((lis lis1))
+;;        (if (null? lis) knil
+;; 	    (let ((head (car lis)))
+;; 	      (kons head (recur (cdr lis)))))))
 
 ; Left fold combinator for a single list
-(define (fold kons knil lis1)
-  (let lp ((lis lis1) (ans knil))
-    (if (null? lis) ans
-      (lp (cdr lis) (kons (car lis) ans)))))
+;; (define (fold kons knil lis1)
+;;   (let lp ((lis lis1) (ans knil))
+;;     (if (null? lis) ans
+;;       (lp (cdr lis) (kons (car lis) ans)))))
 
 
 

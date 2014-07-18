@@ -1,25 +1,27 @@
 (define-library (seth temporary-file)
   (export temporary-file)
   (import (scheme base))
+  (import (srfi 27))
   (cond-expand
    (chibi
     (import (scheme file)
-            (chibi io) (chibi process)
-            (srfi 27)))
+            (chibi io)
+            (chibi process)))
    (chicken
     (import (posix)))
-   (gauche (import (scheme file) (file util) (srfi 27)))
-   (sagittarius (import (scheme file)
-                        (util file)
-                        (only (rnrs)
-                              transcoded-port
-                              make-transcoder
-                              latin-1-codec
-                              eol-style)
-                        (srfi 27)
-                        ))
-   )
+   (foment
+    (import (scheme file)))
+   (gauche
+    (import (scheme file)
+            (file util)))
+   (sagittarius
+    (import (scheme file)
+            (util file))))
   (begin
+
+    (random-source-randomize! default-random-source)
+
+
     (cond-expand
      (chicken
       (define (temporary-file . maybe-binary)
@@ -44,14 +46,27 @@
                                  (+ 100000 (random-integer 899999))))))
             (values (opener temp-path) temp-path)))))
 
+     (foment
+      (define (temporary-file . maybe-binary)
+        (let ((bin (and (pair? maybe-binary) (car maybe-binary))))
+          (let ((temp-path
+                 (string-append "/tmp"
+                                "/tmp"
+                                "."
+                                (number->string
+                                 (+ 100000 (random-integer 899999))))))
+            (values (if bin
+                        (open-binary-output-file temp-path)
+                        (open-output-file temp-path))
+                    temp-path)))))
+
      (sagittarius
       (define (temporary-file . maybe-binary)
         (let ((bin (and (pair? maybe-binary) (car maybe-binary))))
           ;; (make-temporary-file (string-append (temporary-directory) "/"))
           (let ((temp-path
                  (string-append (temporary-directory)
-                                "/tmp-"
-                                "sagittarius"
+                                "/tmp"
                                 "."
                                 (number->string
                                  (+ 100000 (random-integer 899999))))))

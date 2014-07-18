@@ -1,0 +1,110 @@
+<html><head>
+<style type="text/css">
+body {color: #000; background-color: #FFF}
+div#menu  {font-size: smaller; position: absolute; top: 50px; left: 0; width: 190px; height: 100%}
+div#main  {position: absolute; top: 0; left: 200px; width: 540px; height: 100%}
+div#notes {position: relative; top: 2em; left: 570px; max-width: 200px; height: 0px; font-size: smaller;}
+div#footer {padding-bottom: 50px}
+.result { color: #000; background-color: #FFEADF; width: 100%; padding: 3px}
+.command { color: #000; background-color: #FFEADF; width: 100%; padding: 5px}
+.keyword { color: #800080; background-color: inherit; }
+.type { color: #008000; background-color: inherit; }
+.function { color: #0000FF; background-color: inherit; }
+.variable { color: #B8860B; background-color: inherit; }
+.comment { color: #FF0000; background-color: inherit; }
+.string { color: #BC8F8F; background-color: inherit; }
+.attribute { color: #FF5000; background-color: inherit; }
+.preprocessor { color: #FF00FF; background-color: inherit; }
+.builtin { color: #FF00FF; background-color: inherit; }
+.character { color: #0055AA; background-color: inherit; }
+.syntaxerror { color: #FF0000; background-color: inherit; }
+.diff-deleted { color: #5F2121; background-color: inherit; }
+.diff-added { color: #215F21; background-color: inherit; }
+span.paren1 { color: #AAAAAA; background-color: inherit; }
+span.paren2 { color: #888888; background-color: inherit; }
+span.paren3 { color: #666666; background-color: inherit; }
+span.paren4 { color: #444444; background-color: inherit; }
+span.paren5 { color: #222222; background-color: inherit; }
+span.paren6 { color: #000000; background-color: inherit; }
+</style>
+</head><body><div id="menu"><ol><li><a href="#h3_(let-optionalsls((vardefault)...[rest])body...)">let-optionals</a></li><li><a href="#h3_(let-optionals*ls((vardefault)...[rest])body...)">let-optionals*</a></li><li><a href="#h3_(opt-lambda((vardefault)...[rest])body...)">opt-lambda</a></li><li><a href="#h3_(keyword-reflskey[default])">keyword-ref</a></li><li><a href="#h3_(keyword-ref*lskeydefault)">keyword-ref*</a></li><li><a href="#h3_(let-keywordsls((var[keyword]default)...[rest])body...)">let-keywords</a></li><li><a href="#h3_(let-keywords*ls((var[keyword]default)...[rest])body...)">let-keywords*</a></li></ol></div><div id="main"><div><a name="h1_(chibioptional)"></a><h1>(chibi optional)</h1></div><p>Syntax to support optional and named keyword arguments.
+<code><span>let-optionals</span>[<span>*</span>]</code> is originally from SCSH, and
+<code><span>let-keywords</span>[<span>*</span>]</code> derived from Gauche.</p><div><a name="h3_(let-optionalsls((vardefault)...[rest])body...)"></a><h3><code>(let-optionals ls ((var default) ... [rest]) body ...)</code></h3></div><p>
+</p><p>Binding construct similar to <code><span>let</span></code>.  The <code>var</code>s are
+bound to fresh locations holding values taken in order from the
+list <code>ls</code>, <code>body</code> is evaluated in the resulting
+environment, and the value(s) of the last expression of <code>body</code>
+returned.  If the length of <code>ls</code> is shorter than the number of
+<code>var</code>s, then the remaining <code>var</code>s taken their values from
+their corresponding <code>default</code>s, evaluated in an unspecified
+order.  Unused <code>default</code>s are not evaluated.  If a final
+<code>rest</code> var is specified, then it is bound to any remaining
+elements of <code>ls</code> beyond the length of <code>ls</code>, otherwise any
+extra values are unused.
+</p><p>Typically used on the dotted rest list at the start of a lambda,
+<code><span>let-optionals</span></code> is more concise and more efficient than
+<code><span>case-lambda</span></code> for simple optional argument uses.
+</p><p><em>Example:</em>
+</p><pre><code>(<span class="keyword">define</span> (<span class="function">copy-port</span> <span>.</span> <span>o</span>)
+  (<span class="keyword">let-optionals</span> <span>o</span> ((in (current-input-port))
+                    (out (current-output-port))
+                    (n-bytes #f))
+    (<span class="keyword">do</span> ((i <span>0</span> (+ <span>i</span> <span>1</span>))
+         (n (read-u8 <span>in</span>) (read-u8 <span>in</span>)))
+        ((or (and <span>n-bytes</span> (>= <span>i</span> <span>n-bytes</span>))
+             (eof-object? <span>b</span>)))
+      (write-u8 <span>b</span> <span>out</span>)))</code></pre><p>
+</p><p><em>Example:</em>
+</p><div><pre><code>(<span class="keyword">let-optionals</span> '(0) ((a <span>10</span>) (b <span>11</span>) (c <span>12</span>))
+  (list <span>a</span> <span>b</span> <span>c</span>))</code></pre><code><div class="result">=> (0 11 12)</div></code></div><div><a name="h3_(let-optionals*ls((vardefault)...[rest])body...)"></a><h3><code>(let-optionals* ls ((var default) ... [rest]) body ...)</code></h3></div><p>
+</p><p><code><span>let*</span></code> equivalent to <code><span>let-optionals</span></code>.  Any required
+<code>default</code> values are evaluated in left-to-right order, with
+all preceding <code>var</code>s in scope.
+</p><div><a name="h3_(opt-lambda((vardefault)...[rest])body...)"></a><h3><code>(opt-lambda ((var default) ... [rest]) body ...)</code></h3></div><p>
+</p><p>Shorthand for
+</p><pre><code>(<span class="keyword">lambda</span> <span>o</span>
+  (<span class="keyword">let-optionals</span> <span>o</span> ((var <span>default</span>) <span>...</span> [<span>rest</span>])
+     <span>body</span> <span>...</span>))</code></pre><div><a name="h3_(keyword-reflskey[default])"></a><h3><code>(keyword-ref ls key [default])</code></h3></div><p>
+</p><p>Search for the identifier <code>key</code> in the list <code>ls</code>, treating
+it as a property list of the form <code>(key1 <span>val1</span> <span>key2</span> <span>val2</span>
+<span>...</span>)</code>, and return the associated <code>val</code>.  If not found, return
+<code>default</code>, or <code>#f</code>.</p><div><a name="h3_(keyword-ref*lskeydefault)"></a><h3><code>(keyword-ref* ls key default)</code></h3></div><p>
+</p><p>Macro equivalent of <code><span>keyword-ref</span></code>, where <code>default</code> is
+only evaluated if <code>key</code> is not found.</p><div><a name="h3_(let-keywordsls((var[keyword]default)...[rest])body...)"></a><h3><code>(let-keywords ls ((var [keyword] default) ... [rest]) body ...)</code></h3></div><p>
+</p><p>Analogous to <code><span>let-optionals</span></code>, except instead of binding the
+<code>var</code>s by position they are bound by name, by searching in
+<code>ls</code> with <code><span>keyword-ref*</span></code>.  If an optional <code>keyword</code>
+argument is provided it must be an identifier to use as the name,
+otherwise <code>var</code> is used, appending a ":" (colon).  If the name
+is not found, <code>var</code> is bound to <code>default</code>, even if unused
+names remain in <code>ls</code>.
+</p><p>If an optional trailing identifier <code>rest</code> is provided, it is
+bound to the list of unused arguments not bound to any <code>var</code>.
+</p><p>Note R7RS does not have a disjoint keyword type or auto-quoting
+syntax for keywords - they are simply identifiers.  Thus when
+passing keyword arguments they must be quoted (or otherwise
+dynamically evaluated).
+</p><p><em>Example:</em>
+</p><div><pre><code>(<span class="keyword">define</span> (<span class="function">make-person</span> <span>.</span> <span>o</span>)
+  (<span class="keyword">let-keywords</span> <span>o</span> ((name <span class="string">"John Doe"</span>)
+                   (age <span>0</span>)
+                   (occupation <span>job:</span> '<span>unemployed</span>))
+    (vector <span>name</span> <span>age</span> <span>occupation</span>))<span class="syntaxerror">)</span>
+
+(list (make-person)
+      (make-person '<span>name:</span> <span class="string">"Methuselah"</span> '<span>age:</span> <span>969</span>)
+      (make-person '<span>name:</span> <span class="string">"Dr. Who"</span> '<span>job:</span> '<span>time-lord</span> '<span>age:</span> <span>1500</span>))
+</code></pre><code><div class="result">=> (#("John Doe" 0 unemployed) #("Methuselah" 969 unemployed) #("Dr. Who" 1500 time-lord))</div></code></div><p>
+</p><p><em>Example:</em>
+</p><div><pre><code>(<span class="keyword">let-keywords</span> '(b: <span>2</span> <span>a:</span> <span>1</span> <span>other:</span> <span>9</span>)
+    ((a <span>0</span>) (b <span>0</span>) (c <span>0</span>) <span>rest</span>)
+  (list <span>a</span> <span>b</span> <span>c</span> <span>rest</span>))
+</code></pre><code><div class="result">=> (1 2 0 (other: 9))</div></code></div><div><a name="h3_(let-keywords*ls((var[keyword]default)...[rest])body...)"></a><h3><code>(let-keywords* ls ((var [keyword] default) ... [rest]) body ...)</code></h3></div><p>
+</p><p><code><span>let*</span></code> equivalent to <code><span>let-keywords*</span></code>.  Any required
+<code>default</code> values are evaluated in left-to-right order, with
+all preceding <code>var</code>s in scope.
+</p><p><em>Example:</em>
+</p><div><pre><code>(<span class="keyword">let-keywords*</span> '(b: <span>5</span>)
+    ((a <span>1</span>) (b (* <span>a</span> <span>2</span>)) (c (* <span>b</span> <span>3</span>)))
+  (list <span>a</span> <span>b</span> <span>c</span>))
+</code></pre><code><div class="result">=> (1 5 15)</div></code></div><div id="footer"></div></div></body></html>

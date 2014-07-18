@@ -32,6 +32,7 @@
    string-skip
    string-skip-right
    reverse-list->string
+   string-null?
    ;; XXX the rest...
    )
   (import (scheme base))
@@ -39,7 +40,8 @@
    (chibi (import (scheme char) (chibi char-set) (chibi char-set full)
                   (srfi 8) (srfi 33) (chibi optional)))
    (sagittarius (import (srfi :13)))
-   (foment (import (scheme char) (srfi 14))))
+   (foment (import (scheme char)
+                   (srfi 14))))
   (begin
 
     (cond-expand
@@ -191,15 +193,26 @@
       (define (string-take-right s n)
         (substring s (- (string-length s) n) (string-length s)))
 
-      (define (string-join items delim)
-        (if (null? items)
-            ""
-            (let loop ((result '())
-                       (items items))
-              (if (null? items)
-                  (apply string-append (reverse (cdr result)))
-                  (loop (cons delim (cons (car items) result))
-                        (cdr items))))))
+      (define (string-join items . maybe-delim+grammar)
+        ;; XXX use grammar
+
+        ;; 'infix means an infix or separator grammar: insert the delimiter between list elements. An empty list will produce an empty string -- note, however, that parsing an empty string with an infix or separator grammar is ambiguous. Is it an empty list, or a list of one element, the empty string?
+        ;; 'strict-infix means the same as 'infix, but will raise an error if given an empty list.
+        ;; 'suffix means a suffix or terminator grammar: insert the delimiter after every list element. This grammar has no ambiguities.
+        ;; 'prefix means a prefix grammar: insert the delimiter before every list element. This grammar has no ambiguities.
+
+        (let ((delim (if (> (length maybe-delim+grammar) 0)
+                         (list-ref maybe-delim+grammar 0) " "))
+              (grammar (if (> (length maybe-delim+grammar) 1)
+                           (list-ref maybe-delim+grammar 1) 'infix)))
+          (if (null? items)
+              ""
+              (let loop ((result '())
+                         (items items))
+                (if (null? items)
+                    (apply string-append (reverse (cdr result)))
+                    (loop (cons delim (cons (car items) result))
+                          (cdr items)))))))
 
 
       (define (string-prefix-worker? s1 s2 tester opt-args)
@@ -339,6 +352,11 @@
               (cond ((< i start) #f)
                     ((stester (string-ref s i)) i)
                     (else (loop (- i 1))))))))
+
+
+      (define (string-null? s)
+        (= (string-length s) 0))
+
 
       ))
 

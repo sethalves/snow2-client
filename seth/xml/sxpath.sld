@@ -30,11 +30,23 @@
     (import
      (scheme read) (scheme write) (scheme char) (scheme cxr)
      (chibi io)
-     (only (chibi string) string-null? call-with-input-string)
+     ;; (only (chibi string) string-null? call-with-input-string)
+     (only (seth string-read-write) call-with-input-string)
      (only (scheme r5rs) inexact->exact exact->inexact)
      (srfi 1) (srfi 2)
-     (snow assert) (srfi 13) (snow extio)))
+     (snow assert)
+     (srfi 13)
+     (snow extio)))
    (chicken (import (sxpath) (txpath) (sxpath-lolevel)))
+   (foment
+    (import
+     (scheme read) (scheme write) (scheme char) (scheme cxr)
+     (srfi 13)
+     (only (seth string-read-write) call-with-input-string)
+     (only (scheme r5rs) inexact->exact exact->inexact)
+     (srfi 1) (srfi 2)
+     (snow assert) (snow extio))
+    )
    (gauche (import (sxml sxpath)))
    (sagittarius (import (text sxml sxpath))))
 
@@ -109,8 +121,9 @@
     ((assert should-be-true)
      (snow-assert should-be-true))
     ((assert should-be-true-0 should-be-true-1)
-     (snow-assert should-be-true-0)
-     (snow-assert should-be-true-1))))
+     (begin
+       (snow-assert should-be-true-0)
+       (snow-assert should-be-true-1)))))
 
 
 ; 

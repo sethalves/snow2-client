@@ -46,7 +46,7 @@
 (define display-sxml srl:display-sxml)
 (define sxml->string srl:sxml->string)
 
-(define srl:apply-string-append string-concatenate)
+;; (define srl:apply-string-append string-concatenate)
 
 ;; override srl:conventional-ns-prefixes so that sxml->xml etc. use the extended list
 (define srl:conventional-ns-prefixes

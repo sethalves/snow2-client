@@ -9,7 +9,7 @@
   (cond-expand
    ((or chibi chicken)
     (import (srfi 95)))
-   ;; (gauche (import (srfi gauche-sort-utils)))
+   ;; (gauche (import (srfi gauche-95)))
    ;; (gauche (import (srfi-95)))
    (else))
   ;; (import (snow bytevector))

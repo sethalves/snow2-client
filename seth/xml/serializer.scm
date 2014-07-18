@@ -193,17 +193,17 @@
 ; Converts SXML atomic object to a string. Keeps non-atomic object unchanged.
 ; A simplified analogue of applying the XPath `string(.)' function to atomic
 ; object.
-(define (srl:atomic->string obj)
-  (cond
-    ((or (pair? obj)  ; non-atomic type
-         (string? obj)) obj)
-    ((number? obj)
-     (number->string obj))
-    ((boolean? obj)
-     (if obj "true" "false"))
-    (else  ; unexpected type
-     ; ATTENTION: should probably raise an error here
-     obj)))
+;; (define (srl:atomic->string obj)
+;;   (cond
+;;     ((or (pair? obj)  ; non-atomic type
+;;          (string? obj)) obj)
+;;     ((number? obj)
+;;      (number->string obj))
+;;     ((boolean? obj)
+;;      (if obj "true" "false"))
+;;     (else  ; unexpected type
+;;      ; ATTENTION: should probably raise an error here
+;;      obj)))
 
 ; Whether an SXML element is empty
 (define (srl:empty-elem? elem)
@@ -222,16 +222,16 @@
 ; Conventional namespace prefix referred to in XML-related specifications
 ; These prefixes are used for serializing the corresponding namespace URIs by
 ; default, unless a different prefix is supplied
-(define srl:conventional-ns-prefixes
-  '((dc . "http://purl.org/dc/elements/1.1/")
-    (fo . "http://www.w3.org/1999/XSL/Format")
-    (rdf . "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
-    (rng . "http://relaxng.org/ns/structure/1.0")
-    (xlink . "http://www.w3.org/1999/xlink")
-    (xqx . "http://www.w3.org/2005/XQueryX")
-    (xsd . "http://www.w3.org/2001/XMLSchema")
-    (xsi . "http://www.w3.org/2001/XMLSchema-instance")
-    (xsl . "http://www.w3.org/1999/XSL/Transform")))
+;; (define srl:conventional-ns-prefixes
+;;   '((dc . "http://purl.org/dc/elements/1.1/")
+;;     (fo . "http://www.w3.org/1999/XSL/Format")
+;;     (rdf . "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+;;     (rng . "http://relaxng.org/ns/structure/1.0")
+;;     (xlink . "http://www.w3.org/1999/xlink")
+;;     (xqx . "http://www.w3.org/2005/XQueryX")
+;;     (xsd . "http://www.w3.org/2001/XMLSchema")
+;;     (xsi . "http://www.w3.org/2001/XMLSchema-instance")
+;;     (xsl . "http://www.w3.org/1999/XSL/Transform")))
 
 ; Returns (listof <namespace-assoc>) for the given SXML element
 (define (srl:namespace-assoc-for-elem elem)
@@ -616,10 +616,10 @@
 ; Returns the string representation for a QName
 ; prefix-string ::= string or #f if the name contains no prefix
 ; TODO: should check names for proper characters
-(define (srl:qname->string prefix-string local-part)
-  (if prefix-string
-      (string-append prefix-string ":" local-part)
-      local-part))
+;; (define (srl:qname->string prefix-string local-part)
+;;   (if prefix-string
+;;       (string-append prefix-string ":" local-part)
+;;       local-part))
 
 ;-------------------------------------------------
 ; Different types of nodes
@@ -647,9 +647,9 @@
 ; for the namespace declaration. Inserts a whitespace symbol in the beginning
 ; ATTENTION: character escaping for namespace URI may be improper, study this
 ;  issue
-(define (srl:namespace-decl->str-lst prefix-string namespace-uri)
-  (list " xmlns:" prefix-string "=\""
-        (srl:string->att-value namespace-uri) "\""))
+;; (define (srl:namespace-decl->str-lst prefix-string namespace-uri)
+;;   (list " xmlns:" prefix-string "=\""
+;;         (srl:string->att-value namespace-uri) "\""))
 
 ; According to SXML specification,
 ;  <comment> ::=  ( *COMMENT* "comment string" )
@@ -744,67 +744,67 @@
 ;  namespace URI
 ; local-part - local part of the name
 ; declaration-required ::= #t | #f  - whether `prefix' has to be declared
-(define (srl:name->qname-components
-         name ns-prefix-assig namespace-assoc declared-ns-prefixes)
-  (let ((use-ns-id-or-generate-prefix
-         (lambda (ns-id)
-           (if
-            (and ns-id  ; try to use namespace-id as a prefix
-                 (not (assq (string->symbol ns-id) ns-prefix-assig))
-                 (not (assoc ns-id declared-ns-prefixes)))
-            ns-id
-            ; Otherwise - generate unique prefix
-            ; Returns a prefix-string not presented in ns-prefix-assig and
-            ; declared-ns-prefixes
-            (let loop ((i 1))
-              (let ((candidate (string-append "prfx" (number->string i))))
-                (if (or (assoc candidate declared-ns-prefixes)
-                        (assq (string->symbol candidate) ns-prefix-assig))
-                    (loop (+ i 1))
-                    candidate))))))
-        (n-parts (srl:split-name name)))
-    (cond
-      ((not (car n-parts))  ; no namespace-id => no namespace
-       (values #f #f (cdr n-parts)  ; name as a string
-               #f))
-      ((string-ci=? (car n-parts) "xml")  ; reserved XML namespace
-       (values (car n-parts) "http://www.w3.org/XML/1998/namespace"
-               (cdr n-parts) #f))
-      (else
-       (call-with-values
-        (lambda ()
-          (cond
-            ((assq (string->symbol (car n-parts))  ; suppose a namespace-id
-                   namespace-assoc)
-             => (lambda (lst)
-                  (values (cadr lst) (car n-parts))))
-            (else  ; first part of a name is a namespace URI
-             (values (car n-parts) #f))))
-        (lambda (namespace-uri ns-id)
-          (cond
-            ((srl:assoc-cdr-string= namespace-uri declared-ns-prefixes)
-             => (lambda (pair)
-                  ; Prefix for that namespace URI already declared
-                  (values (car pair) namespace-uri (cdr n-parts) #f)))
-            (else  ; namespace undeclared
-             (values
-              (cond
-                ((srl:assoc-cdr-string= namespace-uri ns-prefix-assig)
-                 => (lambda (pair)
-                      ; A candidate namespace prefix is supplied from the user
-                      (let ((candidate (symbol->string (car pair))))
-                        (if
-                         (assoc candidate declared-ns-prefixes)
-                         ; The prefix already bound to a different namespace
-                         ; Avoid XML prefix re-declaration
-                         (use-ns-id-or-generate-prefix ns-id)
-                         candidate))))
-                (else
-                 (use-ns-id-or-generate-prefix ns-id)))
-              namespace-uri
-              (cdr n-parts)
-              #t  ; in any case, prefix declaration is required
-              )))))))))
+;; (define (srl:name->qname-components
+;;          name ns-prefix-assig namespace-assoc declared-ns-prefixes)
+;;   (let ((use-ns-id-or-generate-prefix
+;;          (lambda (ns-id)
+;;            (if
+;;             (and ns-id  ; try to use namespace-id as a prefix
+;;                  (not (assq (string->symbol ns-id) ns-prefix-assig))
+;;                  (not (assoc ns-id declared-ns-prefixes)))
+;;             ns-id
+;;             ; Otherwise - generate unique prefix
+;;             ; Returns a prefix-string not presented in ns-prefix-assig and
+;;             ; declared-ns-prefixes
+;;             (let loop ((i 1))
+;;               (let ((candidate (string-append "prfx" (number->string i))))
+;;                 (if (or (assoc candidate declared-ns-prefixes)
+;;                         (assq (string->symbol candidate) ns-prefix-assig))
+;;                     (loop (+ i 1))
+;;                     candidate))))))
+;;         (n-parts (srl:split-name name)))
+;;     (cond
+;;       ((not (car n-parts))  ; no namespace-id => no namespace
+;;        (values #f #f (cdr n-parts)  ; name as a string
+;;                #f))
+;;       ((string-ci=? (car n-parts) "xml")  ; reserved XML namespace
+;;        (values (car n-parts) "http://www.w3.org/XML/1998/namespace"
+;;                (cdr n-parts) #f))
+;;       (else
+;;        (call-with-values
+;;         (lambda ()
+;;           (cond
+;;             ((assq (string->symbol (car n-parts))  ; suppose a namespace-id
+;;                    namespace-assoc)
+;;              => (lambda (lst)
+;;                   (values (cadr lst) (car n-parts))))
+;;             (else  ; first part of a name is a namespace URI
+;;              (values (car n-parts) #f))))
+;;         (lambda (namespace-uri ns-id)
+;;           (cond
+;;             ((srl:assoc-cdr-string= namespace-uri declared-ns-prefixes)
+;;              => (lambda (pair)
+;;                   ; Prefix for that namespace URI already declared
+;;                   (values (car pair) namespace-uri (cdr n-parts) #f)))
+;;             (else  ; namespace undeclared
+;;              (values
+;;               (cond
+;;                 ((srl:assoc-cdr-string= namespace-uri ns-prefix-assig)
+;;                  => (lambda (pair)
+;;                       ; A candidate namespace prefix is supplied from the user
+;;                       (let ((candidate (symbol->string (car pair))))
+;;                         (if
+;;                          (assoc candidate declared-ns-prefixes)
+;;                          ; The prefix already bound to a different namespace
+;;                          ; Avoid XML prefix re-declaration
+;;                          (use-ns-id-or-generate-prefix ns-id)
+;;                          candidate))))
+;;                 (else
+;;                  (use-ns-id-or-generate-prefix ns-id)))
+;;               namespace-uri
+;;               (cdr n-parts)
+;;               #t  ; in any case, prefix declaration is required
+;;               )))))))))
 
 ; Constructs start and end tags for an SXML element `elem'
 ; method ::= 'xml | 'html
@@ -814,96 +814,96 @@
 ; end-tag ::= (listof string) or #f for empty element
 ; TODO: escape URI attributes for HTML
 ; TODO: indentation probably should be made between attribute declarations
-(define (srl:construct-start-end-tags
-         elem method
-         ns-prefix-assig namespace-assoc declared-ns-prefixes)
-  (let ((ns-assoc-here (srl:namespace-assoc-for-elem elem))
-        (empty? (srl:empty-elem? elem)))
-    (let ((ns-prefix-assig
-           (append
-            (srl:extract-original-prefix-binding ns-assoc-here)
-            ns-prefix-assig))
-          (namespace-assoc
-           (append ns-assoc-here namespace-assoc)))
-      (call-with-values
-       (lambda ()           
-         (srl:name->qname-components  ; element name
-          (car elem) ns-prefix-assig namespace-assoc declared-ns-prefixes))
-       (lambda (elem-prefix elem-uri elem-local elem-decl-required?)
-         (let loop ((attrs
-                     (reverse
-                      ((srl:select-kids 
-                        (lambda (node)  ; not SXML 3.0 aux-list
-                          (and (pair? node) (not (eq? (car node) '@)))))
-                       ((srl:select-kids
-                         (lambda (node)
-                           (and (pair? node) (eq? (car node) '@))))
-                        elem))))
-                    (start-tag
-                     (if
-                      (or (not empty?)
-                          (and (eq? method 'html)
-                               (not elem-prefix)
-                               (srl:member-ci
-                                elem-local
-                                ; ATTENTION: should probably move this list
-                                ; to a global const
-                                '("area" "base" "basefont" "br" "col"
-                                  "frame" "hr" "img" "input" "isindex"
-                                  "link" "meta" "param"))))
-                      '(">") '(" />")))
-                    (ns-prefix-assig ns-prefix-assig)
-                    (namespace-assoc namespace-assoc)
-                    (declared-ns-prefixes
-                     ; As if element namespace already declared
-                     (if elem-decl-required?
-                         (cons (cons elem-prefix elem-uri)
-                               declared-ns-prefixes)
-                         declared-ns-prefixes)))
-           (if
-            (null? attrs)  ; attributes scanned
-            (let ((elem-name (srl:qname->string elem-prefix elem-local)))
-              (values
-               (cons "<"
-                     (cons elem-name
-                           (if
-                            elem-decl-required?
-                            (cons
-                             (srl:namespace-decl->str-lst elem-prefix elem-uri)
-                             start-tag)
-                            start-tag)))
-               (if empty? #f
-                   (list "</" elem-name ">"))
-               ns-prefix-assig
-               namespace-assoc
-               declared-ns-prefixes))
-            (call-with-values
-             (lambda ()
-               (srl:name->qname-components
-                (caar attrs)  ; attribute name
-                ns-prefix-assig namespace-assoc declared-ns-prefixes))
-             (lambda (attr-prefix attr-uri attr-local attr-decl-required?)
-               (let ((start-tag
-                      (cons
-                       (srl:attribute->str-lst
-                        attr-prefix attr-local
-                        ; TODO: optimize for HTML output method
-                        (if (null? (cdar attrs))  ; no attribute value
-                            attr-local
-                            (cadar attrs))
-                        method)
-                       start-tag)))
-                 (loop
-                  (cdr attrs)
-                  (if attr-decl-required?
-                      (cons (srl:namespace-decl->str-lst attr-prefix attr-uri)
-                            start-tag)
-                      start-tag)
-                  ns-prefix-assig
-                  namespace-assoc
-                  (if attr-decl-required?                      
-                      (cons (cons attr-prefix attr-uri) declared-ns-prefixes)
-                      declared-ns-prefixes))))))))))))
+;; (define (srl:construct-start-end-tags
+;;          elem method
+;;          ns-prefix-assig namespace-assoc declared-ns-prefixes)
+;;   (let ((ns-assoc-here (srl:namespace-assoc-for-elem elem))
+;;         (empty? (srl:empty-elem? elem)))
+;;     (let ((ns-prefix-assig
+;;            (append
+;;             (srl:extract-original-prefix-binding ns-assoc-here)
+;;             ns-prefix-assig))
+;;           (namespace-assoc
+;;            (append ns-assoc-here namespace-assoc)))
+;;       (call-with-values
+;;        (lambda ()           
+;;          (srl:name->qname-components  ; element name
+;;           (car elem) ns-prefix-assig namespace-assoc declared-ns-prefixes))
+;;        (lambda (elem-prefix elem-uri elem-local elem-decl-required?)
+;;          (let loop ((attrs
+;;                      (reverse
+;;                       ((srl:select-kids 
+;;                         (lambda (node)  ; not SXML 3.0 aux-list
+;;                           (and (pair? node) (not (eq? (car node) '@)))))
+;;                        ((srl:select-kids
+;;                          (lambda (node)
+;;                            (and (pair? node) (eq? (car node) '@))))
+;;                         elem))))
+;;                     (start-tag
+;;                      (if
+;;                       (or (not empty?)
+;;                           (and (eq? method 'html)
+;;                                (not elem-prefix)
+;;                                (srl:member-ci
+;;                                 elem-local
+;;                                 ; ATTENTION: should probably move this list
+;;                                 ; to a global const
+;;                                 '("area" "base" "basefont" "br" "col"
+;;                                   "frame" "hr" "img" "input" "isindex"
+;;                                   "link" "meta" "param"))))
+;;                       '(">") '(" />")))
+;;                     (ns-prefix-assig ns-prefix-assig)
+;;                     (namespace-assoc namespace-assoc)
+;;                     (declared-ns-prefixes
+;;                      ; As if element namespace already declared
+;;                      (if elem-decl-required?
+;;                          (cons (cons elem-prefix elem-uri)
+;;                                declared-ns-prefixes)
+;;                          declared-ns-prefixes)))
+;;            (if
+;;             (null? attrs)  ; attributes scanned
+;;             (let ((elem-name (srl:qname->string elem-prefix elem-local)))
+;;               (values
+;;                (cons "<"
+;;                      (cons elem-name
+;;                            (if
+;;                             elem-decl-required?
+;;                             (cons
+;;                              (srl:namespace-decl->str-lst elem-prefix elem-uri)
+;;                              start-tag)
+;;                             start-tag)))
+;;                (if empty? #f
+;;                    (list "</" elem-name ">"))
+;;                ns-prefix-assig
+;;                namespace-assoc
+;;                declared-ns-prefixes))
+;;             (call-with-values
+;;              (lambda ()
+;;                (srl:name->qname-components
+;;                 (caar attrs)  ; attribute name
+;;                 ns-prefix-assig namespace-assoc declared-ns-prefixes))
+;;              (lambda (attr-prefix attr-uri attr-local attr-decl-required?)
+;;                (let ((start-tag
+;;                       (cons
+;;                        (srl:attribute->str-lst
+;;                         attr-prefix attr-local
+;;                         ; TODO: optimize for HTML output method
+;;                         (if (null? (cdar attrs))  ; no attribute value
+;;                             attr-local
+;;                             (cadar attrs))
+;;                         method)
+;;                        start-tag)))
+;;                  (loop
+;;                   (cdr attrs)
+;;                   (if attr-decl-required?
+;;                       (cons (srl:namespace-decl->str-lst attr-prefix attr-uri)
+;;                             start-tag)
+;;                       start-tag)
+;;                   ns-prefix-assig
+;;                   namespace-assoc
+;;                   (if attr-decl-required?                      
+;;                       (cons (cons attr-prefix attr-uri) declared-ns-prefixes)
+;;                       declared-ns-prefixes))))))))))))
 
 
 
@@ -921,201 +921,201 @@
 ;  character escaping for the given node if it is a text node
 ; TODO: do not insert whitespaces adjacent to HTML %inline elements in HTML
 ; output method
-(define (srl:node->nested-str-lst-recursive
-         node method
-         ns-prefix-assig namespace-assoc declared-ns-prefixes
-         indentation space-preserve?
-         cdata-section-elements text-node-handler)
-  (if
-   (not (pair? node))  ; text node
-   (text-node-handler (srl:atomic->string node))
-   (case (car node)  ; node name
-     ((*COMMENT*)
-      (srl:comment->str-lst node))     
-     ((*PI*)
-      (srl:processing-instruction->str-lst node method))
-     ((&)
-      (srl:shtml-entity->char-data node))
-     ((*DECL*)  ; recovering for non-SXML nodes
-      '())
-     (else  ; otherwise - an element node
-      (call-with-values
-       (lambda ()
-         (srl:construct-start-end-tags
-          node method
-          ns-prefix-assig namespace-assoc declared-ns-prefixes))
-       (lambda (start-tag end-tag
-                          ns-prefix-assig namespace-assoc declared-ns-prefixes)
-         (if
-          (not end-tag)  ; empty element => recursion stops
-          start-tag
-          (let ((space-preserve?
-                 (srl:update-space-specifier node space-preserve?))
-                (text-node-handler
-                 (cond
-                   ((memq (car node) cdata-section-elements)
-                    srl:string->cdata-section)
-                   ((and (eq? method 'html)
-                         (srl:member-ci (symbol->string (car node))
-                                        '("script" "style")))
-                    ; No escaping for strings inside these HTML elements
-                    (lambda (str) str))
-                   (else
-                    srl:string->char-data)))
-                (content ((srl:select-kids
-                           (lambda (node)  ; TODO: support SXML entities
-                             (not (and (pair? node)
-                                       (memq (car node) '(@ @@ *ENTITY*))))))
-                          node)))
-            (call-with-values
-             (lambda ()
-               (cond
-                 ((or (not indentation)
-                      (and (eq? method 'html)
-                           (srl:member-ci
-                            (symbol->string (car node))
-                            '("pre" "script" "style" "textarea"))))
-                  ; No indent - on this level and subsequent levels
-                  (values #f #f))
-                 ((or space-preserve?
-                      (srl:mem-pred  ; at least a single text node
-                       (lambda (node) (not (pair? node)))
-                       content))
-                  ; No indent on this level, possible indent on nested levels
-                  (values #f indentation))
-                 (else
-                  (values (cons srl:newline indentation)
-                          (cons (car indentation) indentation)))))
-             (lambda (indent-here indent4recursive)
-               (if
-                indent-here
-                (append
-                 start-tag
-                 (map
-                  (lambda (kid)
-                    (list
-                     indent-here
-                     (srl:node->nested-str-lst-recursive
-                      kid method
-                      ns-prefix-assig namespace-assoc declared-ns-prefixes
-                      indent4recursive space-preserve?
-                      cdata-section-elements text-node-handler)))
-                  content)
-                 (cons srl:newline
-                       (cons (cdr indentation) end-tag)))
-                (append
-                 start-tag
-                 (map
-                  (lambda (kid)
-                    (srl:node->nested-str-lst-recursive
-                     kid method
-                     ns-prefix-assig namespace-assoc declared-ns-prefixes
-                     indent4recursive space-preserve?
-                     cdata-section-elements text-node-handler))
-                  content)
-                 end-tag))))))))))))
+;; (define (srl:node->nested-str-lst-recursive
+;;          node method
+;;          ns-prefix-assig namespace-assoc declared-ns-prefixes
+;;          indentation space-preserve?
+;;          cdata-section-elements text-node-handler)
+;;   (if
+;;    (not (pair? node))  ; text node
+;;    (text-node-handler (srl:atomic->string node))
+;;    (case (car node)  ; node name
+;;      ((*COMMENT*)
+;;       (srl:comment->str-lst node))     
+;;      ((*PI*)
+;;       (srl:processing-instruction->str-lst node method))
+;;      ((&)
+;;       (srl:shtml-entity->char-data node))
+;;      ((*DECL*)  ; recovering for non-SXML nodes
+;;       '())
+;;      (else  ; otherwise - an element node
+;;       (call-with-values
+;;        (lambda ()
+;;          (srl:construct-start-end-tags
+;;           node method
+;;           ns-prefix-assig namespace-assoc declared-ns-prefixes))
+;;        (lambda (start-tag end-tag
+;;                           ns-prefix-assig namespace-assoc declared-ns-prefixes)
+;;          (if
+;;           (not end-tag)  ; empty element => recursion stops
+;;           start-tag
+;;           (let ((space-preserve?
+;;                  (srl:update-space-specifier node space-preserve?))
+;;                 (text-node-handler
+;;                  (cond
+;;                    ((memq (car node) cdata-section-elements)
+;;                     srl:string->cdata-section)
+;;                    ((and (eq? method 'html)
+;;                          (srl:member-ci (symbol->string (car node))
+;;                                         '("script" "style")))
+;;                     ; No escaping for strings inside these HTML elements
+;;                     (lambda (str) str))
+;;                    (else
+;;                     srl:string->char-data)))
+;;                 (content ((srl:select-kids
+;;                            (lambda (node)  ; TODO: support SXML entities
+;;                              (not (and (pair? node)
+;;                                        (memq (car node) '(@ @@ *ENTITY*))))))
+;;                           node)))
+;;             (call-with-values
+;;              (lambda ()
+;;                (cond
+;;                  ((or (not indentation)
+;;                       (and (eq? method 'html)
+;;                            (srl:member-ci
+;;                             (symbol->string (car node))
+;;                             '("pre" "script" "style" "textarea"))))
+;;                   ; No indent - on this level and subsequent levels
+;;                   (values #f #f))
+;;                  ((or space-preserve?
+;;                       (srl:mem-pred  ; at least a single text node
+;;                        (lambda (node) (not (pair? node)))
+;;                        content))
+;;                   ; No indent on this level, possible indent on nested levels
+;;                   (values #f indentation))
+;;                  (else
+;;                   (values (cons srl:newline indentation)
+;;                           (cons (car indentation) indentation)))))
+;;              (lambda (indent-here indent4recursive)
+;;                (if
+;;                 indent-here
+;;                 (append
+;;                  start-tag
+;;                  (map
+;;                   (lambda (kid)
+;;                     (list
+;;                      indent-here
+;;                      (srl:node->nested-str-lst-recursive
+;;                       kid method
+;;                       ns-prefix-assig namespace-assoc declared-ns-prefixes
+;;                       indent4recursive space-preserve?
+;;                       cdata-section-elements text-node-handler)))
+;;                   content)
+;;                  (cons srl:newline
+;;                        (cons (cdr indentation) end-tag)))
+;;                 (append
+;;                  start-tag
+;;                  (map
+;;                   (lambda (kid)
+;;                     (srl:node->nested-str-lst-recursive
+;;                      kid method
+;;                      ns-prefix-assig namespace-assoc declared-ns-prefixes
+;;                      indent4recursive space-preserve?
+;;                      cdata-section-elements text-node-handler))
+;;                   content)
+;;                  end-tag))))))))))))
 
-(define (srl:display-node-out-recursive
-         node port method
-         ns-prefix-assig namespace-assoc declared-ns-prefixes
-         indentation space-preserve?
-         cdata-section-elements text-node-handler)
-  (if
-   (not (pair? node))  ; text node
-   (display (text-node-handler (srl:atomic->string node)) port)
-   (case (car node)  ; node name
-     ((*COMMENT*)
-      (for-each
-       (lambda (x) (display x port))
-       (srl:comment->str-lst node)))
-     ((*PI*)
-      (for-each
-       (lambda (x) (display x port))
-       (srl:processing-instruction->str-lst node method)))
-     ((&)
-      (display (srl:shtml-entity->char-data node) port))
-     ((*DECL*)  ; recovering for non-SXML nodes
-      #f)
-     (else  ; otherwise - an element node
-      (call-with-values
-       (lambda ()
-         (srl:construct-start-end-tags
-          node method
-          ns-prefix-assig namespace-assoc declared-ns-prefixes))
-       (lambda (start-tag end-tag
-                          ns-prefix-assig namespace-assoc declared-ns-prefixes)
-         (begin
-           (srl:display-fragments-2nesting start-tag port)
-           (if
-            end-tag  ; there exists content
-            (let ((space-preserve?
-                   (srl:update-space-specifier node space-preserve?))
-                  (text-node-handler
-                   (cond
-                     ((memq (car node) cdata-section-elements)
-                      srl:string->cdata-section)
-                     ((and (eq? method 'html)
-                           (srl:member-ci (symbol->string (car node))
-                                          '("script" "style")))
-                      ; No escaping for strings inside these HTML elements
-                      (lambda (str) str))
-                     (else
-                      srl:string->char-data)))
-                  (content ((srl:select-kids
-                             (lambda (node)  ; TODO: support SXML entities
-                               (not (and (pair? node)
-                                         (memq (car node) '(@ @@ *ENTITY*))))))
-                            node)))
-              (call-with-values
-               (lambda ()
-                 (cond
-                   ((or (not indentation)
-                        (and (eq? method 'html)
-                             (srl:member-ci
-                              (symbol->string (car node))
-                              '("pre" "script" "style" "textarea"))))
-                    ; No indent - on this level and subsequent levels
-                    (values #f #f))
-                   ((or space-preserve?
-                        (srl:mem-pred  ; at least a single text node
-                         (lambda (node) (not (pair? node)))
-                         content))
-                    ; No indent on this level, possible indent on nested levels
-                    (values #f indentation))
-                   (else
-                    (values (cons srl:newline indentation)
-                            (cons (car indentation) indentation)))))
-               (lambda (indent-here indent4recursive)
-                 (begin
-                   (for-each  ; display content
-                    (if
-                     indent-here
-                     (lambda (kid)
-                       (begin
-                         (for-each
-                          (lambda (x) (display x port))
-                          indent-here)
-                         (srl:display-node-out-recursive
-                          kid port method
-                          ns-prefix-assig namespace-assoc declared-ns-prefixes
-                          indent4recursive space-preserve?
-                          cdata-section-elements text-node-handler)))
-                     (lambda (kid)
-                       (srl:display-node-out-recursive
-                        kid port method
-                        ns-prefix-assig namespace-assoc declared-ns-prefixes
-                        indent4recursive space-preserve?
-                        cdata-section-elements text-node-handler)))
-                    content)
-                   (if indent-here
-                       (begin
-                         (display srl:newline port)
-                         (for-each
-                          (lambda (x) (display x port))
-                          (cdr indentation))))
-                   (for-each
-                    (lambda (x) (display x port))
-                    end-tag)))))))))))))
+;; (define (srl:display-node-out-recursive
+;;          node port method
+;;          ns-prefix-assig namespace-assoc declared-ns-prefixes
+;;          indentation space-preserve?
+;;          cdata-section-elements text-node-handler)
+;;   (if
+;;    (not (pair? node))  ; text node
+;;    (display (text-node-handler (srl:atomic->string node)) port)
+;;    (case (car node)  ; node name
+;;      ((*COMMENT*)
+;;       (for-each
+;;        (lambda (x) (display x port))
+;;        (srl:comment->str-lst node)))
+;;      ((*PI*)
+;;       (for-each
+;;        (lambda (x) (display x port))
+;;        (srl:processing-instruction->str-lst node method)))
+;;      ((&)
+;;       (display (srl:shtml-entity->char-data node) port))
+;;      ((*DECL*)  ; recovering for non-SXML nodes
+;;       #f)
+;;      (else  ; otherwise - an element node
+;;       (call-with-values
+;;        (lambda ()
+;;          (srl:construct-start-end-tags
+;;           node method
+;;           ns-prefix-assig namespace-assoc declared-ns-prefixes))
+;;        (lambda (start-tag end-tag
+;;                           ns-prefix-assig namespace-assoc declared-ns-prefixes)
+;;          (begin
+;;            (srl:display-fragments-2nesting start-tag port)
+;;            (if
+;;             end-tag  ; there exists content
+;;             (let ((space-preserve?
+;;                    (srl:update-space-specifier node space-preserve?))
+;;                   (text-node-handler
+;;                    (cond
+;;                      ((memq (car node) cdata-section-elements)
+;;                       srl:string->cdata-section)
+;;                      ((and (eq? method 'html)
+;;                            (srl:member-ci (symbol->string (car node))
+;;                                           '("script" "style")))
+;;                       ; No escaping for strings inside these HTML elements
+;;                       (lambda (str) str))
+;;                      (else
+;;                       srl:string->char-data)))
+;;                   (content ((srl:select-kids
+;;                              (lambda (node)  ; TODO: support SXML entities
+;;                                (not (and (pair? node)
+;;                                          (memq (car node) '(@ @@ *ENTITY*))))))
+;;                             node)))
+;;               (call-with-values
+;;                (lambda ()
+;;                  (cond
+;;                    ((or (not indentation)
+;;                         (and (eq? method 'html)
+;;                              (srl:member-ci
+;;                               (symbol->string (car node))
+;;                               '("pre" "script" "style" "textarea"))))
+;;                     ; No indent - on this level and subsequent levels
+;;                     (values #f #f))
+;;                    ((or space-preserve?
+;;                         (srl:mem-pred  ; at least a single text node
+;;                          (lambda (node) (not (pair? node)))
+;;                          content))
+;;                     ; No indent on this level, possible indent on nested levels
+;;                     (values #f indentation))
+;;                    (else
+;;                     (values (cons srl:newline indentation)
+;;                             (cons (car indentation) indentation)))))
+;;                (lambda (indent-here indent4recursive)
+;;                  (begin
+;;                    (for-each  ; display content
+;;                     (if
+;;                      indent-here
+;;                      (lambda (kid)
+;;                        (begin
+;;                          (for-each
+;;                           (lambda (x) (display x port))
+;;                           indent-here)
+;;                          (srl:display-node-out-recursive
+;;                           kid port method
+;;                           ns-prefix-assig namespace-assoc declared-ns-prefixes
+;;                           indent4recursive space-preserve?
+;;                           cdata-section-elements text-node-handler)))
+;;                      (lambda (kid)
+;;                        (srl:display-node-out-recursive
+;;                         kid port method
+;;                         ns-prefix-assig namespace-assoc declared-ns-prefixes
+;;                         indent4recursive space-preserve?
+;;                         cdata-section-elements text-node-handler)))
+;;                     content)
+;;                    (if indent-here
+;;                        (begin
+;;                          (display srl:newline port)
+;;                          (for-each
+;;                           (lambda (x) (display x port))
+;;                           (cdr indentation))))
+;;                    (for-each
+;;                     (lambda (x) (display x port))
+;;                     end-tag)))))))))))))
 
 ;-------------------------------------------------
 ; Serializing the document node - start of recursion
@@ -1134,111 +1134,111 @@
 ; omit-xml-declaration? ::= #t | #f
 ; standalone ::= 'yes | 'no | 'omit
 ; version ::= string | number
-(define (srl:top->nested-str-lst doc
-                                 cdata-section-elements indent
-                                 method ns-prefix-assig
-                                 omit-xml-declaration? standalone version)
-  (let* ((namespace-assoc (srl:ns-assoc-for-top doc))
-         (ns-prefix-assig
-          (append
-           (srl:extract-original-prefix-binding namespace-assoc)
-           ns-prefix-assig))
-         (serialized-content
-          (map
-           (if
-            indent  ; => output each member from the newline
-            (let ((indentation (list indent)))  ; for nested elements
-              (lambda (kid)
-                (list
-                 srl:newline
-                 (srl:node->nested-str-lst-recursive
-                  kid method
-                  ns-prefix-assig namespace-assoc '()
-                  indentation #f
-                  cdata-section-elements srl:string->char-data))))
-            (lambda (kid)
-              (srl:node->nested-str-lst-recursive
-               kid method
-               ns-prefix-assig namespace-assoc '()
-               indent #f
-               cdata-section-elements srl:string->char-data)))
-           ((srl:select-kids  ; document node content
-             (lambda (node)  ; TODO: support SXML entities
-               (not (and
-                     (pair? node) (memq (car node) '(@ @@ *ENTITY*))))))
-            doc))))
-    (if (or (eq? method 'html) omit-xml-declaration?)
-        (if (and indent (not (null? serialized-content)))
-            ; Remove the starting newline
-            ; ATTENTION: beware of `Gambit cadar bug':
-            ; http://mailman.iro.umontreal.ca/pipermail/gambit-list/
-            ;   2005-July/000315.html
-            (cons (cadar serialized-content) (cdr serialized-content))
-            serialized-content)
-        (list (srl:make-xml-decl version standalone) serialized-content))))
+;; (define (srl:top->nested-str-lst doc
+;;                                  cdata-section-elements indent
+;;                                  method ns-prefix-assig
+;;                                  omit-xml-declaration? standalone version)
+;;   (let* ((namespace-assoc (srl:ns-assoc-for-top doc))
+;;          (ns-prefix-assig
+;;           (append
+;;            (srl:extract-original-prefix-binding namespace-assoc)
+;;            ns-prefix-assig))
+;;          (serialized-content
+;;           (map
+;;            (if
+;;             indent  ; => output each member from the newline
+;;             (let ((indentation (list indent)))  ; for nested elements
+;;               (lambda (kid)
+;;                 (list
+;;                  srl:newline
+;;                  (srl:node->nested-str-lst-recursive
+;;                   kid method
+;;                   ns-prefix-assig namespace-assoc '()
+;;                   indentation #f
+;;                   cdata-section-elements srl:string->char-data))))
+;;             (lambda (kid)
+;;               (srl:node->nested-str-lst-recursive
+;;                kid method
+;;                ns-prefix-assig namespace-assoc '()
+;;                indent #f
+;;                cdata-section-elements srl:string->char-data)))
+;;            ((srl:select-kids  ; document node content
+;;              (lambda (node)  ; TODO: support SXML entities
+;;                (not (and
+;;                      (pair? node) (memq (car node) '(@ @@ *ENTITY*))))))
+;;             doc))))
+;;     (if (or (eq? method 'html) omit-xml-declaration?)
+;;         (if (and indent (not (null? serialized-content)))
+;;             ; Remove the starting newline
+;;             ; ATTENTION: beware of `Gambit cadar bug':
+;;             ; http://mailman.iro.umontreal.ca/pipermail/gambit-list/
+;;             ;   2005-July/000315.html
+;;             (cons (cadar serialized-content) (cdr serialized-content))
+;;             serialized-content)
+;;         (list (srl:make-xml-decl version standalone) serialized-content))))
 
-(define (srl:display-top-out doc port
-                             cdata-section-elements indent
-                             method ns-prefix-assig
-                             omit-xml-declaration? standalone version)  
-  (let ((no-xml-decl?  ; no XML declaration was displayed?
-         (if (not (or (eq? method 'html) omit-xml-declaration?))
-             (begin
-               (for-each  ; display xml declaration
-                (lambda (x) (display x port))
-                (srl:make-xml-decl version standalone))
-               #f)
-             #t))
-        (content  ; document node content
-         ((srl:select-kids
-           (lambda (node)  ; TODO: support SXML entities
-             (not (and
-                   (pair? node) (memq (car node) '(@ @@ *ENTITY*))))))
-          doc))
-        (namespace-assoc (srl:ns-assoc-for-top doc)))
-    (let ((ns-prefix-assig
-           (append
-            (srl:extract-original-prefix-binding namespace-assoc)
-            ns-prefix-assig)))
-      (cond
-        ((null? content)  ; generally a rare practical situation
-         #t)  ; nothing more to do
-        ((and indent no-xml-decl?)
-         ; We'll not display newline before (car content)
-         (let ((indentation (list indent)))  ; for nested elements
-           (for-each
-            (lambda (kid put-newline?)
-              (begin
-                (if put-newline?
-                    (display srl:newline port))
-                (srl:display-node-out-recursive
-                 kid port method
-                 ns-prefix-assig namespace-assoc '()
-                 indentation #f
-                 cdata-section-elements srl:string->char-data)))
-            content
-            ; After sequence normalization, content does not contain #f
-            (cons #f (cdr content)))))
-        (else
-         (for-each
-          (if
-           indent  ; => output each member from the newline
-           (let ((indentation (list indent)))  ; for nested elements
-             (lambda (kid)
-               (begin
-                 (display srl:newline port)
-                 (srl:display-node-out-recursive
-                  kid port method
-                  ns-prefix-assig namespace-assoc '()
-                  indentation #f
-                  cdata-section-elements srl:string->char-data))))
-           (lambda (kid)
-             (srl:display-node-out-recursive
-              kid port method
-              ns-prefix-assig namespace-assoc '()
-              indent #f
-              cdata-section-elements srl:string->char-data)))
-          content))))))
+;; (define (srl:display-top-out doc port
+;;                              cdata-section-elements indent
+;;                              method ns-prefix-assig
+;;                              omit-xml-declaration? standalone version)  
+;;   (let ((no-xml-decl?  ; no XML declaration was displayed?
+;;          (if (not (or (eq? method 'html) omit-xml-declaration?))
+;;              (begin
+;;                (for-each  ; display xml declaration
+;;                 (lambda (x) (display x port))
+;;                 (srl:make-xml-decl version standalone))
+;;                #f)
+;;              #t))
+;;         (content  ; document node content
+;;          ((srl:select-kids
+;;            (lambda (node)  ; TODO: support SXML entities
+;;              (not (and
+;;                    (pair? node) (memq (car node) '(@ @@ *ENTITY*))))))
+;;           doc))
+;;         (namespace-assoc (srl:ns-assoc-for-top doc)))
+;;     (let ((ns-prefix-assig
+;;            (append
+;;             (srl:extract-original-prefix-binding namespace-assoc)
+;;             ns-prefix-assig)))
+;;       (cond
+;;         ((null? content)  ; generally a rare practical situation
+;;          #t)  ; nothing more to do
+;;         ((and indent no-xml-decl?)
+;;          ; We'll not display newline before (car content)
+;;          (let ((indentation (list indent)))  ; for nested elements
+;;            (for-each
+;;             (lambda (kid put-newline?)
+;;               (begin
+;;                 (if put-newline?
+;;                     (display srl:newline port))
+;;                 (srl:display-node-out-recursive
+;;                  kid port method
+;;                  ns-prefix-assig namespace-assoc '()
+;;                  indentation #f
+;;                  cdata-section-elements srl:string->char-data)))
+;;             content
+;;             ; After sequence normalization, content does not contain #f
+;;             (cons #f (cdr content)))))
+;;         (else
+;;          (for-each
+;;           (if
+;;            indent  ; => output each member from the newline
+;;            (let ((indentation (list indent)))  ; for nested elements
+;;              (lambda (kid)
+;;                (begin
+;;                  (display srl:newline port)
+;;                  (srl:display-node-out-recursive
+;;                   kid port method
+;;                   ns-prefix-assig namespace-assoc '()
+;;                   indentation #f
+;;                   cdata-section-elements srl:string->char-data))))
+;;            (lambda (kid)
+;;              (srl:display-node-out-recursive
+;;               kid port method
+;;               ns-prefix-assig namespace-assoc '()
+;;               indent #f
+;;               cdata-section-elements srl:string->char-data)))
+;;           content))))))
 
 
 ;==========================================================================
