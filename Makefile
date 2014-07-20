@@ -68,6 +68,7 @@ install-libs:
 	find srfi -type f | while read I; do sudo install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
 	find snow -type f | while read I; do sudo install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
 	find seth -type f | while read I; do sudo install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
+	find chibi -type f | while read I; do sudo install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
 
 
 uninstall: uninstall-$(SCHEME) uninstall-libs
@@ -76,6 +77,7 @@ uninstall-libs:
 	find srfi -type f | while read I; do sudo rm -f "$(PACKAGE_DIR)/$$I"; done
 	find snow -type f | while read I; do sudo rm -f "$(PACKAGE_DIR)/$$I"; done
 	find seth -type f | while read I; do sudo rm -f "$(PACKAGE_DIR)/$$I"; done
+	find chibi -type f | while read I; do sudo rm -f "$(PACKAGE_DIR)/$$I"; done
 	- sudo rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*/*/*
 	- sudo rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*/*
 	- sudo rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*
