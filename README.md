@@ -19,8 +19,11 @@ Supported schemes are:
 
 <a href="http://code.google.com/p/chibi-scheme/">Chibi</a>,
 <a href="http://call-cc.org/">Chicken</a>,
+<a href="https://code.google.com/p/foment/">Foment</a>
 <a href="http://practical-scheme.net/gauche/">Gauche</a>,
 <a href="https://bitbucket.org/ktakashi/sagittarius-scheme/wiki/Home">Sagittarius</a>
+
+
 
 Other schemes will be supported when they support r7rs-style libraries.
 
@@ -52,6 +55,10 @@ chicken-install
 
 Additionally, some of the snow2 packages assume you have certain chicken eggs installed.
 
+### Foment
+
+Build Foment git.
+
 ### Gauche
 
 Build gauche from trunk (Gauche-0.9.3.3 isn't new enough).
@@ -68,7 +75,7 @@ Building
 make SCHEME=scheme install
 ```
 
-*scheme* can be any of chibi, chicken, gauche, sagittarius.  For example:
+*scheme* can be any of chibi, chicken, foment, gauche, sagittarius.  For example:
 
 ```
 make SCHEME=chicken install

@@ -5,6 +5,7 @@
 ifndef SCHEME
 $(info make SCHEME=chibi <target>)
 $(info make SCHEME=chicken <target>)
+$(info make SCHEME=foment <target>)
 $(info make SCHEME=gauche <target>)
 $(info make SCHEME=sagittarius <target>)
 $(info <target> should be one of: build clean install uninstall)
@@ -20,6 +21,13 @@ CHICKEN_COMPILER=csc -X r7rs -I $(PACKAGE_DIR)
 endif
 
 ifeq "$(SCHEME)" "chibi"
+SHARE=/usr/local/share
+TOP=$(shell dirname $(SHARE))
+PACKAGE_DIR=$(SHARE)/scheme
+BIN_DIR=$(TOP)/bin
+endif
+
+ifeq "$(SCHEME)" "foment"
 SHARE=/usr/local/share
 TOP=$(shell dirname $(SHARE))
 PACKAGE_DIR=$(SHARE)/scheme
@@ -117,6 +125,22 @@ uninstall-chibi:
 	sudo rm -f $(BIN_DIR)/snow2
 
 clean-chibi:
+
+
+#
+# foment
+#
+
+build-foment:
+
+install-foment:
+	sudo cp ./snow2-client-foment.scm $(BIN_DIR)/snow2
+
+uninstall-foment:
+	sudo rm -f $(BIN_DIR)/snow2
+
+clean-foment:
+
 
 
 #
