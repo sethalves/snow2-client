@@ -30,19 +30,16 @@ Other schemes will be supported when they support r7rs-style libraries.
 Requirements
 ============
 
-Last updated: 2014-04-20
+Last updated: 2014-07-20
 
 ### Chibi
 
-The only requirement is to build chibi-scheme from trunk (chibi-scheme-0.6.1 isn't new enough).  See
-
-  http://code.google.com/p/chibi-scheme/source/checkout
+Snow2 works with Chibi-Scheme 0.7.  Chibi also comes with its own client
+called snow-chibi.
 
 ### CHICKEN
 
-Snow2 requires CHICKEN built from trunk (chicken-4.8.0.5 isn't new enough).  See
-
-http://code.call-cc.org/
+CHICKEN 4.9.0.1 or newer is required to run snow2.
 
 Running under CHICKEN requires that several eggs be installed:
 
@@ -50,7 +47,7 @@ Running under CHICKEN requires that several eggs be installed:
 chicken-install srfi-27 srfi-29 srfi-37 http-client openssl udp r7rs
 ```
 
-Additionally, some of the snow2 packages assume you have certain chicken eggs installed.
+Additionally, some packages assume you have certain chicken eggs installed.
 
 ### Foment
 
@@ -58,7 +55,7 @@ Build Foment from git.
 
 ### Gauche
 
-Build gauche from trunk (Gauche-0.9.3.3 isn't new enough).
+Gauche 0.9.4 can run snow2.
 
 ### Sagittarius
 
