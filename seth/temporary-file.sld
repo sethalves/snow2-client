@@ -1,6 +1,7 @@
 (define-library (seth temporary-file)
   (export temporary-file)
-  (import (scheme base))
+  (import (scheme base)
+          (scheme process-context))
   (import (srfi 27))
   (cond-expand
    (chibi
@@ -21,6 +22,12 @@
 
     (random-source-randomize! default-random-source)
 
+    (define (env-tmp)
+      (let ((tmp (get-environment-variable "TMP")))
+        (if (and tmp (not (equal? tmp "")))
+            tmp
+            "/tmp")))
+
 
     (cond-expand
      (chicken
@@ -29,7 +36,7 @@
         ;; has create-temporary-file
         (let-values (((fd temp-path)
                       (file-mkstemp
-                       (string-append "/tmp/tmp-"
+                       (string-append (env-tmp) "/tmp-"
                                       (number->string (current-process-id))
                                       ".XXXXXX"))))
           (values (open-output-file* fd) temp-path))))
@@ -39,7 +46,7 @@
                           open-binary-output-file
                           open-output-file)))
           (let ((temp-path
-                 (string-append "/tmp/tmp-"
+                 (string-append (env-tmp) "/tmp-"
                                 (number->string (current-process-id))
                                 "."
                                 (number->string
@@ -50,7 +57,7 @@
       (define (temporary-file . maybe-binary)
         (let ((bin (and (pair? maybe-binary) (car maybe-binary))))
           (let ((temp-path
-                 (string-append "/tmp"
+                 (string-append (env-tmp)
                                 "/tmp"
                                 "."
                                 (number->string

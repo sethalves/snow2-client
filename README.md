@@ -44,13 +44,10 @@ Snow2 requires CHICKEN built from trunk (chicken-4.8.0.5 isn't new enough).  See
 
 http://code.call-cc.org/
 
-Running under CHICKEN requires that several eggs be installed, one from svn.
+Running under CHICKEN requires that several eggs be installed:
 
 ```
-chicken-install srfi-27 srfi-29 srfi-37 http-client openssl udp
-svn co https://code.call-cc.org/svn/chicken-eggs/release/4/r7rs/trunk r7rs
-cd r7rs
-chicken-install
+chicken-install srfi-27 srfi-29 srfi-37 http-client openssl udp r7rs
 ```
 
 Additionally, some of the snow2 packages assume you have certain chicken eggs installed.

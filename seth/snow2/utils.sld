@@ -445,6 +445,7 @@
                  (display "couldn't find library: " (current-error-port))
                  (write library-name (current-error-port))
                  (newline (current-error-port))
+                 (flush-output-port (current-error-port))
                  '())
                 ;; XXX rather than just taking the last one,
                 ;; select one based on version requirements, etc

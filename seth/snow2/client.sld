@@ -420,14 +420,18 @@
         (display "Add to list of snow2 repositories.\n"
                  (current-error-port))
         (display "  -s --symlink         " (current-error-port))
-        (display "Make symlinks to a repo's source files.\n")
+        (display "Make symlinks to a repo's source files.\n"
+                 (current-error-port))
         (display "  -v --verbose         " (current-error-port))
         (display "Print more.\n" (current-error-port))
         (display "  -h --help            " (current-error-port))
         (display "Print usage message.\n" (current-error-port))
-        (display "\nExample: snow2 install '(snow hello)'\n")
-        (display "\nsee ")
-        (display "https://github.com/sethalves/snow2-client#snow2-client\n")
+        (display "\nExample: snow2 install '(snow hello)'\n"
+                 (current-error-port))
+        (display "\nsee "
+                 (current-error-port))
+        (display "https://github.com/sethalves/snow2-client#snow2-client\n"
+                 (current-error-port))
         (exit 1)))
 
 
