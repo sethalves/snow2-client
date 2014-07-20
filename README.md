@@ -57,7 +57,7 @@ Additionally, some of the snow2 packages assume you have certain chicken eggs in
 
 ### Foment
 
-Build Foment git.
+Build Foment from git.
 
 ### Gauche
 
