@@ -1,13 +1,8 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: snow2-client
-Source: <url://example.com>
+Source: https://github.com/sethalves/snow2-client
 
 Files: *
-Copyright: <years> <put author's name and email here>
-           <years> <likewise for another author>
-License: BSD-3-Clause
-
-Files: debian/*
 Copyright: 2014 Seth Alves <alves@hungry.com>
 License: BSD-3-Clause
 
