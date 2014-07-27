@@ -1,0 +1,15 @@
+Source: snow2-client
+Section: unknown
+Priority: optional
+Maintainer: Seth Alves <alves@hungry.com>
+Build-Depends: debhelper (>= 8.0.0)
+Standards-Version: 3.9.4
+Homepage: <insert the upstream URL, if relevant>
+#Vcs-Git: git://git.debian.org/collab-maint/snow2-client.git
+#Vcs-Browser: http://git.debian.org/?p=collab-maint/snow2-client.git;a=summary
+
+Package: snow2-client
+Architecture: all
+Depends: ${misc:Depends}
+Description: <insert up to 60 chars description>
+ <insert long description, indented with spaces>

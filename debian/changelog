@@ -1,0 +1,5 @@
+snow2-client (0.1-1) unstable; urgency=low
+
+  * Initial release (Closes: #nnnn)  <nnnn is the bug number of your ITP>
+
+ -- Seth Alves <alves@hungry.com>  Sun, 27 Jul 2014 15:35:26 -0700

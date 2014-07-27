@@ -12,12 +12,9 @@ $(error <target> should be one of: build clean install uninstall)
 endif
 
 ifeq "$(SCHEME)" "chicken"
-CHICKEN_HOME=$(shell csi -e '(display (chicken-home))')
-SHARE=$(shell dirname $(CHICKEN_HOME))
-TOP=$(shell dirname $(SHARE))
-PACKAGE_DIR=$(SHARE)/scheme
-BIN_DIR=$(TOP)/bin
-CHICKEN_COMPILER=csc -X r7rs -I $(PACKAGE_DIR)
+PACKAGE_DIR=$(DESTDIR)/usr/share/snow2-chicken
+BIN_DIR=$(DESTDIR)/$(DESTDIR)/usr/bin
+CHICKEN_COMPILER=csc -X r7rs
 EGGS=$(shell chicken-status -e)
   ifneq ($(findstring srfi-27, $(EGGS)), srfi-27)
     $(error 'missing srfi-27 egg')
@@ -43,23 +40,23 @@ EGGS=$(shell chicken-status -e)
 endif
 
 ifeq "$(SCHEME)" "chibi"
-PACKAGE_DIR=/usr/local/share/snow2-chibi
-BIN_DIR=/usr/local/bin
+PACKAGE_DIR=$(DESTDIR)/usr/share/snow2-chibi
+BIN_DIR=$(DESTDIR)/usr/bin
 endif
 
 ifeq "$(SCHEME)" "foment"
-PACKAGE_DIR=/usr/local/share/snow2-foment
-BIN_DIR=/usr/local/bin
+PACKAGE_DIR=$(DESTDIR)/usr/share/snow2-foment
+BIN_DIR=$(DESTDIR)/usr/bin
 endif
 
 ifeq "$(SCHEME)" "gauche"
-PACKAGE_DIR=/usr/local/share/snow2-gauche
-BIN_DIR=/usr/local/bin
+PACKAGE_DIR=$(DESTDIR)/usr/share/snow2-gauche
+BIN_DIR=$(DESTDIR)/usr/bin
 endif
 
 ifeq "$(SCHEME)" "sagittarius"
-PACKAGE_DIR=/usr/local/share/snow2-sagittarius
-BIN_DIR=/usr/local/bin
+PACKAGE_DIR=$(DESTDIR)/usr/share/snow2-sagittarius
+BIN_DIR=$(DESTDIR)/usr/bin
 endif
 
 
