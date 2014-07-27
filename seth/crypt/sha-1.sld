@@ -1,6 +1,6 @@
 (define-library (seth crypt sha-1)
   (export sha-1)
-  (import (scheme base))
+  (import (scheme base) (scheme write))
   (cond-expand
    (chibi (import (snow bytevector) (srfi 60)))
    (chicken (import (message-digest) (sha1)))
@@ -82,7 +82,9 @@
           (define (+w . vals)
             (bitwise-and (apply + vals) #xffffffff))
 
-          (define (left-rotate v n)
+          (define (left-rotate v n . verbose)
+            (cond ((pair? verbose)
+                   (display "v=") (write v) (newline)))
             (bitwise-ior
              (bitwise-and (arithmetic-shift v n) #xffffffff)
              (arithmetic-shift v (- (- 32 n)))))
@@ -134,6 +136,7 @@
                        (sha1-D sha1-H3)
                        (sha1-E sha1-H4)
                        (t 0))
+              (write (list sha1-A sha1-B sha1-C sha1-D sha1-E)) (newline)
               ;; d. For t = 0 to 79 do
               ;;    TEMP = S^5(A) + f(t;B,C,D) + E + W(t) + K(t);
               ;;    E = D;  D = C;  C = S^30(B);  B = A; A = TEMP;
@@ -145,7 +148,7 @@
                                    (sha1-K t))))
                     (loop temp
                           sha1-A
-                          (left-rotate sha1-B 30)
+                          (left-rotate sha1-B 30 #t)
                           sha1-C
                           sha1-D
                           (+ t 1)))

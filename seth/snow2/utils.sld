@@ -366,11 +366,11 @@
                                          (href "index.css"))))
                 (html:body
                  (html:h1
-                  (if (and
+                  ,(if (and
+                        (snow2-repository-name repository)
+                        (not (equal? "" (snow2-repository-name repository))))
                        (snow2-repository-name repository)
-                       (not (equal? "" (snow2-repository-name repository))))
-                      (snow2-repository-name repository)
-                      "Snow2 Repository"))
+                       "Snow2 Repository"))
 
                  (html:h2 "Siblings")
                  ,@(map sibling->html (snow2-repository-siblings repository))
