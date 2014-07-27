@@ -89,7 +89,7 @@ Running
 ```
 $ snow2 -h
 snow2 [arguments] <operation> '(library name)' ...
-  <operation> can be one of: install uninstall list-depends search check
+  <operation> can be one of: install uninstall list-depends search
   -r --repo <url>      Add to list of snow2 repositories.
   -s --symlink         Make symlinks to a repo's source files.
   -v --verbose         Print more.
@@ -131,10 +131,6 @@ the mentioned libraries will be printed.
 
 Display a list of libraries which have names that are matched by
 a substring search with the provided argument.
-
-#### check
-
-This is a lint-like function for use on repository sources.
 
 ### examples
 
