@@ -21,36 +21,27 @@ CHICKEN_COMPILER=csc -X r7rs -I $(PACKAGE_DIR)
 endif
 
 ifeq "$(SCHEME)" "chibi"
-SHARE=/usr/local/share
-TOP=$(shell dirname $(SHARE))
-PACKAGE_DIR=$(SHARE)/scheme
-BIN_DIR=$(TOP)/bin
+PACKAGE_DIR=/usr/local/share/snow2-chibi
+BIN_DIR=/usr/local/bin
 endif
 
 ifeq "$(SCHEME)" "foment"
-SHARE=/usr/local/share
-TOP=$(shell dirname $(SHARE))
-PACKAGE_DIR=$(SHARE)/scheme
-BIN_DIR=$(TOP)/bin
+PACKAGE_DIR=/usr/local/share/snow2-foment
+BIN_DIR=/usr/local/bin
 endif
 
 ifeq "$(SCHEME)" "gauche"
-SHARE=/usr/local/share
-TOP=$(shell dirname $(SHARE))
-PACKAGE_DIR=$(SHARE)/scheme
-BIN_DIR=$(TOP)/bin
+PACKAGE_DIR=/usr/local/share/snow2-gauche
+BIN_DIR=/usr/local/bin
 endif
 
 ifeq "$(SCHEME)" "sagittarius"
-SHARE=/usr/local/share
-TOP=$(shell dirname $(SHARE))
-PACKAGE_DIR=$(SHARE)/scheme
-BIN_DIR=$(TOP)/bin
+PACKAGE_DIR=/usr/local/share/snow2-sagittarius
+BIN_DIR=/usr/local/bin
 endif
 
 
-
-all:
+all: build
 
 links:
 	rm -rf snow seth srfi
@@ -61,27 +52,26 @@ links:
 
 build: build-$(SCHEME)
 
-install: build install-libs install-$(SCHEME)
+install: build install-$(SCHEME)
 
 install-libs:
-	sudo mkdir -p $(PACKAGE_DIR)
-	find srfi -type f | while read I; do sudo install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
-	find snow -type f | while read I; do sudo install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
-	find seth -type f | while read I; do sudo install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
-	find chibi -type f | while read I; do sudo install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
+	mkdir -p $(PACKAGE_DIR)
+	find srfi -type f | while read I; do install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
+	find snow -type f | while read I; do install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
+	find seth -type f | while read I; do install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
+	find chibi -type f | while read I; do install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
 
 
-uninstall: uninstall-$(SCHEME) uninstall-libs
+uninstall: uninstall-$(SCHEME)
 
 uninstall-libs:
-	find srfi -type f | while read I; do sudo rm -f "$(PACKAGE_DIR)/$$I"; done
-	find snow -type f | while read I; do sudo rm -f "$(PACKAGE_DIR)/$$I"; done
-	find seth -type f | while read I; do sudo rm -f "$(PACKAGE_DIR)/$$I"; done
-	find chibi -type f | while read I; do sudo rm -f "$(PACKAGE_DIR)/$$I"; done
-	- sudo rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*/*/*
-	- sudo rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*/*
-	- sudo rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*
-	sudo rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)
+	find srfi -type f | while read I; do rm -f "$(PACKAGE_DIR)/$$I"; done
+	find snow -type f | while read I; do rm -f "$(PACKAGE_DIR)/$$I"; done
+	find seth -type f | while read I; do rm -f "$(PACKAGE_DIR)/$$I"; done
+	find chibi -type f | while read I; do rm -f "$(PACKAGE_DIR)/$$I"; done
+	- rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*/*/*
+	- rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*/*
+	- rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*
 
 
 clean: clean-$(SCHEME)
@@ -89,20 +79,38 @@ clean: clean-$(SCHEME)
 
 
 #
+# chibi
+#
+
+build-chibi:
+
+install-chibi: install-libs
+	cp ./snow2-client-chibi.scm $(PACKAGE_DIR)/snow2
+	rm -f $(BIN_DIR)/snow2
+	ln -s $(PACKAGE_DIR)/snow2 $(BIN_DIR)/snow2
+
+uninstall-chibi: uninstall-libs
+	rm -f $(BIN_DIR)/snow2
+	rm -f $(PACKAGE_DIR)/snow2
+	rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)
+
+clean-chibi:
+
+
+#
 # chicken
 #
 
-build-chicken:
-	$(CHICKEN_COMPILER) snow2-client-chicken.scm -o snow2
+snow2-client-chicken: snow2-client-chicken.scm snow seth srfi chibi
+	$(CHICKEN_COMPILER) snow2-client-chicken.scm -o snow2-client-chicken
 
-# install-chicken:
-# 	sudo cp ./snow2-client-chicken.scm $(BIN_DIR)/snow2
+build-chicken: snow2-client-chicken
 
 install-chicken: build-chicken
-	sudo cp ./snow2 $(BIN_DIR)
+	install ./snow2-client-chicken $(BIN_DIR)/snow2
 
 uninstall-chicken:
-	sudo rm -f $(BIN_DIR)/snow2
+	rm -f $(BIN_DIR)/snow2
 
 clean-chicken:
 	rm -f snow2
@@ -115,34 +123,22 @@ bootstrap-chicken: links
 	make SCHEME=chicken build
 
 #
-# chibi
-#
-
-build-chibi:
-
-install-chibi:
-	sudo cp ./snow2-client-chibi.scm $(BIN_DIR)/snow2
-
-uninstall-chibi:
-	sudo rm -f $(BIN_DIR)/snow2
-
-clean-chibi:
-
-
-#
 # foment
 #
 
 build-foment:
 
-install-foment:
-	sudo cp ./snow2-client-foment.scm $(BIN_DIR)/snow2
+install-foment: install-libs
+	cp ./snow2-client-foment.scm $(PACKAGE_DIR)/snow2
+	rm -f $(BIN_DIR)/snow2
+	ln -s $(PACKAGE_DIR)/snow2 $(BIN_DIR)/snow2
 
-uninstall-foment:
-	sudo rm -f $(BIN_DIR)/snow2
+uninstall-foment: uninstall-libs
+	rm -f $(BIN_DIR)/snow2
+	rm -f $(PACKAGE_DIR)/snow2
+	rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)
 
 clean-foment:
-
 
 
 #
@@ -151,14 +147,17 @@ clean-foment:
 
 build-gauche:
 
-install-gauche:
-	sudo cp ./snow2-client-gauche.scm $(BIN_DIR)/snow2
+install-gauche: install-libs
+	cp ./snow2-client-gauche.scm $(PACKAGE_DIR)/snow2
+	rm -f $(BIN_DIR)/snow2
+	ln -s $(PACKAGE_DIR)/snow2 $(BIN_DIR)/snow2
 
-uninstall-gauche:
-	sudo rm -f $(BIN_DIR)/snow2
+uninstall-gauche: uninstall-libs
+	rm -f $(BIN_DIR)/snow2
+	rm -f $(PACKAGE_DIR)/snow2
+	rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)
 
 clean-gauche:
-
 
 
 #
@@ -167,11 +166,14 @@ clean-gauche:
 
 build-sagittarius:
 
-install-sagittarius:
-	sudo cp ./snow2-client-sagittarius.scm $(BIN_DIR)/snow2
+install-sagittarius: install-libs
+	cp ./snow2-client-sagittarius.scm $(PACKAGE_DIR)/snow2
+	rm -f $(BIN_DIR)/snow2
+	ln -s $(PACKAGE_DIR)/snow2 $(BIN_DIR)/snow2
 
-uninstall-sagittarius:
-	sudo rm -f $(BIN_DIR)/snow2
+uninstall-sagittarius: uninstall-libs
+	rm -f $(BIN_DIR)/snow2
+	rm -f $(PACKAGE_DIR)/snow2
+	rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)
 
 clean-sagittarius:
-
