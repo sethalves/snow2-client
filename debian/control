@@ -6,7 +6,7 @@ Build-Depends: debhelper (>= 8.0.0)
 Standards-Version: 3.9.4
 Homepage: https://github.com/sethalves/snow2-client
 Package: snow2-client
-Architecture: all
-Depends: ${misc:Depends}
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Client for snow2 repositories
  snow2-client is experimental software for finding and installing scheme libraries which are portable between r7rs schemes.
