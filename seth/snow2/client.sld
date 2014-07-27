@@ -415,7 +415,7 @@
                  (current-error-port))
         (display "  <operation> can be one of: install " (current-error-port))
         (display "uninstall list-depends " (current-error-port))
-        (display "search check\n" (current-error-port))
+        (display "search\n" (current-error-port))
         (display "  -r --repo <url>      " (current-error-port))
         (display "Add to list of snow2 repositories.\n"
                  (current-error-port))
