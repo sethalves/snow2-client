@@ -62,8 +62,8 @@ Gauche 0.9.4 can run snow2.
 Snow2 works with sagittarius-0.5.3.
 
 
-Building
-========
+Installation
+============
 
 ```
 make SCHEME=scheme install
@@ -77,11 +77,10 @@ make SCHEME=chicken install
 
 snow2 will be placed in /usr/local/bin/
 
-Some libraries will be placed in /usr/local/share/scheme/
+Some libraries may be placed in /usr/local/share/
 
-You can also use "build" rather than "install", but only CHICKEN's
-compiled version will work when the user's current working directory
-isn't the snow2 source directory.
+You can also use "build" rather than "install".  This does nothing unless
+SCHEME=chicken, in which case it compiles the client.
 
 
 Running
@@ -132,6 +131,10 @@ the mentioned libraries will be printed.
 
 Display a list of libraries which have names that are matched by
 a substring search with the provided argument.
+
+#### check
+
+This is a lint-like function for use on repository sources.
 
 ### examples
 
