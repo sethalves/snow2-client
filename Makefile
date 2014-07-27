@@ -8,7 +8,7 @@ $(info make SCHEME=chicken <target>)
 $(info make SCHEME=foment <target>)
 $(info make SCHEME=gauche <target>)
 $(info make SCHEME=sagittarius <target>)
-$(info <target> should be one of: build clean install uninstall)
+$(error <target> should be one of: build clean install uninstall)
 endif
 
 ifeq "$(SCHEME)" "chicken"
@@ -18,6 +18,27 @@ TOP=$(shell dirname $(SHARE))
 PACKAGE_DIR=$(SHARE)/scheme
 BIN_DIR=$(TOP)/bin
 CHICKEN_COMPILER=csc -X r7rs -I $(PACKAGE_DIR)
+  ifneq ($(shell chicken-status -e | grep "srfi-27"), srfi-27)
+    $(error 'missing srfi-27 egg')
+  endif
+  ifneq ($(shell chicken-status -e | grep "srfi-29"), srfi-29)
+    $(error 'missing srfi-29 egg')
+  endif
+  ifneq ($(shell chicken-status -e | grep "srfi-37"), srfi-37)
+    $(error 'missing srfi-37 egg')
+  endif
+  ifneq ($(shell chicken-status -e | grep "http-client"), http-client)
+    $(error 'missing http-client egg')
+  endif
+  ifneq ($(shell chicken-status -e | grep "openssl"), openssl)
+    $(error 'missing openssl egg')
+  endif
+  ifneq ($(shell chicken-status -e | grep "udp"), udp)
+    $(error 'missing udp egg')
+  endif
+  ifneq ($(shell chicken-status -e | grep "r7rs"), r7rs)
+    $(error 'missing r7rs egg')
+  endif
 endif
 
 ifeq "$(SCHEME)" "chibi"
@@ -106,6 +127,7 @@ snow2-client-chicken: snow2-client-chicken.scm snow seth srfi chibi
 	$(CHICKEN_COMPILER) snow2-client-chicken.scm -o snow2-client-chicken
 
 build-chicken: snow2-client-chicken
+
 
 install-chicken: build-chicken
 	rm -f $(BIN_DIR)/snow2
