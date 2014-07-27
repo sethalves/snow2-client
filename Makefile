@@ -43,13 +43,6 @@ endif
 
 all: build
 
-links:
-	rm -rf snow seth srfi
-	ln -s ../snow2-packages/snow/snow snow
-	ln -s ../snow2-packages/seth/seth seth
-	ln -s ../r7rs-srfis/srfi srfi
-
-
 build: build-$(SCHEME)
 
 install: build install-$(SCHEME)
@@ -76,6 +69,14 @@ uninstall-libs:
 
 clean: clean-$(SCHEME)
 	rm -f *~
+
+bootstrap: bootstrap-$(SCHEME)
+
+links:
+	rm -rf snow seth srfi
+	ln -s ../snow2-packages/snow/snow snow
+	ln -s ../snow2-packages/seth/seth seth
+	ln -s ../r7rs-srfis/srfi srfi
 
 
 #
@@ -116,11 +117,9 @@ uninstall-chicken:
 clean-chicken:
 	rm -f snow2-client-chicken snow2-client-chicken.c
 
-bootstrap-chicken: links
-	rm -f snow2
-	make SCHEME=chicken build
+bootstrap-chicken: clean-chicken links build-chicken
 	rm -rf snow seth srfi
-	./snow2 -:a40 install '(seth snow2 types)'
+	./snow2-client-chicken -:a40 install '(seth snow2 types)'
 	make SCHEME=chicken build
 
 #
