@@ -18,25 +18,26 @@ TOP=$(shell dirname $(SHARE))
 PACKAGE_DIR=$(SHARE)/scheme
 BIN_DIR=$(TOP)/bin
 CHICKEN_COMPILER=csc -X r7rs -I $(PACKAGE_DIR)
-  ifneq ($(shell chicken-status -e | grep "srfi-27"), srfi-27)
+EGGS=$(shell chicken-status -e)
+  ifneq ($(findstring srfi-27, $(EGGS)), srfi-27)
     $(error 'missing srfi-27 egg')
   endif
-  ifneq ($(shell chicken-status -e | grep "srfi-29"), srfi-29)
+  ifneq ($(findstring srfi-29, $(EGGS)), srfi-29)
     $(error 'missing srfi-29 egg')
   endif
-  ifneq ($(shell chicken-status -e | grep "srfi-37"), srfi-37)
+  ifneq ($(findstring srfi-37, $(EGGS)), srfi-37)
     $(error 'missing srfi-37 egg')
   endif
-  ifneq ($(shell chicken-status -e | grep "http-client"), http-client)
+  ifneq ($(findstring http-client, $(EGGS)), http-client)
     $(error 'missing http-client egg')
   endif
-  ifneq ($(shell chicken-status -e | grep "openssl"), openssl)
+  ifneq ($(findstring openssl, $(EGGS)), openssl)
     $(error 'missing openssl egg')
   endif
-  ifneq ($(shell chicken-status -e | grep "udp"), udp)
+  ifneq ($(findstring udp, $(EGGS)), udp)
     $(error 'missing udp egg')
   endif
-  ifneq ($(shell chicken-status -e | grep "r7rs"), r7rs)
+  ifneq ($(findstring r7rs, $(EGGS)), r7rs)
     $(error 'missing r7rs egg')
   endif
 endif
