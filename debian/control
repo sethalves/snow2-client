@@ -4,10 +4,10 @@ Priority: optional
 Maintainer: Seth Alves <alves@hungry.com>
 Build-Depends: debhelper (>= 8.0.0)
 Standards-Version: 3.9.4
-
 Homepage: https://github.com/sethalves/snow2-client
+
 Package: snow2-client-chicken
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Architecture: all
+Depends: ${misc:Depends}
 Description: Client for snow2 repositories
  snow2-client is a tool for finding and installing scheme libraries which are portable between r7rs schemes.

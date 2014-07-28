@@ -8,14 +8,17 @@ export DH_VERBOSE=1
 # 	dh $@ 
 
 clean:
-	make SCHEME=chicken clean
+	make clean
 
 build:
 	make SCHEME=chicken build
 
-binary: build install
+binary:
+	# nothing
+
+binary-indep: build install
 
 install:
 	mkdir -p $(CURDIR)/debian/snow2-client/usr/bin
 	mkdir -p $(CURDIR)/debian/snow2-client/usr/share
-	$(MAKE) DESTDIR=$(CURDIR)/debian/snow2-client install
+	$(MAKE) DESTDIR=$(CURDIR)/debian/snow2-client SCHEME=chicken install
