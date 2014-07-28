@@ -44,7 +44,7 @@ CHICKEN 4.9.0.1 or newer is required to run snow2.
 Running under CHICKEN requires that several eggs be installed:
 
 ```
-chicken-install srfi-27 srfi-29 srfi-37 http-client openssl udp r7rs
+chicken-install srfi-19 srfi-27 srfi-29 srfi-37 srfi-95 http-client openssl udp r7rs ssax sxpath hmac sha1
 ```
 
 Additionally, some packages assume you have certain chicken eggs installed.

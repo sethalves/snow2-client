@@ -2,40 +2,31 @@
 #
 #
 
-ifndef SCHEME
-$(info make SCHEME=chibi <target>)
-$(info make SCHEME=chicken <target>)
-$(info make SCHEME=foment <target>)
-$(info make SCHEME=gauche <target>)
-$(info make SCHEME=sagittarius <target>)
-$(error <target> should be one of: build clean install uninstall)
-endif
-
 ifeq "$(SCHEME)" "chicken"
 PACKAGE_DIR=$(DESTDIR)/usr/share/snow2-chicken
 BIN_DIR=$(DESTDIR)/usr/bin
 CHICKEN_COMPILER=csc -X r7rs
 EGGS=$(shell chicken-status -e)
   ifneq ($(findstring srfi-27, $(EGGS)), srfi-27)
-    $(error 'missing srfi-27 egg')
+    $(error 'missing srfi-27 egg, try: make chicken-deps')
   endif
   ifneq ($(findstring srfi-29, $(EGGS)), srfi-29)
-    $(error 'missing srfi-29 egg')
+    $(error 'missing srfi-29 egg, try: make chicken-deps')
   endif
   ifneq ($(findstring srfi-37, $(EGGS)), srfi-37)
-    $(error 'missing srfi-37 egg')
+    $(error 'missing srfi-37 egg, try: make chicken-deps')
   endif
   ifneq ($(findstring http-client, $(EGGS)), http-client)
-    $(error 'missing http-client egg')
+    $(error 'missing http-client egg, try: make chicken-deps')
   endif
   ifneq ($(findstring openssl, $(EGGS)), openssl)
-    $(error 'missing openssl egg')
+    $(error 'missing openssl egg, try: make chicken-deps')
   endif
   ifneq ($(findstring udp, $(EGGS)), udp)
-    $(error 'missing udp egg')
+    $(error 'missing udp egg, try: make chicken-deps')
   endif
   ifneq ($(findstring r7rs, $(EGGS)), r7rs)
-    $(error 'missing r7rs egg')
+    $(error 'missing r7rs egg, try: make chicken-deps')
   endif
 endif
 
@@ -127,6 +118,9 @@ clean-chibi:
 # chicken
 #
 
+chicken-deps:
+	chicken-install srfi-19 srfi-27 srfi-29 srfi-37 srfi-95 http-client openssl udp r7rs ssax sxpath hmac sha1
+
 snow2-client-chicken: snow2-client-chicken.scm snow seth srfi chibi
 	$(CHICKEN_COMPILER) snow2-client-chicken.scm -o snow2-client-chicken
 
@@ -203,3 +197,12 @@ uninstall-sagittarius: uninstall-libs
 	rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)
 
 clean-sagittarius:
+
+
+.DEFAULT:
+	$(info make SCHEME=chibi <target>)
+	$(info make SCHEME=chicken <target>)
+	$(info make SCHEME=foment <target>)
+	$(info make SCHEME=gauche <target>)
+	$(info make SCHEME=sagittarius <target>)
+	$(error <target> should be one of: build clean install uninstall)
