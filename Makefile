@@ -77,7 +77,7 @@ uninstall-libs:
 	- rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*
 
 
-clean: clean-$(SCHEME)
+clean: clean-chibi clean-chicken clean-foment clean-gauche clean-sagittarius 
 	rm -f *~
 
 bootstrap: bootstrap-$(SCHEME)
