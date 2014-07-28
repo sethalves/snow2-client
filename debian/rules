@@ -2,7 +2,20 @@
 # -*- makefile -*-
 
 # Uncomment this to turn on verbose mode.
-#export DH_VERBOSE=1
+export DH_VERBOSE=1
 
-%:
-	dh $@ 
+# %:
+# 	dh $@ 
+
+clean:
+	make SCHEME=chicken clean
+
+build:
+	make SCHEME=chicken build
+
+binary: build install
+
+install:
+	mkdir -p $(CURDIR)/debian/snow2-client/usr/bin
+	mkdir -p $(CURDIR)/debian/snow2-client/usr/share
+	$(MAKE) DESTDIR=$(CURDIR)/debian/snow2-client install

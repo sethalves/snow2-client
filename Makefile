@@ -13,7 +13,7 @@ endif
 
 ifeq "$(SCHEME)" "chicken"
 PACKAGE_DIR=$(DESTDIR)/usr/share/snow2-chicken
-BIN_DIR=$(DESTDIR)/$(DESTDIR)/usr/bin
+BIN_DIR=$(DESTDIR)/usr/bin
 CHICKEN_COMPILER=csc -X r7rs
 EGGS=$(shell chicken-status -e)
   ifneq ($(findstring srfi-27, $(EGGS)), srfi-27)
@@ -96,6 +96,12 @@ links:
 	ln -s ../snow2-packages/snow/snow snow
 	ln -s ../snow2-packages/seth/seth seth
 	ln -s ../r7rs-srfis/srfi srfi
+
+
+xdeb:
+	fakeroot dpkg-buildpackage -b
+
+#	dpkg-buildpackage -b -rfakeroot
 
 
 #
