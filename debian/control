@@ -6,7 +6,7 @@ Build-Depends: debhelper (>= 8.0.0)
 Standards-Version: 3.9.4
 Homepage: https://github.com/sethalves/snow2-client
 
-Package: snow2-client-chicken
+Package: snow2-client-chibi
 Architecture: all
 Depends: ${misc:Depends}
 Description: Client for snow2 repositories

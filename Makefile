@@ -2,8 +2,13 @@
 #
 #
 
+# XXX
+PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-chibi
+BIN_DIR=$(DESTDIR)/usr/bin
+
+
 ifeq "$(SCHEME)" "chicken"
-PACKAGE_DIR=$(DESTDIR)/usr/share/snow2-chicken
+PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-chicken
 BIN_DIR=$(DESTDIR)/usr/bin
 CHICKEN_COMPILER=csc -X r7rs
 EGGS=$(shell chicken-status -e)
@@ -31,22 +36,22 @@ EGGS=$(shell chicken-status -e)
 endif
 
 ifeq "$(SCHEME)" "chibi"
-PACKAGE_DIR=$(DESTDIR)/usr/share/snow2-chibi
+PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-chibi
 BIN_DIR=$(DESTDIR)/usr/bin
 endif
 
 ifeq "$(SCHEME)" "foment"
-PACKAGE_DIR=$(DESTDIR)/usr/share/snow2-foment
+PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-foment
 BIN_DIR=$(DESTDIR)/usr/bin
 endif
 
 ifeq "$(SCHEME)" "gauche"
-PACKAGE_DIR=$(DESTDIR)/usr/share/snow2-gauche
+PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-gauche
 BIN_DIR=$(DESTDIR)/usr/bin
 endif
 
 ifeq "$(SCHEME)" "sagittarius"
-PACKAGE_DIR=$(DESTDIR)/usr/share/snow2-sagittarius
+PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-sagittarius
 BIN_DIR=$(DESTDIR)/usr/bin
 endif
 
@@ -90,8 +95,9 @@ links:
 
 
 xdeb:
-	fakeroot dpkg-buildpackage -b
+	dpkg-buildpackage -b -rfakeroot -A
 
+#	fakeroot dpkg-buildpackage -b
 #	dpkg-buildpackage -b -rfakeroot
 
 
@@ -206,3 +212,16 @@ clean-sagittarius:
 	$(info make SCHEME=gauche <target>)
 	$(info make SCHEME=sagittarius <target>)
 	$(error <target> should be one of: build clean install uninstall)
+
+
+###
+
+distclean: clean
+
+build-: build-chibi
+
+test:
+
+check:
+
+install-: install-chibi
