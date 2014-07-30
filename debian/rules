@@ -5,34 +5,33 @@
 export DH_VERBOSE=1
 
 %:
+	echo
+	echo XXX $@ XXX
+	echo
 	dh $@ 
 
 
-# clean:
-# 	# nothing
+clean:
+	dh_testdir -i
+	dh_auto_clean -i
+	dh_clean -i
 
-# build:
-# 	# nothing
 
-# build-arch:
-# 	# nothing
+build-indep:
+	dh_testdir -i
+	dh_auto_configure -i
+	SCHEME=chibi dh_auto_build -i
+	dh_auto_test -i
 
-# build-indep:
-# 	# nothing
 
-# install:
-# 	mkdir -p $(CURDIR)/debian/snow2-client/usr/bin
-# 	mkdir -p $(CURDIR)/debian/snow2-client/usr/share
-# 	$(MAKE) DESTDIR=$(CURDIR)/debian/snow2-client SCHEME=chibi install
-
-# binary:
-# 	# nothing
-
-# binary-arch:
-# 	# nothing
-
-# binary-indep:
-# 	make SCHEME=chibi build
-
-# get-orig-source:
-# 	# nothing
+binary-indep:
+	# dh_testroot -i
+	# dh_prep -i
+	dh_installdirs -i
+	SCHEME=chibi dh_auto_install -i
+	# dh_installdocs -i
+	# dh_installchangelogs -i
+	# dh_installdeb -i
+	dh_gencontrol -i
+	# dh_md5sums -i
+	dh_builddeb -i

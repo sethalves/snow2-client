@@ -94,7 +94,7 @@ links:
 	ln -s ../r7rs-srfis/srfi srfi
 
 
-xdeb:
+debs:
 	dpkg-buildpackage -b -rfakeroot -A
 
 #	fakeroot dpkg-buildpackage -b
@@ -214,14 +214,10 @@ clean-sagittarius:
 	$(error <target> should be one of: build clean install uninstall)
 
 
-###
+# https://www.debian.org/doc/manuals/maint-guide/dreq.en.html#rules
 
 distclean: clean
-
-build-: build-chibi
 
 test:
 
 check:
-
-install-: install-chibi
