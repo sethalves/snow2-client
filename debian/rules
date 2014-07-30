@@ -7,13 +7,11 @@
 build-indep: build-indep-chibi build-indep-gauche
 
 build-indep-chibi:
-	dh_testdir
 	dh_auto_configure
 	SCHEME=chibi dh_auto_build -p$@
 	dh_auto_test
 
 build-indep-gauche:
-	dh_testdir
 	dh_auto_configure
 	SCHEME=gauche dh_auto_build -p$@
 	dh_auto_test
@@ -35,6 +33,5 @@ binary-indep-guache:
 
 
 clean:
-	dh_testdir -i
-	dh_auto_clean -i
-	dh_clean -i
+	dh_auto_clean
+	dh_clean
