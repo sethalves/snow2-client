@@ -97,6 +97,10 @@ links:
 debs:
 	dpkg-buildpackage -b -rfakeroot -A
 
+debs-clean:
+	debuild clean
+
+
 #	fakeroot dpkg-buildpackage -b
 #	dpkg-buildpackage -b -rfakeroot
 
