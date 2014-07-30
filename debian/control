@@ -11,3 +11,9 @@ Architecture: all
 Depends: ${misc:Depends}
 Description: Client for snow2 repositories
  snow2-client is a tool for finding and installing scheme libraries which are portable between r7rs schemes.
+
+Package: snow2-client-gauche
+Architecture: all
+Depends: ${misc:Depends}
+Description: Client for snow2 repositories
+ snow2-client is a tool for finding and installing scheme libraries which are portable between r7rs schemes.

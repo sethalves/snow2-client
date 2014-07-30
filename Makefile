@@ -112,6 +112,7 @@ debs-clean:
 build-chibi:
 
 install-chibi: install-libs
+	mkdir -p $(BIN_DIR)
 	install ./snow2-client-chibi.scm $(PACKAGE_DIR)/snow2
 	rm -f $(BIN_DIR)/snow2
 	ln -s $(PACKAGE_DIR)/snow2 $(BIN_DIR)/snow2
@@ -138,6 +139,7 @@ build-chicken: snow2-client-chicken
 
 
 install-chicken: build-chicken
+	mkdir -p $(BIN_DIR)
 	rm -f $(BIN_DIR)/snow2
 	install ./snow2-client-chicken $(BIN_DIR)/snow2
 
@@ -159,6 +161,7 @@ bootstrap-chicken: clean-chicken links build-chicken
 build-foment:
 
 install-foment: install-libs
+	mkdir -p $(BIN_DIR)
 	install ./snow2-client-foment.scm $(PACKAGE_DIR)/snow2
 	rm -f $(BIN_DIR)/snow2
 	ln -s $(PACKAGE_DIR)/snow2 $(BIN_DIR)/snow2
@@ -178,6 +181,7 @@ clean-foment:
 build-gauche:
 
 install-gauche: install-libs
+	mkdir -p $(BIN_DIR)
 	install ./snow2-client-gauche.scm $(PACKAGE_DIR)/snow2
 	rm -f $(BIN_DIR)/snow2
 	ln -s $(PACKAGE_DIR)/snow2 $(BIN_DIR)/snow2
@@ -197,6 +201,7 @@ clean-gauche:
 build-sagittarius:
 
 install-sagittarius: install-libs
+	mkdir -p $(BIN_DIR)
 	install ./snow2-client-sagittarius.scm $(PACKAGE_DIR)/snow2
 	rm -f $(BIN_DIR)/snow2
 	ln -s $(PACKAGE_DIR)/snow2 $(BIN_DIR)/snow2

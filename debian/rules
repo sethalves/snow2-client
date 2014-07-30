@@ -2,36 +2,39 @@
 # -*- makefile -*-
 
 # Uncomment this to turn on verbose mode.
-export DH_VERBOSE=1
+# export DH_VERBOSE=1
 
-%:
-	echo
-	echo XXX $@ XXX
-	echo
-	dh $@ 
+build-indep: build-indep-chibi build-indep-gauche
+
+build-indep-chibi:
+	dh_testdir
+	dh_auto_configure
+	SCHEME=chibi dh_auto_build -p$@
+	dh_auto_test
+
+build-indep-gauche:
+	dh_testdir
+	dh_auto_configure
+	SCHEME=gauche dh_auto_build -p$@
+	dh_auto_test
+
+
+binary-indep: binary-indep-chibi binary-indep-guache
+
+binary-indep-chibi:
+	dh_installdirs
+	SCHEME=chibi DESTDIR=debian/snow2-client-chibi make install
+	dh_gencontrol
+	dh_builddeb
+
+binary-indep-guache:
+	dh_installdirs
+	SCHEME=gauche DESTDIR=debian/snow2-client-gauche make install
+	dh_gencontrol
+	dh_builddeb
 
 
 clean:
 	dh_testdir -i
 	dh_auto_clean -i
 	dh_clean -i
-
-
-build-indep:
-	dh_testdir -i
-	dh_auto_configure -i
-	SCHEME=chibi dh_auto_build -i
-	dh_auto_test -i
-
-
-binary-indep:
-	# dh_testroot -i
-	# dh_prep -i
-	dh_installdirs -i
-	SCHEME=chibi dh_auto_install -i
-	# dh_installdocs -i
-	# dh_installchangelogs -i
-	# dh_installdeb -i
-	dh_gencontrol -i
-	# dh_md5sums -i
-	dh_builddeb -i
