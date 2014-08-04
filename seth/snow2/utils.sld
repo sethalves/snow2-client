@@ -48,7 +48,7 @@
           (scheme file)
           (scheme process-context))
   (cond-expand
-   (chibi (import (only (srfi 1) filter make-list any fold last)
+   (chibi (import (only (srfi 1) filter make-list any fold last drop-right)
                   (only (chibi) read)
                   ))
    (else (import (scheme read)
@@ -143,7 +143,7 @@
              ;; adjust url to point to index.html rather than index.scm
              (scm-uri (snow2-sibling-url sibling))
              (scm-path (uri-path scm-uri))
-             (html-path (list-replace-last scm-path "index.html"))
+             (html-path (drop-right scm-path 1))
              (html-uri (update-uri scm-uri 'path html-path))
              ;; trust level
              (trust (snow2-sibling-trust sibling)))

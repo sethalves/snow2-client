@@ -6,11 +6,11 @@
 PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-chibi
 BIN_DIR=$(DESTDIR)/usr/bin
 
+CHICKEN_COMPILER=csc -X r7rs
 
 ifeq "$(SCHEME)" "chicken"
 PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-chicken
 BIN_DIR=$(DESTDIR)/usr/bin
-CHICKEN_COMPILER=csc -X r7rs
 EGGS=$(shell chicken-status -e)
   ifneq ($(findstring srfi-27, $(EGGS)), srfi-27)
     $(error 'missing srfi-27 egg, try: make chicken-deps')
@@ -95,7 +95,7 @@ links:
 
 
 debs:
-	dpkg-buildpackage -b -rfakeroot -A
+	dpkg-buildpackage -b -rfakeroot -A -k'seth@hungry.com'
 
 debs-clean:
 	debuild clean

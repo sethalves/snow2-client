@@ -110,11 +110,6 @@
       (define (install-from-tgz repo package local-package-tgz-file)
         (guard
          (err (#t
-               ;; (display
-               ;;     (format "Error -- ~a ~s ~s\n"
-               ;;             local-package-tgz-file
-               ;;             (error-object-message err)
-               ;;             (error-object-irritants err)))
                (display-error local-package-tgz-file err)
                (raise err)))
          (let* ((pkg-tgz-size (snow2-package-size package))
