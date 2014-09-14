@@ -68,17 +68,10 @@
                         (path-sans-container (cdr path))
                         (name-san-container
                          (snow-combine-filename-parts path-sans-container)))
-                   ;; (tar-rec-name-set! t name-san-container)
-
                    (cond
-                    ;; ((eq? (tar-rec-type t) 'directory)
-                    ;;  (snow-create-directory-recursive (tar-rec-name t)))
-
-                    ;; ((and (eq? (tar-rec-type t) 'regular)
-                    ;;       (equal? (tar-rec-name t) "package.scm"))
-                    ;;  ;; don't write out package.scm file, here
-                    ;;  #t)
-
+                    ;; the tar file will contain files we don't want
+                    ;; to install.  skip over anything that doesn't
+                    ;; match something in paths-to-extract
                     ((not (member path-sans-container paths-to-extract)) #t)
 
                     ((eq? (tar-rec-type t) 'regular)
@@ -169,9 +162,8 @@
                     ;; for this "step".  The only two steps this code
                     ;; currently supports are "test" and "final".
                     ;; libs-for-step is the list of snow2-libraries from
-                    ;; this package that are for use in the given step.
-                    (libs-for-steps (find-libraries-for-steps package steps))
-                    )
+                    ;; this package that are for use in the given steps.
+                    (libs-for-steps (find-libraries-for-steps package steps)))
                (genport-close-input-port tarred-p)
 
                (for-each 
@@ -197,12 +189,8 @@
                            (included-paths
                             (map snow-split-filename included-files)))
                       ;; write out files included by this library
-                      (write-tar-recs-to-disk tar-recs included-paths)
-                      )
-                    ))
-                libs-for-steps)
-
-               )))))
+                      (write-tar-recs-to-disk tar-recs included-paths))))
+                libs-for-steps))))))
 
 
       (define (install-from-http repo package url)

@@ -985,8 +985,9 @@
       (set! crc32 (and gzip? (open-digest 'crc32)))
 
       (make-genport
-       (lambda (genport)
-         #f)
+
+       (genport-end genport-in)
+
        (lambda (u8vect start end genport)
          (let loop ((i start))
            (if (< i end)
