@@ -53,7 +53,8 @@
 
 
 
-    (define (write-tar-recs-to-disk tar-recs)
+    (define (write-tar-recs-to-disk tar-recs paths-to-extract)
+
       (let loop ((tar-recs tar-recs))
         (cond ((null? tar-recs) #t)
               (else
@@ -67,47 +68,55 @@
                         (path-sans-container (cdr path))
                         (name-san-container
                          (snow-combine-filename-parts path-sans-container)))
-                   (tar-rec-name-set! t name-san-container))
+                   ;; (tar-rec-name-set! t name-san-container)
 
-                 (cond
-                  ((eq? (tar-rec-type t) 'directory)
-                   (snow-create-directory-recursive (tar-rec-name t)))
+                   (cond
+                    ;; ((eq? (tar-rec-type t) 'directory)
+                    ;;  (snow-create-directory-recursive (tar-rec-name t)))
 
-                  ((and (eq? (tar-rec-type t) 'regular)
-                        (equal? (tar-rec-name t) "package.scm"))
-                   ;; don't write out package.scm file, here
-                   #t)
+                    ;; ((and (eq? (tar-rec-type t) 'regular)
+                    ;;       (equal? (tar-rec-name t) "package.scm"))
+                    ;;  ;; don't write out package.scm file, here
+                    ;;  #t)
 
-                  ((eq? (tar-rec-type t) 'regular)
-                   ;; create the directory that contains this file
-                   (let* ((path (snow-split-filename (tar-rec-name t)))
-                          (parent-path (reverse (cdr (reverse path)))))
-                     (if (not (null? parent-path))
-                         (snow-create-directory-recursive
-                          (snow-combine-filename-parts parent-path))))
+                    ((not (member path-sans-container paths-to-extract)) #t)
 
-                   (cond ((or (snow-file-symbolic-link? (tar-rec-name t))
-                              (snow-file-directory? (tar-rec-name t)))
-                          (display "not overwriting " (current-error-port))
-                          (display (tar-rec-name t) (current-error-port))
-                          (newline (current-error-port)))
-                         (else
-                          (let ((hndl (binio-open-output-file
-                                       (tar-rec-name t))))
-                            (binio-write-subu8vector
-                             (tar-rec-content t) 0
-                             (bytevector-length (tar-rec-content t)) hndl)))))
-                  (else
-                   (error "unexpected file type in tar file")))
-                 (loop (cdr tar-recs)))))))
+                    ((eq? (tar-rec-type t) 'regular)
+                     (tar-rec-name-set! t name-san-container)
+                     ;; create the directory that contains this file
+                     (let* ((path (snow-split-filename (tar-rec-name t)))
+                            (parent-path (reverse (cdr (reverse path)))))
+                       (if (not (null? parent-path))
+                           (snow-create-directory-recursive
+                            (snow-combine-filename-parts parent-path))))
 
-    (define (install repositories library-names use-symlinks verbose)
+                     (cond ((or (snow-file-symbolic-link? (tar-rec-name t))
+                                (snow-file-directory? (tar-rec-name t)))
+                            (display "not overwriting " (current-error-port))
+                            (display (tar-rec-name t) (current-error-port))
+                            (newline (current-error-port)))
+                           (else
+                            (let ((hndl (binio-open-output-file
+                                         (tar-rec-name t))))
+                              (binio-write-subu8vector
+                               (tar-rec-content t) 0
+                               (bytevector-length (tar-rec-content t)) hndl)
+                              (close-output-port hndl)))))
+
+                    (else
+                     (error "unexpected file type in tar file")))
+                   (loop (cdr tar-recs))))))))
+
+    (define (install repositories library-names use-symlinks steps verbose)
       ;; this is the main interface point for downloading/finding and
       ;; unpacking packages.  repositories is a list of repository records.
       ;; library-names is a list of library-name s-expressions.
       ;; use-symlinks being true will cause symlinks to source files rather
       ;; than copies (when possible).  verbose prints more.
+
+
       (define (install-from-tgz repo package local-package-tgz-file)
+
         (guard
          (err (#t
                (display-error local-package-tgz-file err)
@@ -123,6 +132,8 @@
            (let* ((zipped-p (genport-open-input-file local-package-tgz-file))
                   (unzipped-p (gunzip-genport zipped-p))
                   (tar-data (genport-read-u8vector unzipped-p)))
+
+             (genport-close-input-port unzipped-p)
 
              ;; if the package metadata had (size ...) or (checksum ...)
              ;; make sure the provided values match those of what we've
@@ -153,9 +164,45 @@
                     (exit 1)))
 
              (let* ((tarred-p (genport-open-input-u8vector tar-data))
-                    (tar-recs (tar-unpack-genport tarred-p)))
+                    (tar-recs (tar-unpack-genport tarred-p))
+                    ;; the package contains files that may not be needed
+                    ;; for this "step".  The only two steps this code
+                    ;; currently supports are "test" and "final".
+                    ;; libs-for-step is the list of snow2-libraries from
+                    ;; this package that are for use in the given step.
+                    (libs-for-steps (find-libraries-for-steps package steps))
+                    )
                (genport-close-input-port tarred-p)
-               (write-tar-recs-to-disk tar-recs))))))
+
+               (for-each 
+                (lambda (lib)
+                  (let* ((file-for-step (snow2-library-path lib))
+                         (path-for-step (snow-split-filename file-for-step)))
+                    ;; extract the main .sld file for each library
+                    (write-tar-recs-to-disk tar-recs (list path-for-step))
+
+                    ;; examine each extracted .sld file and see if they
+                    ;; include other files
+                    (let* ((lib-filename
+                            (snow-combine-filename-parts path-for-step))
+                           ;; read the library s-exp back in
+                           (lib-sexp (r7rs-library-file->sexp lib-filename))
+                           ;; find included files
+                           (included-files
+                            (filter
+                             (lambda (included-file)
+                               (not (equal? included-file lib-filename)))
+                             (r7rs-get-library-manifest lib lib-sexp)))
+                           ;; convert to path-part lists
+                           (included-paths
+                            (map snow-split-filename included-files)))
+                      ;; write out files included by this library
+                      (write-tar-recs-to-disk tar-recs included-paths)
+                      )
+                    ))
+                libs-for-steps)
+
+               )))))
 
 
       (define (install-from-http repo package url)
@@ -353,7 +400,7 @@
 
 
     (define (client repository-urls operation library-names
-                    use-symlinks verbose)
+                    use-symlinks steps verbose)
       (let ((repositories (get-repositories-and-siblings '() repository-urls)))
 
         (cond (verbose
@@ -367,7 +414,7 @@
                 repositories)))
 
         (cond ((equal? operation "install")
-               (install repositories library-names use-symlinks verbose))
+               (install repositories library-names use-symlinks steps verbose))
               ((equal? operation "uninstall")
                (uninstall repositories library-names))
               ((equal? operation "list-depends")
@@ -380,24 +427,29 @@
       (list
        (option '(#\r "repo") #t #f
                (lambda (option name arg operation repos
-                               use-symlinks libs verbose)
+                               use-symlinks libs test verbose)
                  (values operation
                          (reverse (cons (uri-reference arg) (reverse repos)))
-                         use-symlinks libs verbose)))
+                         use-symlinks libs test verbose)))
 
        (option '(#\s "symlink") #f #f
                (lambda (option name arg operation repos
-                               use-symlinks libs verbose)
-                 (values operation repos #t libs verbose)))
+                               use-symlinks libs test verbose)
+                 (values operation repos #t libs test verbose)))
+
+       (option '(#\t "test") #f #f
+               (lambda (option name arg operation repos
+                               use-symlinks libs test verbose)
+                 (values operation repos use-symlinks libs #t verbose)))
 
        (option '(#\v "verbose") #f #f
                (lambda (option name arg operation repos
-                               use-symlinks libs verbose)
+                               use-symlinks libs test verbose)
                  (values operation repos use-symlinks libs #t)))
 
        (option '(#\h "help") #f #f
                (lambda (option name arg operation repos
-                               use-symlinks libs verbose)
+                               use-symlinks libs test verbose)
                  (usage "")))))
 
 
@@ -416,6 +468,9 @@
                  (current-error-port))
         (display "  -s --symlink         " (current-error-port))
         (display "Make symlinks to a repo's source files.\n"
+                 (current-error-port))
+        (display "  -t --test            " (current-error-port))
+        (display "Install code needed to run tests.\n"
                  (current-error-port))
         (display "  -v --verbose         " (current-error-port))
         (display "Print more.\n" (current-error-port))
@@ -444,7 +499,7 @@
     (define (main-program)
       (random-source-randomize! default-random-source)
       (let-values
-          (((operation repository-urls use-symlinks args verbose)
+          (((operation repository-urls use-symlinks args test verbose)
             (args-fold
              (cdr (command-line))
              options
@@ -455,15 +510,16 @@
                                      (if (string? name) name (string name))
                                      "\n\n")))
              ;; operand (arguments that don't start with a hyphen)
-             (lambda (operand operation repos use-symlinks libs verbose)
+             (lambda (operand operation repos use-symlinks libs test verbose)
                (if operation
                    (values operation repos use-symlinks
-                           (cons operand libs) verbose)
-                   (values operand repos use-symlinks libs verbose)))
+                           (cons operand libs) test verbose)
+                   (values operand repos use-symlinks libs test verbose)))
              #f ;; initial value of operation
              '() ;; initial value of repos
              #f ;; initial value of use-symlinks
              '() ;; initial value of args
+             #f ;; initial value of test
              #f ;; initial value of verbose
              )))
         (let* ((default-repo-url
@@ -512,5 +568,7 @@
                           (write library-names)
                           (newline)))
                    (client repository-urls operation
-                           library-names use-symlinks verbose))
+                           library-names use-symlinks
+                           (if test '(test final) '(final))
+                           verbose))
                  )))))))

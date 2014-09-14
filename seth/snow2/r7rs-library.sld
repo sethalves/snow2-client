@@ -83,6 +83,9 @@
 
 
     (define (is-system-import? lib-name)
+      ;; I haven't figured out a good way to do this, so for now, try
+      ;; to find all libraries.
+
       ;; (cond ((not (pair? lib-name)) #f)
       ;;       ((memq (car lib-name)
       ;;              '(scheme r7rs gauche sagittarius

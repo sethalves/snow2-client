@@ -7,6 +7,7 @@
           get-snow2-repo-name
           find-package-with-library
           find-packages-with-libraries
+          find-libraries-for-steps
           gather-depends
 
           snow2-package-absolute-url
@@ -48,9 +49,9 @@
           (scheme file)
           (scheme process-context))
   (cond-expand
-   (chibi (import (only (srfi 1) filter make-list any fold last drop-right)
-                  (only (chibi) read)
-                  ))
+   (chibi (import (only (srfi 1) filter make-list any fold
+                        lset-intersection last drop-right)
+                  (only (chibi) read)))
    (else (import (scheme read)
                  (srfi 1))))
   (cond-expand
@@ -162,7 +163,8 @@
             (authors (get-args-by-type library-sexp 'authors '()))
             (description (get-args-by-type library-sexp 'description '()))
             (license (get-args-by-type library-sexp 'license '()))
-            )
+            (use-for (get-args-by-type library-sexp 'use-for '(use-for final))))
+
         (cond ((not path) #f)
               (else
                (make-snow2-library
@@ -174,7 +176,8 @@
                 authors
                 description
                 license
-                #f)))))
+                #f
+                use-for)))))
 
 
     (define (copy-snow2-library library)
@@ -188,7 +191,8 @@
        (deep-copy (snow2-library-authors library))
        (deep-copy (snow2-library-description library))
        (deep-copy (snow2-library-license library))
-       (snow2-library-package library)))
+       (snow2-library-package library)
+       (deep-copy (snow2-library-use-for library))))
 
 
     (define (library->sexp library)
@@ -202,6 +206,7 @@
         (description ,@(snow2-library-description library))
         (license ,@(snow2-library-license library))
         (depends ,@(map depend->sexp (snow2-library-depends library)))
+        (use-for ,@(snow2-library-use-for library))
         ))
 
 
@@ -225,7 +230,8 @@
             (depends
              (string-join
               (map display-to-string (snow2-library-depends library))
-              " ")))
+              " "))
+            (use-for (snow2-library-use-for library)))
         `(html:li
           (html:p
            ,@(if homepage
@@ -243,7 +249,9 @@
           (html:p (@ (class "lib-details"))
                   "License: " ,(display-to-string license))
           (html:p (@ (class "lib-details"))
-                  "Depends: " ,depends))))
+                  "Depends: " ,depends)
+          (html:p (@ (class "lib-details"))
+                  "Use-For: " ,(display-to-string use-for)))))
 
 
     (define (package-from-sexp package-sexp)
@@ -486,6 +494,18 @@
                      package)))))
          library-names)
         (hash-table-values package-url-ht)))
+
+
+    (define (find-libraries-for-steps package steps)
+      ;; search package for libraries that are used-for the given step
+      (let loop ((libraries (snow2-package-libraries package))
+                 (result '()))
+        (cond ((null? libraries) result)
+              ((pair? (lset-intersection
+                       eq? steps
+                       (snow2-library-use-for (car libraries))))
+               (loop (cdr libraries) (cons (car libraries) result)))
+              (else (loop (cdr libraries) result)))))
 
 
     (define (library-from-name repositories library-name)
@@ -822,7 +842,6 @@
                          (repo-path->file-path
                           (uri-path repo-url)
                           file-path)))))
-
 
     (define (sanity-check-repository repository)
       (for-each

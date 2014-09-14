@@ -120,7 +120,7 @@ install-chibi: install-libs
 uninstall-chibi: uninstall-libs
 	rm -f $(BIN_DIR)/snow2
 	rm -f $(PACKAGE_DIR)/snow2
-	rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)
+	- rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)
 
 clean-chibi:
 
@@ -169,7 +169,7 @@ install-foment: install-libs
 uninstall-foment: uninstall-libs
 	rm -f $(BIN_DIR)/snow2
 	rm -f $(PACKAGE_DIR)/snow2
-	rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)
+	- rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)
 
 clean-foment:
 
@@ -189,7 +189,7 @@ install-gauche: install-libs
 uninstall-gauche: uninstall-libs
 	rm -f $(BIN_DIR)/snow2
 	rm -f $(PACKAGE_DIR)/snow2
-	rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)
+	- rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)
 
 clean-gauche:
 
@@ -209,7 +209,7 @@ install-sagittarius: install-libs
 uninstall-sagittarius: uninstall-libs
 	rm -f $(BIN_DIR)/snow2
 	rm -f $(PACKAGE_DIR)/snow2
-	rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)
+	- rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)
 
 clean-sagittarius:
 

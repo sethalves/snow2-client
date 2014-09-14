@@ -37,6 +37,7 @@
           snow2-library-description set-snow2-library-description!
           snow2-library-license set-snow2-library-license!
           snow2-library-package set-snow2-library-package!
+          snow2-library-use-for set-snow2-library-use-for!
 
           get-children-by-type
           get-child-by-type
@@ -95,7 +96,8 @@
 
     (define-record-type <snow2-library>
       (make-snow2-library name path depends version homepage
-                          maintainers authors description license package)
+                          maintainers authors description license
+                          package use-for)
       snow2-library?
       (name snow2-library-name set-snow2-library-name!)
       (path snow2-library-path set-snow2-library-path!)
@@ -106,7 +108,8 @@
       (authors snow2-library-authors set-snow2-library-authors!)
       (description snow2-library-description set-snow2-library-description!)
       (license snow2-library-license set-snow2-library-license!)
-      (package snow2-library-package set-snow2-library-package!))
+      (package snow2-library-package set-snow2-library-package!)
+      (use-for snow2-library-use-for set-snow2-library-use-for!))
 
 
     (define (get-tag child)
@@ -241,7 +244,8 @@
            (equal? (snow2-library-maintainers a) (snow2-library-maintainers b))
            (equal? (snow2-library-authors a) (snow2-library-authors b))
            (equal? (snow2-library-description a) (snow2-library-description b))
-           (equal? (snow2-library-license a) (snow2-library-license b))))
+           (equal? (snow2-library-license a) (snow2-library-license b))
+           (equal? (snow2-library-use-for a) (snow2-library-use-for b))))
 
 
     (define (snow2-library-lists-equal? a b)
