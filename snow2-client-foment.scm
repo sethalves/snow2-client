@@ -1,6 +1,6 @@
 #! /bin/bash
 #| -*- scheme -*-
-exec foment "$0" "$@"
+exec foment -A . "$0" "$@"
 |#
 
 

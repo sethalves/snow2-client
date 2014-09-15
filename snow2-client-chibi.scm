@@ -9,7 +9,7 @@ done
 # Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 X=$CHIBI_MODULE_PATH
-CHIBI_MODULE_PATH="" exec chibi-scheme -A "$DIR" -A "$X" -s "$0" "$@"
+CHIBI_MODULE_PATH="" exec chibi-scheme -A "$DIR" -A "$X" -A . -s "$0" "$@"
 |#
 
 ;; #| -*- scheme -*-

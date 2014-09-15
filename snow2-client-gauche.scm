@@ -9,7 +9,7 @@ done
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 exec gosh \
 -e '(append! *load-suffixes* (list ".sld"))' \
--e "(append! *load-path* (list \"$DIR\"))" \
+-e "(append! *load-path* (list \"$DIR\" \".\"))" \
 -r7 "$0" "$@"
 |#
 
