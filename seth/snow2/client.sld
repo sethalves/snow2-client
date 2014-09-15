@@ -1,7 +1,6 @@
 (define-library (seth snow2 client)
   (export install
           uninstall
-          client
           main-program)
 
   (import (scheme base)
@@ -50,7 +49,6 @@
                            (write irr (current-error-port))
                            (newline (current-error-port)))))
                   (error-object-irritants err))))
-
 
 
     (define (write-tar-recs-to-disk tar-recs paths-to-extract)
@@ -386,31 +384,6 @@
                                   (car packages)))))))))))
 
 
-
-    (define (client repository-urls operation library-names
-                    use-symlinks steps verbose)
-      (let ((repositories (get-repositories-and-siblings '() repository-urls)))
-
-        (cond (verbose
-               (display "repositories:\n" (current-error-port))
-               (for-each
-                (lambda (repository)
-                  (display "  " (current-error-port))
-                  (display (uri->string (snow2-repository-url repository))
-                           (current-error-port))
-                  (newline (current-error-port)))
-                repositories)))
-
-        (cond ((equal? operation "install")
-               (install repositories library-names use-symlinks steps verbose))
-              ((equal? operation "uninstall")
-               (uninstall repositories library-names))
-              ((equal? operation "list-depends")
-               (list-depends repositories library-names))
-              (else
-               (error "unknown snow2 client operation" operation)))))
-
-
     (define options
       (list
        (option '(#\r "repo") #t #f
@@ -433,7 +406,7 @@
        (option '(#\v "verbose") #f #f
                (lambda (option name arg operation repos
                                use-symlinks libs test verbose)
-                 (values operation repos use-symlinks libs #t)))
+                 (values operation repos use-symlinks libs test #t)))
 
        (option '(#\h "help") #f #f
                (lambda (option name arg operation repos
@@ -515,48 +488,78 @@
                (repository-urls
                 (if (null? repository-urls)
                     (list (uri-reference default-repo-url))
-                    repository-urls)))
-          (cond ((not operation) (usage ""))
-                ;; search operation
-                ((member operation '("search"))
-                 (let ((repositories (get-repositories-and-siblings
-                                      '() repository-urls)))
-                   (search-for-libraries repositories args)))
-                ;; tar up and gzip a package
-                ((member operation '("package"))
-                 (let ((repositories (get-repositories-and-siblings
-                                      '() repository-urls)))
-                   (make-package-archives repositories args verbose)))
-                ;; upload a tgz package file
-                ((member operation '("s3-upload" "upload-s3" "upload"))
-                 (let ((repositories (get-repositories-and-siblings
-                                      '() repository-urls))
-                       (credentials #f))
-                   (upload-packages-to-s3 credentials repositories
-                                          args verbose)))
-                ((member operation '("check" "lint"))
-                 (let ((repositories (get-repositories-and-siblings
-                                      '() repository-urls))
-                       (credentials #f))
-                   (for-each sanity-check-repository repositories)
-                   (check-packages credentials repositories args verbose)))
-                ;; other operations
-                ((not (member operation '("link-install"
-                                          "install"
-                                          "uninstall"
-                                          "list-depends"
-                                          )))
-                 (usage (string-append "Unknown operation: "
-                                       operation "\n\n")))
-                (else
-                 (let ((library-names (map read-library-name args)))
-                   (cond (verbose
-                          (display "libraries to install:\n"
-                                   (current-error-port))
-                          (write library-names)
-                          (newline)))
-                   (client repository-urls operation
-                           library-names use-symlinks
-                           (if test '(test final) '(final))
-                           verbose))
-                 )))))))
+                    repository-urls))
+               (repositories
+                (let ((cached-repositories #f))
+                  (lambda ()
+                    (cond (cached-repositories cached-repositories)
+                          (else
+                           (set! cached-repositories
+                                 (get-repositories-and-siblings
+                                  '() repository-urls))
+                           cached-repositories)))))
+               (steps (if test '(test final) '(final)))
+               (credentials #f))
+
+          (cond (verbose
+                 (display "repositories:\n" (current-error-port))
+                 (for-each
+                  (lambda (repository)
+                    (display "  " (current-error-port))
+                    (display (uri->string (snow2-repository-url repository))
+                             (current-error-port))
+                    (newline (current-error-port)))
+                  (repositories))))
+
+          (cond
+           ((not operation) (usage ""))
+
+           ;; search operation
+           ((member operation '("search"))
+            (search-for-libraries (repositories) args))
+
+           ;; tar up and gzip a package
+           ((member operation '("package"))
+            (make-package-archives (repositories) args verbose))
+
+           ;; run tests in a source repository
+           ((member operation '("run-source-tests"))
+            (run-source-tests (repositories) args verbose))
+
+           ;; upload a tgz package file
+           ((member operation '("s3-upload" "upload-s3" "upload"))
+            (upload-packages-to-s3 credentials (repositories)
+                                   args verbose))
+
+           ;; repository source sanity checker
+           ((member operation '("check" "lint"))
+            (for-each sanity-check-repository (repositories))
+            (check-packages credentials (repositories) args verbose))
+
+           ;; librarys operations
+           (else
+            (let ((library-names (map read-library-name args)))
+
+              (cond (verbose
+                     (display "libraries:\n" (current-error-port))
+                     (write library-names)
+                     (newline)))
+
+              (cond
+               ;; install libraries and dependencies
+               ((equal? operation "install")
+                (install (repositories) library-names
+                         use-symlinks steps verbose))
+
+               ;; uninstall libraries
+               ((equal? operation "uninstall")
+                (uninstall (repositories) library-names))
+
+               ;; list what a library depends on
+               ((member operation '("list-dep" "list-depends"))
+                (list-depends (repositories) library-names))
+
+               ;; unknown operation
+               (else
+                (usage (string-append "Unknown operation: "
+                                      operation "\n\n"))))))))))))
