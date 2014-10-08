@@ -270,7 +270,8 @@
              (url (snow2-package-url package)))
         (cond ((and name
                     (not (equal? name ""))
-                    (not (equal? name '()))) name)
+                    (not (equal? name '())))
+               (string-join (map symbol->string name) "-"))
               ((and url (pair? (uri-path url)))
                (let ((tgz-name (last (uri-path url))))
                  (if (string-suffix? ".tgz" tgz-name)
