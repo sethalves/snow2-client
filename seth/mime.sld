@@ -26,7 +26,7 @@
     (import (rfc mime)
             (srfi 13)))
    (sagittarius
-    (import (rfc mime)
+    (import (except (rfc mime) mime-parse-content-type)
             (srfi 13))
     ))
   (import (snow binio))

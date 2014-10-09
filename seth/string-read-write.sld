@@ -70,6 +70,7 @@
             (let ((result (get-output-string s)))
               (close-output-port s)
               result)))))
+     (sagittarius)
      (else
       (define (with-output-to-string thunk)
         (call-with-output-string

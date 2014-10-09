@@ -35,6 +35,9 @@
           (srfi 95)
           (seth string-read-write)
           )
+  (cond-expand
+   (gauche (import (srfi gauche-95)))
+   (else))
 
   (begin
 

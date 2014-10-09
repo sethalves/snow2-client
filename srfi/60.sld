@@ -215,9 +215,12 @@
 
 
 
-    (define (bitwise-if ei1 ei2 ei3)
-      (bitwise-ior (bitwise-and ei1 ei2)
-                   (bitwise-and (bitwise-not ei1) ei3)))
+    (cond-expand
+     (sagittarius)
+     (else
+      (define (bitwise-if ei1 ei2 ei3)
+        (bitwise-ior (bitwise-and ei1 ei2)
+                     (bitwise-and (bitwise-not ei1) ei3)))))
 
 
     (define (copy-bit-field to from start end)

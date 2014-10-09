@@ -121,16 +121,16 @@
 
 
     (cond-expand
-     (sagittarius
-      (define (bytevector . args)
-        (let* ((len (length args))
-               (bv (make-bytevector len)))
-          (let loop ((i 0)
-                     (args args))
-            (cond ((= i len) bv)
-                  (else
-                   (bytevector-u8-set! bv i (car args))
-                   (loop (+ i 1) (cdr args))))))))
+     ;; (sagittarius
+     ;;  (define (bytevector . args)
+     ;;    (let* ((len (length args))
+     ;;           (bv (make-bytevector len)))
+     ;;      (let loop ((i 0)
+     ;;                 (args args))
+     ;;        (cond ((= i len) bv)
+     ;;              (else
+     ;;               (bytevector-u8-set! bv i (car args))
+     ;;               (loop (+ i 1) (cdr args))))))))
 
      (chicken
       ;; (define make-bytevector make-u8vector)
@@ -138,8 +138,7 @@
       ;; (define utf8->string latin-1->string)
       ;; (define string->utf8 string->latin-1)
       )
-     (foment
-      #t)
+
      ((or bigloo gauche guile)
       (define bytevector u8vector)
       (define make-bytevector make-u8vector)
@@ -150,6 +149,8 @@
       (define bytevector-u8-set! u8vector-set!)
       (define utf8->string latin-1->string)
       (define string->utf8 string->latin-1))
+
+     (else)
      )
 
 
