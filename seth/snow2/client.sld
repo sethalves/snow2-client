@@ -220,6 +220,13 @@
 
 
       (define (install-symlinks local-repository package)
+
+        (cond (verbose
+               (newline)
+               (display "intalling package: ")
+               (write (snow2-package-get-readable-name package))
+               (newline)))
+
         (let* ((libraries (snow2-package-libraries package))
                (lib-sexps (map (lambda (lib)
                                  (let* ((lib-filename
@@ -231,6 +238,14 @@
                                (map r7rs-get-library-manifest
                                     libraries lib-sexps)))
                (repo-path (uri-path (snow2-repository-local local-repository))))
+
+          (cond (verbose
+                 (display "source files for ")
+                 (write (map snow2-library-name libraries))
+                 (display ": ")
+                 (write manifest)
+                 (newline)))
+
           (for-each
            (lambda (library-member-filename)
              (let* ((dst-path (snow-split-filename library-member-filename))
@@ -281,7 +296,7 @@
 
       (let* ((pkgs (find-packages-with-libraries repositories library-names))
              (libraries (snow2-packages-libraries pkgs))
-             (packages (gather-depends repositories libraries)))
+             (packages (gather-depends repositories libraries steps)))
         (for-each
          (lambda (package)
            (let* ((package-repo (snow2-package-repository package))
@@ -316,11 +331,11 @@
       #f)
 
 
-    (define (list-depends repositories library-names)
+    (define (list-depends repositories library-names steps)
       ;; print out what library-name depends on
       (let* ((pkgs (find-packages-with-libraries repositories library-names))
              (libraries (snow2-packages-libraries pkgs))
-             (packages (gather-depends repositories libraries)))
+             (packages (gather-depends repositories libraries steps)))
         (for-each
          (lambda (package)
            (for-each
@@ -550,7 +565,7 @@
 
                ;; list what a library depends on
                ((member operation '("list-dep" "list-depends"))
-                (list-depends (repositories) library-names))
+                (list-depends (repositories) library-names steps))
 
                ;; unknown operation
                (else

@@ -408,44 +408,55 @@
           (cond (repository
                  (set-snow2-repository-dirty! repository #t)
                  (sanity-check-repository repository)
-                 (op repository)
-                 (sanity-check-repository repository)
-                 (cond ((snow2-repository-dirty repository)
+                 (let ((result (op repository)))
+                   (sanity-check-repository repository)
+                   (cond ((snow2-repository-dirty repository)
 
-                        ;; update index.scm if the repository is "dirty"
-                        (let ((index-scm-filename
-                               (local-repository->in-fs-index-filename
-                                repository)))
-                          (if (file-exists? index-scm-filename)
-                              (delete-file index-scm-filename))
-                          (let ((p (open-output-file index-scm-filename)))
-                            (cond (verbose
-                                   (display "rewriting ")
-                                   (write index-scm-filename)
-                                   (newline)))
-                            (snow-pretty-print (repository->sexp repository) p)
-                            (close-output-port p)))
+                          ;; update index.scm if the repository is "dirty"
+                          (let ((index-scm-filename
+                                 (local-repository->in-fs-index-filename
+                                  repository)))
+                            (if (file-exists? index-scm-filename)
+                                (delete-file index-scm-filename))
+                            (let ((p (open-output-file index-scm-filename)))
+                              (cond (verbose
+                                     (display "rewriting ")
+                                     (write index-scm-filename)
+                                     (newline)))
+                              (snow-pretty-print (repository->sexp repository) p)
+                              (close-output-port p)))
 
-                        ;; update index.html if the repository is "dirty"
-                        (let* ((index-html-filename
-                                (local-repository->in-fs-html-filename
-                                 repository)))
-                          (if (file-exists? index-html-filename)
-                              (delete-file index-html-filename))
-                          (let ((p (open-output-file index-html-filename)))
-                            (cond (verbose
-                                   (display "rewriting ")
-                                   (write index-html-filename)
-                                   (newline)))
-                            (write-string (repository->html repository) p)
-                            (close-output-port p)))
+                          ;; update index.html if the repository is "dirty"
+                          (let* ((index-html-filename
+                                  (local-repository->in-fs-html-filename
+                                   repository)))
+                            (if (file-exists? index-html-filename)
+                                (delete-file index-html-filename))
+                            (let ((p (open-output-file index-html-filename)))
+                              (cond (verbose
+                                     (display "rewriting ")
+                                     (write index-html-filename)
+                                     (newline)))
+                              (write-string (repository->html repository) p)
+                              (close-output-port p)))
 
-                        ;; we've rewritten the repo files, no longer dirty.
-                        (set-snow2-repository-dirty! repository #f)
-                        )))
+                          ;; we've rewritten the repo files, no longer dirty.
+                          (set-snow2-repository-dirty! repository #f)))
+                   result))
                 (else
                  (error
                   "Unable to determine which repository to operate on."))))))
+
+
+    (define (set-local-lib-name local-repository lib)
+      (let* ((lib-filename
+              (local-repository->in-fs-lib-filename local-repository lib))
+             (lib-sexp (r7rs-library-file->sexp lib-filename))
+             (lib-name (lib-sexp->name lib-sexp)))
+        (cond ((not (equal? lib-name (snow2-library-name lib)))
+               (set-snow2-library-name! lib (lib-sexp->name lib-sexp))
+               #t)
+              (else #f))))
 
 
     (define (local-packages-operation repositories package-metafiles op verbose)
@@ -467,6 +478,12 @@
                     (let* ((package
                             (refresh-package-from-filename
                              local-repository package-metafile verbose)))
+
+                      ;; XXX check return value here, set dirty?
+                      (map
+                       (lambda (lib) (set-local-lib-name local-repository lib))
+                       (snow2-package-libraries package))
+
                       (op local-repository package-metafile package)))
                   package-metafiles)))
            result))
@@ -490,35 +507,111 @@
       ;; find the names of any libraries in the package that are
       ;; part of the 'test step.  set up an environment which
       ;; imports the test libraries and eval '(run-tests)
-      (local-packages-operation
-       repositories package-metafiles
-
-       (lambda (local-repository package-metafile package)
-         (set-snow2-repository-dirty! local-repository #f)
-         (display "calling run-tests for ")
-         (write package-metafile)
-         (display " --> ")
-         (let* ((test-libs
-                 (filter
-                  (lambda (lib) (memq 'test (snow2-library-use-for lib)))
-                  (snow2-package-libraries package)))
-                (test-lib-names (map snow2-library-name test-libs))
-                (env (apply environment test-lib-names)))
-           (guard
-            (err (#t
-                  (display "failed.")
+      (define (build-test-environment test-lib-names)
+        (guard
+         (err (#t
+               (cond (verbose
+                      (write (error-object-message err))
+                      (newline)
+                      (write (error-object-irritants err))
+                      (newline)
+                      (raise err))
+                     (else #f))))
+         (begin
+           (cond (verbose
                   (newline)
-                  (cond (verbose
-                         (write (error-object-message err))
-                         (newline)
-                         (write (error-object-irritants err))
-                         (newline)
-                         (raise err)))))
-            (let ((result (eval '(run-tests) env)))
-              (write result)
-              (newline)))))
+                  (display "test-lib-names: ")
+                  (write test-lib-names)
+                  (newline)))
+           (let ((result #f))
+             (with-output-to-string
+               (lambda ()
+                 (set! result (apply environment test-lib-names))))
+             result))))
 
-       verbose))
+
+      (define (get-test-lib-names test-libs)
+        ;; (cond (verbose
+        ;;        (newline)
+        ;;        (for-each
+        ;;         (lambda (test-lib)
+        ;;           (write (snow2-library-path test-lib))
+        ;;           (display " --> ")
+        ;;           (write (snow2-library-name test-lib)))
+        ;;         test-libs)))
+        (map snow2-library-name test-libs))
+
+      (define (run-tests env)
+        (let ((result #f))
+          (guard
+           (err (#t
+                 (cond (verbose
+                        (write (error-object-message err))
+                        (newline)
+                        (write (error-object-irritants err))
+                        (newline)
+                        ;; (raise err)
+                        ))))
+
+           ;; (let ((output
+           ;;        (with-output-to-string
+           ;;          (lambda () (set! result (eval '(run-tests) env))))
+           ;;        ))
+           ;;   ;; ... if verbose, write output?
+           ;;   #t)
+
+           (set! result (eval '(run-tests) env)))
+          result))
+
+      (let* ((test-results
+              (local-packages-operation
+               repositories package-metafiles
+
+               (lambda (local-repository package-metafile package)
+                 (set-snow2-repository-dirty! local-repository #f)
+                 (display "calling run-tests for ")
+                 (write package-metafile)
+                 (display " --> ")
+
+                 (let* ((test-libs
+                         (filter
+                          (lambda (lib) (memq 'test (snow2-library-use-for lib)))
+                          (snow2-package-libraries package)))
+                        (test-lib-names (get-test-lib-names test-libs))
+                        (env (build-test-environment test-lib-names)))
+                   (cond ((not env)
+                          (display "test lib load failed")
+                          (newline)
+                          (list package 'lib-load-failed))
+                         ((run-tests env)
+                          (display "ok\n")
+                          (list package 'ok))
+                         (else
+                          (display "failed\n")
+                          (list package 'failed)))))
+
+               verbose))
+
+             (failed-tests
+              (filter
+               (lambda (test-result)
+                 (not (eq? (cadr test-result) 'ok)))
+               test-results)))
+
+        (cond ((pair? failed-tests)
+               (display "failed tests:")
+               (newline)
+               (for-each
+                (lambda (test-result)
+                  (let ((package (car test-result))
+                        (result (cadr test-result)))
+                    (display "    ")
+                    (display (snow2-package-get-readable-name package))
+                    (display ": ")
+                    (write result)
+                    (newline)))
+                failed-tests)))))
+
 
 
     (define (list-replace-last lst new-elt)

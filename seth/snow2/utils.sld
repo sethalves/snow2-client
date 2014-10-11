@@ -59,6 +59,7 @@
    (else))
   (import (snow extio)
           (srfi 13)
+          (srfi 14)
           (srfi 69)
           (srfi 29)
           (snow filesys)
@@ -496,14 +497,16 @@
         (hash-table-values package-url-ht)))
 
 
+    (define (library-is-used-for-steps library steps)
+      (pair? (lset-intersection eq? steps (snow2-library-use-for library))))
+
+
     (define (find-libraries-for-steps package steps)
       ;; search package for libraries that are used-for the given step
       (let loop ((libraries (snow2-package-libraries package))
                  (result '()))
         (cond ((null? libraries) result)
-              ((pair? (lset-intersection
-                       eq? steps
-                       (snow2-library-use-for (car libraries))))
+              ((library-is-used-for-steps (car libraries) steps)
                (loop (cdr libraries) (cons (car libraries) result)))
               (else (loop (cdr libraries) result)))))
 
@@ -521,7 +524,7 @@
                        (else (loop (cdr libraries)))))))))
 
 
-    (define (gather-depends repositories libraries)
+    (define (gather-depends repositories libraries steps)
       ;;
       ;; returns a list of snow2-packages
       ;;
@@ -530,42 +533,49 @@
         (for-each
          (lambda (library)
 
-           (let ((lib-name (snow2-library-name library)))
-             (let ((package (find-package-with-library repositories lib-name)))
-               (cond (package
-                      (hash-table-set! lib-name-ht lib-name library)
-                      (hash-table-set!
-                       package-url-ht
-                       (uri->hashtable-key
-                        (snow2-package-absolute-url package))
-                       package))))
+           ;; only chase libraries that are used for the indicated
+           ;; steps (usually 'test and/or 'final)
+           (if (library-is-used-for-steps library steps)
 
-             (for-each
-              (lambda (depend)
-                (let ((package (find-package-with-library repositories depend)))
-                  (cond (package
-                         (let ((libs (snow2-package-libraries package)))
-                           (hash-table-set!
-                            package-url-ht
-                            (uri->hashtable-key
-                             (snow2-package-absolute-url package))
-                            package)
-                           ;; XXX if the same lib is in more than one
-                           ;; package, there should be some reason to pick one
-                           ;; over the other?
-                           (for-each
-                            (lambda (lib)
-                              (hash-table-set! lib-name-ht
-                                               (snow2-library-name lib) lib))
-                            libs))))))
-              (snow2-library-depends library))))
+               (let ((lib-name (snow2-library-name library)))
+                 (let ((package
+                        (find-package-with-library repositories lib-name)))
+                   (cond (package
+                          (hash-table-set! lib-name-ht lib-name library)
+                          (hash-table-set!
+                           package-url-ht
+                           (uri->hashtable-key
+                            (snow2-package-absolute-url package))
+                           package))))
+
+                 (for-each
+                  (lambda (depend)
+                    (let ((package
+                           (find-package-with-library repositories depend)))
+                      (cond (package
+                             (let ((libs (snow2-package-libraries package)))
+                               (hash-table-set!
+                                package-url-ht
+                                (uri->hashtable-key
+                                 (snow2-package-absolute-url package))
+                                package)
+                               ;; XXX if the same lib is in more than one
+                               ;; package, there should be some reason to pick one
+                               ;; over the other?
+                               (for-each
+                                (lambda (lib)
+                                  (hash-table-set! lib-name-ht
+                                                   (snow2-library-name lib) lib))
+                                libs))))))
+                  (snow2-library-depends library)))))
          libraries)
 
         (if (= (length (hash-table-keys lib-name-ht)) (length libraries))
             ;; nothing new added this pass, so we've finished.
             (hash-table-values package-url-ht)
             ;; we found more, go around again.
-            (gather-depends repositories (hash-table-values lib-name-ht)))))
+            (gather-depends
+             repositories (hash-table-values lib-name-ht) steps))))
 
 
     (define (get-repository repository-url . maybe-error-on-bad-repo)
@@ -668,12 +678,13 @@
 
 
     (define (merge-packages! dst-package src-package verbose)
-      (cond (verbose
-             (display "package file changed.\n")
-             (write (package->sexp dst-package))
-             (newline)
-             (write (package->sexp src-package))
-             (newline)))
+      ;; (cond (verbose
+      ;;        (display "package file changed.\n")
+      ;;        (write (package->sexp dst-package))
+      ;;        (newline)
+      ;;        (write (package->sexp src-package))
+      ;;        (newline)))
+
       ;; update dst-package's list of libraries
       (set-snow2-package-libraries!
        dst-package
@@ -690,9 +701,11 @@
       ;; read a file that contains a package s-exp and update the copy
       ;; in repository.  return the updated package.
       (let ((updated-package (package-from-metafile-name package-filename)))
-        (set-snow2-package-repository! updated-package repository)
         (cond ((not updated-package)
                (error "can't read package metafile." package-filename)))
+
+        (set-snow2-package-repository! updated-package repository)
+
         (let loop ((repo-packages (snow2-repository-packages repository)))
           (cond ((null? repo-packages)
                  ;; we found a package file, but it's not in the repository's
@@ -758,9 +771,13 @@
       ;; whatever is after define-library.
       (let ((name (cadr lib-sexp)))
         (cond ((list? name) name)
+              ((symbol? name)
+               ;; name is in dotted format.
+               (string-tokenize (symbol->string name)
+                                (string->char-set ".")))
               (else
                ;; name is in dotted format.
-               (string-tokenize name (lambda (c) (not (eqv? c #\.))))))))
+               (string-tokenize name (string->char-set "."))))))
 
 
     (define (local-repository->in-fs-index-path local-repository)
