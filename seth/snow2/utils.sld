@@ -719,6 +719,7 @@
                  (set-snow2-package-dirty! updated-package #t)
                  updated-package)
                 (else
+                 ;; see if anything has changed
                  (let ((repo-package (car repo-packages)))
                    (cond ((and (equal? (snow2-package-name repo-package)
                                        (snow2-package-name updated-package))

@@ -55,23 +55,6 @@
 
   (begin
 
-
-    (cond-expand
-     ;; XXX remove when chicken's (srfi 13) has it
-     (chicken
-      (define (reverse-list->string char-list)
-        (let* ((len (length char-list))
-               (s (make-string len)))
-          (let loop ((i (- len 1))
-                     (char-list char-list))
-            (cond ((null? char-list) s)
-                  (else
-                   (string-set! s i (car char-list))
-                   (loop (- i 1)
-                         (cdr char-list))))))))
-     (else))
-
-
       (define (conc . args)
         (apply string-append (map display-to-string args)))
 

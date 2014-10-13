@@ -14,6 +14,7 @@
           (scheme char)
           (scheme write)
           (scheme file)
+          (scheme process-context)
           (srfi 1)
           (snow bytevector)
           (srfi 13)
@@ -46,18 +47,64 @@
       (secret-access-key credentials-secret-access-key))
 
     (define (read-credentials filename)
-      ;; XXX make a better parser
-      (let* ((creds-hndl (open-input-file filename))
-             (creds-line0 (read-line creds-hndl))
-             (creds-line1 (read-line creds-hndl)))
-        (close-input-port creds-hndl)
-        (make-credentials
-         (substring creds-line0 15 (string-length creds-line0))
-         (substring creds-line1 13 (string-length creds-line1)))))
+      ;;
+      ;; aws credentials in a file usually look like:
+      ;;
+      ;; AWSAccessKeyId=AKXXXXXXXXXXXXXXXXXX
+      ;; AWSSecretKey=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      ;;
+      ;; or
+      ;;
+      ;; aws_access_key_id = AKXXXXXXXXXXXXXXXXXX
+      ;; aws_secret_access_key = XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      ;;
+      (let ((creds-hndl (open-input-file filename)))
+        (let loop ((access-key-id #f)
+                   (secret-access-key #f))
+          ;; read each line
+          (let ((line (read-line creds-hndl)))
+            (cond ((eof-object? line)
+                   (close-input-port creds-hndl)
+                   (if (and access-key-id secret-access-key)
+                       (make-credentials access-key-id secret-access-key)
+                       #f))
+                  (else
+                   ;; search the line for and = or :
+                   (let ((position-of-delimiter (or (string-index line #\=)
+                                                    (string-index line #\:))))
+                     (if (not position-of-delimiter)
+                         ;; if neither = nor : is found, just ignore the line
+                         (loop access-key-id secret-access-key)
+                         (let ((secret-or-id
+                                ;; chop off anything before : or = and trim
+                                (string-trim-both
+                                 (substring line
+                                            (+ position-of-delimiter 1)
+                                            (string-length line))
+                                 char-whitespace?)))
+                           ;; access-key-id is shorter than secret
+                           (if (> (string-length secret-or-id) 26)
+                               (loop access-key-id secret-or-id)
+                               (loop secret-or-id secret-access-key)))))))))))
+
 
     (define (get-credentials-for-s3-bucket bucket)
-      ;; XXX look at environment variables
-      (read-credentials (string-append "/etc/aws/s3-" bucket)))
+      ;;
+      ;; http://boto.readthedocs.org/en/latest/boto_config_tut.html
+      ;; Some options, such as credentials, can also be read from environment
+      ;; variables (e.g. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+      ;; AWS_SECURITY_TOKEN and AWS_PROFILE)
+      ;;
+      ;; http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html
+      ;; 1. Environment Variables – AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
+      ;;
+      (let ((env-key (get-environment-variable "AWS_ACCESS_KEY_ID"))
+            (env-secret (get-environment-variable "AWS_SECRET_ACCESS_KEY")))
+        (cond ((and env-key env-secret)
+               (make-credentials env-key env-secret))
+              ((read-credentials (string-append "/etc/aws/s3-" bucket))
+               => (lambda (creds) creds))
+              (else #f))))
 
 
     (define (make-path key)
