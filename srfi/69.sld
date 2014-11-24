@@ -22,27 +22,45 @@
           )
   (import (scheme base))
   (cond-expand
-   ((or foment gauche) (import (scheme char)
-                               (scheme cxr)
-                               (scheme complex)))
-   (sagittarius (import (rnrs))))
+   (foment (import (scheme char)
+                   (scheme cxr)
+                   (scheme complex)))
+   (gauche
+    (import 
+     (prefix (only (gauche base)
+                   make-hash-table
+                   hash-table?
+                   hash-table-get
+                   hash-table-exists?
+                   hash-table-put!
+                   hash-table-copy
+                   hash-table-delete!
+                   hash-table-update!
+                   hash-table-keys
+                   hash-table-values
+                   hash-table->alist
+                   alist->hash-table) gauche-)))
+   (sagittarius (import (rnrs)))
+   )
   (begin
     (cond-expand
-     ;; XXX I can't figure out how to access Gauche's native hash-tables
-     ;; from inside this library.  Gauche is currently using the
-     ;; srfi-69 reference implementation.
-     ;;
-     ;; (gauche
-     ;;  ;; http://practical-scheme.net/gauche/man/gauche-refe_53.html
-     ;;  (define make-hash-table-real
-     ;;    (if (global-variable-bound? (current-module) 'make-hash-table-real)
-     ;;        make-hash-table-real
-     ;;        make-hash-table))
-     ;;  (define (make-hash-table . args)
-     ;;    (make-hash-table-real 'equal?))
-     ;;  (define hash-table-ref hash-table-get)
-     ;;  (define hash-table-ref/default hash-table-get)
-     ;;  (define hash-table-set! hash-table-put!))
+     (gauche
+      ;; http://practical-scheme.net/gauche/man/gauche-refe_55.html
+      (define (make-hash-table . args)
+        (gauche-make-hash-table 'equal?))
+      (define hash-table? gauche-hash-table?)
+      (define hash-table-ref gauche-hash-table-get)
+      (define hash-table-ref/default gauche-hash-table-get)
+      (define hash-table-exists? gauche-hash-table-exists?)
+      (define hash-table-set! gauche-hash-table-put!)
+      (define hash-table-copy gauche-hash-table-copy)
+      (define hash-table-delete! gauche-hash-table-delete!)
+      (define hash-table-update! gauche-hash-table-update!)
+      (define hash-table-keys gauche-hash-table-keys)
+      (define hash-table-values gauche-hash-table-values)
+      (define hash-table->alist gauche-hash-table->alist)
+      (define alist->hash-table gauche-alist->hash-table)
+      )
 
      (sagittarius
       ;; http://ktakashi.github.io/sagittarius-ref.html#rnrs.hashtables.6
@@ -379,7 +397,7 @@
 
 
      (cond-expand
-      ((or sagittarius)
+      ((or sagittarius gauche)
        (define (hash-table-merge! dst-table src-table)
          (for-each
           (lambda (key)

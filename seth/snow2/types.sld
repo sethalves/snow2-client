@@ -59,7 +59,8 @@
    (else (import (srfi 1))))
 
   (import (srfi 13)
-          (seth uri))
+          (seth uri)
+          (seth string-read-write))
 
   (begin
     (define-record-type <snow2-repository>
@@ -268,10 +269,10 @@
     (define (snow2-package-get-readable-name package)
       (let* ((name (snow2-package-name package))
              (url (snow2-package-url package)))
-        (cond ((and name
-                    (not (equal? name ""))
-                    (not (equal? name '())))
-               (string-join (map symbol->string name) "-"))
+        (cond ((and name (string? name) (not (equal? name "")))
+               name)
+              ((and name (list? name) (not (equal? name '())))
+               (string-join (map ->string name) "-"))
               ((and url (pair? (uri-path url)))
                (let ((tgz-name (last (uri-path url))))
                  (if (string-suffix? ".tgz" tgz-name)

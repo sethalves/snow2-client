@@ -88,7 +88,7 @@
             (snow bytevector)))
 
    (gauche (import (scheme read) (scheme write)
-                   (gauche)
+                   ;; (gauche)
                    (r7rs)
                    (gauche net)
                    (seth gauche-socket-utils)

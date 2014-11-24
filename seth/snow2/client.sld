@@ -9,18 +9,20 @@
           (scheme process-context))
   (cond-expand
    (chibi (import (only (srfi 1) filter make-list any fold)))
+   (guile (import (srfi :1)))
    (else (import (srfi 1))))
   (cond-expand
    (chibi (import (chibi filesystem)))
    (else))
-  (import (srfi 13)
-          (snow filesys) (snow binio) (snow genport) (snow zlib) (snow tar)
-          (srfi 27)
-          (srfi 29)
+  (cond-expand
+   ;; (guile (import (srfi :13) (srfi :37) (srfi :27)))
+   (else (import (except (srfi 13) string-copy string-map string-for-each
+                         string-fill! string-copy! string->list)
+                 (srfi 37) (srfi 27) (srfi 29))))
+  (import (snow filesys) (snow binio) (snow genport) (snow zlib) (snow tar)
           (prefix (seth http) http-)
           (seth temporary-file)
           (seth string-read-write)
-          (srfi 37)
           (seth uri)
           (seth crypt md5)
           (seth snow2 types)

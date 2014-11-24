@@ -7,18 +7,14 @@
 
   (import (scheme base))
   (cond-expand
-   ((or chibi chicken)
+   ((or chibi chicken gauche)
     (import (srfi 95)))
-   ;; (gauche (import (srfi gauche-95)))
-   ;; (gauche (import (srfi-95)))
    (else))
-  ;; (import (snow bytevector))
 
   (begin
     (cond-expand
      ((or chibi chicken))
      (else
-
 
 
 ;; a trimmed down version of srfi-63 (or srfi-25, but array-set! argument

@@ -35,9 +35,6 @@
           (srfi 95)
           (seth string-read-write)
           )
-  (cond-expand
-   (gauche (import (srfi gauche-95)))
-   (else))
 
   (begin
 
@@ -199,7 +196,6 @@
                 ((not (equal? (sort (snow2-library-depends lib) lib-name<?)
                               (sort deps lib-name<?)))
                  (set-snow2-library-depends! lib deps)
-                 (set-snow2-package-dirty! package #t)
                  (set-snow2-repository-dirty! local-repository #t)
 
                  (cond (verbose
@@ -213,7 +209,6 @@
                            (display "  setting library name to ")
                            (write (lib-sexp->name lib-sexp))
                            (newline)))
-                    (set-snow2-package-dirty! package #t)
                     (set-snow2-repository-dirty! local-repository #t)
                     (set-snow2-library-name!
                      lib (lib-sexp->name lib-sexp)))
@@ -262,17 +257,25 @@
               (cond ((or (not (number? (snow2-package-size package)))
                          (not (= (snow2-package-size package)
                                  local-package-size)))
+                     (display "setting package dirty due to size, ")
+                     (display "was ")
+                     (write (snow2-package-size package))
+                     (display ", now ")
+                     (write local-package-size)
+                     (newline)
                      (set-snow2-package-size! package local-package-size)
-                     (set-snow2-package-dirty! package #t)
-                     (set-snow2-repository-dirty! local-repository #t)
-                     (display "setting package dirty due to size\n")))
+                     (set-snow2-repository-dirty! local-repository #t)))
               (cond ((not (equal? (snow2-package-checksum package)
                                   `(md5 ,local-package-md5)))
+                     (display "setting package dirty due to md5, ")
+                     (display "was ")
+                     (write (snow2-package-checksum package))
+                     (display ", now ")
+                     (write `(md5 ,local-package-md5))
+                     (newline)
                      (set-snow2-package-checksum!
                       package `(md5 ,local-package-md5))
-                     (set-snow2-package-dirty! package #t)
-                     (set-snow2-repository-dirty! local-repository #t)
-                     (display "setting package dirty due to md5\n"))))))))
+                     (set-snow2-repository-dirty! local-repository #t))))))))
 
 
     (define (conditional-put-object! credentials bucket s3-path local-filename)
@@ -300,7 +303,13 @@
                 (err (#t
                       (display "error uploading ")
                       (write local-filename)
-                      (display " to s3.\n")
+                      (display " to s3 bucket: ")
+                      (write bucket)
+                      (newline)
+                      (display "key-id: ")
+                      (write (credentials-access-key-id credentials))
+                      (newline)
+                      (newline)
                       (write (error-object-message err))
                       (newline)
                       (write (error-object-irritants err))
@@ -495,8 +504,8 @@
       (local-packages-operation
        repositories package-metafiles
        (lambda (local-repository package-metafile package)
-         (refresh-package-from-filename
-          local-repository package-metafile verbose)
+         ;; (refresh-package-from-filename
+         ;;  local-repository package-metafile verbose)
          (make-package-archive
           (cons local-repository repositories)
           local-repository package-metafile package verbose))
@@ -531,14 +540,6 @@
 
 
       (define (get-test-lib-names test-libs)
-        ;; (cond (verbose
-        ;;        (newline)
-        ;;        (for-each
-        ;;         (lambda (test-lib)
-        ;;           (write (snow2-library-path test-lib))
-        ;;           (display " --> ")
-        ;;           (write (snow2-library-name test-lib)))
-        ;;         test-libs)))
         (map snow2-library-name test-libs))
 
       (define (run-tests env)
@@ -549,16 +550,7 @@
                         (write (error-object-message err))
                         (newline)
                         (write (error-object-irritants err))
-                        (newline)
-                        ;; (raise err)
-                        ))))
-
-           ;; (let ((output
-           ;;        (with-output-to-string
-           ;;          (lambda () (set! result (eval '(run-tests) env))))
-           ;;        ))
-           ;;   ;; ... if verbose, write output?
-           ;;   #t)
+                        (newline)))))
 
            (set! result (eval '(run-tests) env)))
           result))

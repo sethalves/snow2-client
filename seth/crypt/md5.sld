@@ -7,6 +7,8 @@
           (snow bytevector))
 
   (cond-expand
+   (chibi
+    (import (prefix (chibi crypto md5) chibi-)))
    (chicken
     (import (message-digest)
             (md5)))
@@ -22,6 +24,11 @@
   (begin
 
     (cond-expand
+
+     (chibi
+      (define (md5 src)
+        (hex-string->bytes
+         (chibi-md5 src))))
 
      (chicken
       (define (md5 src)

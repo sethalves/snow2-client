@@ -50,7 +50,7 @@
           (scheme process-context))
   (cond-expand
    (chibi (import (only (srfi 1) filter make-list any fold
-                        lset-intersection last drop-right)
+                        lset-intersection last drop-right find)
                   (only (chibi) read)))
    (else (import (scheme read)
                  (srfi 1))))
@@ -322,6 +322,12 @@
                            (else
                             (package-from-sexp package-sexp)))))
                (close-input-port package-port)
+
+               (cond ((not package)
+                      (display "can't read package metafile: ")
+                      (display package-filename)
+                      (exit 1)))
+
                package))))
 
 
@@ -678,13 +684,6 @@
 
 
     (define (merge-packages! dst-package src-package verbose)
-      ;; (cond (verbose
-      ;;        (display "package file changed.\n")
-      ;;        (write (package->sexp dst-package))
-      ;;        (newline)
-      ;;        (write (package->sexp src-package))
-      ;;        (newline)))
-
       ;; update dst-package's list of libraries
       (set-snow2-package-libraries!
        dst-package
@@ -701,45 +700,40 @@
       ;; read a file that contains a package s-exp and update the copy
       ;; in repository.  return the updated package.
       (let ((updated-package (package-from-metafile-name package-filename)))
-        (cond ((not updated-package)
-               (error "can't read package metafile." package-filename)))
+
+        (define (package-name/url-matches-updated? repo-package)
+          ;; return true if repo-package has the same name and url as
+          ;; updated-package
+          (and (equal? (snow2-package-name repo-package)
+                       (snow2-package-name updated-package))
+               (uri-equal?
+                (snow2-package-absolute-url repo-package)
+                (snow2-package-absolute-url updated-package))))
 
         (set-snow2-package-repository! updated-package repository)
 
-        (let loop ((repo-packages (snow2-repository-packages repository)))
-          (cond ((null? repo-packages)
+        (let ((repo-package (find package-name/url-matches-updated?
+                                  (snow2-repository-packages repository))))
+          (cond ((not repo-package)
                  ;; we found a package file, but it's not in the repository's
                  ;; index.scm file.  just add it to the list.
                  (set-snow2-repository-packages!
                   repository
                   (cons updated-package
                         (snow2-repository-packages repository)))
-                 (set-snow2-package-repository! updated-package repository)
                  (set-snow2-repository-dirty! repository #t)
-                 (set-snow2-package-dirty! updated-package #t)
                  updated-package)
                 (else
-                 ;; see if anything has changed
-                 (let ((repo-package (car repo-packages)))
-                   (cond ((and (equal? (snow2-package-name repo-package)
-                                       (snow2-package-name updated-package))
-                               (uri-equal?
-                                (snow2-package-absolute-url repo-package)
-                                (snow2-package-absolute-url updated-package)))
-                          ;; we found the package to update
-                          (cond ((not (snow2-packages-equal?
-                                       repo-package updated-package))
-                                 ;; merge the fields in updated-package
-                                 ;; into repo-package
-                                 (merge-packages! repo-package
-                                                  updated-package
-                                                  verbose)
-                                 (set-snow2-repository-dirty! repository #t)))
-                          repo-package)
-                         (else
-                          ;; this package didn't match the one we read
-                          ;; from package-filename, keep searching.
-                          (loop (cdr repo-packages))))))))))
+                 ;; we found the package to update
+                 (cond ((not (snow2-packages-equal?
+                              repo-package updated-package))
+                        ;; merge the fields in updated-package
+                        ;; into repo-package
+                        (merge-packages! repo-package
+                                         updated-package
+                                         verbose)
+                        (set-snow2-repository-dirty! repository #t)))
+                 repo-package)))))
 
 
 

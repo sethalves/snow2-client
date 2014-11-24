@@ -29,10 +29,6 @@
           )
 
   (cond-expand
-   (gauche (import (srfi gauche-95)))
-   (else))
-
-  (cond-expand
    (chibi (import (chibi char-set)))
    (else (import (srfi 14))))
   (begin
@@ -99,9 +95,12 @@
       ;; 1. Environment Variables – AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
       ;;
       (let ((env-key (get-environment-variable "AWS_ACCESS_KEY_ID"))
-            (env-secret (get-environment-variable "AWS_SECRET_ACCESS_KEY")))
+            (env-secret (get-environment-variable "AWS_SECRET_ACCESS_KEY"))
+            (cred-file (get-environment-variable "AWS_CREDENTIAL_FILE")))
         (cond ((and env-key env-secret)
                (make-credentials env-key env-secret))
+              ((and cred-file (read-credentials cred-file))
+               => (lambda (creds) creds))
               ((read-credentials (string-append "/etc/aws/s3-" bucket))
                => (lambda (creds) creds))
               (else #f))))
