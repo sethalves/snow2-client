@@ -6,8 +6,6 @@
   (cond-expand
    (chibi
     (import (chibi io)))
-   (sagittarius
-    (import (srfi 29)))
    (else))
   (begin
 
@@ -30,7 +28,7 @@
 
     (cond-expand
      ((or gauche sagittarius chicken))
-     ((or chibi foment)
+     ((or chibi foment kawa)
 
       ;; The association list in which bundles will be stored
       (define *localization-bundles* '())
@@ -55,29 +53,29 @@
       ;; The load-bundle! and store-bundle! both return #f in this
       ;; reference implementation.  A compliant implementation need
       ;; not rewrite these procedures.
-      (define load-bundle!
-        (lambda (bundle-specifier)
-          #f))
+      ;; (define load-bundle!
+      ;;   (lambda (bundle-specifier)
+      ;;     #f))
 
-      (define store-bundle!
-        (lambda (bundle-specifier)
-          #f))
+      ;; (define store-bundle!
+      ;;   (lambda (bundle-specifier)
+      ;;     #f))
 
       ;; Declare a bundle of templates with a given bundle specifier
-      (define declare-bundle!
-        (letrec ((remove-old-bundle
-                  (lambda (specifier bundle)
-                    (cond ((null? bundle) '())
-                          ((equal? (caar bundle) specifier)
-                           (cdr bundle))
-                          (else (cons (car bundle)
-                                      (remove-old-bundle specifier
-                                                         (cdr bundle))))))))
-          (lambda (bundle-specifier bundle-assoc-list)
-            (set! *localization-bundles*
-                  (cons (cons bundle-specifier bundle-assoc-list)
-                        (remove-old-bundle bundle-specifier
-                                           *localization-bundles*))))))
+      ;; (define declare-bundle!
+      ;;   (letrec ((remove-old-bundle
+      ;;             (lambda (specifier bundle)
+      ;;               (cond ((null? bundle) '())
+      ;;                     ((equal? (caar bundle) specifier)
+      ;;                      (cdr bundle))
+      ;;                     (else (cons (car bundle)
+      ;;                                 (remove-old-bundle specifier
+      ;;                                                    (cdr bundle))))))))
+      ;;     (lambda (bundle-specifier bundle-assoc-list)
+      ;;       (set! *localization-bundles*
+      ;;             (cons (cons bundle-specifier bundle-assoc-list)
+      ;;                   (remove-old-bundle bundle-specifier
+      ;;                                      *localization-bundles*))))))
 
       ;;Retrieve a localized template given its package name and a template name
       (define localized-template
@@ -107,7 +105,7 @@
 
     (cond-expand
      ((or gauche sagittarius))
-     ((or chibi chicken foment)
+     ((or chibi chicken foment kawa)
 
 
 ;;An SRFI-28 and SRFI-29 compliant version of format.  It requires

@@ -1,232 +1,261 @@
 (define-library (srfi 60)
-  (export powers-of-two
-          integer64->bitvector
-          bitvector->integer64
-          bitvector->str
-          arithmetic-shift
-          bitwise-ior
+  (export logand
           bitwise-and
-          bitwise-not
+          logior
+          bitwise-ior
+          logxor
           bitwise-xor
+          lognot
+          bitwise-not
           bitwise-if
+          bitwise-merge
+          logtest
+          any-bits-set?
+          logcount
+          bit-count
+          integer-length
+          log2-binary-factors
+          first-set-bit
+          logbit?
+          bit-set?
+          copy-bit
+          bit-field
           copy-bit-field
-          )
+          ash
+          arithmetic-shift
+          rotate-bit-field
+          reverse-bit-field
+          integer->list
+          list->integer
+          booleans->integer)
   (import (scheme base))
   (cond-expand
-   (chibi (import (srfi 33)))
+   (chibi (import (except (srfi 33) copy-bit-field first-set-bit)))
    (chicken (import (only (numbers)
                           arithmetic-shift
                           bitwise-ior
                           bitwise-and
                           bitwise-not
-                          bitwise-xor)))
-   ;; (gauche (import (srfi 60)))
-   (foment)
+                          bitwise-xor
+                          integer-length
+                          bitwise-bit-count)))
    (sagittarius (import (rnrs arithmetic bitwise (6))))
    (else))
+
   (begin
 
-    (define powers-of-two ;; 64 bits worth
-      (vector
-       #x8000000000000000 #x4000000000000000 #x2000000000000000 #x1000000000000000
-       #x800000000000000 #x400000000000000 #x200000000000000 #x100000000000000
-       #x80000000000000 #x40000000000000 #x20000000000000 #x10000000000000
-       #x8000000000000 #x4000000000000 #x2000000000000 #x1000000000000
+    ;; these are parts of logical.scm (srfi-60 reference) chopped up
 
-       #x800000000000 #x400000000000 #x200000000000 #x100000000000
-       #x80000000000 #x40000000000 #x20000000000 #x10000000000
-       #x8000000000 #x4000000000 #x2000000000 #x1000000000
-       #x800000000 #x400000000 #x200000000 #x100000000
-
-       #x80000000 #x40000000 #x20000000 #x10000000
-       #x8000000 #x4000000 #x2000000 #x1000000
-       #x800000 #x400000 #x200000 #x100000
-       #x80000 #x40000 #x20000 #x10000
-
-       #x8000 #x4000 #x2000 #x1000
-       #x800 #x400 #x200 #x100
-       #x80 #x40 #x20 #x10
-       #x8 #x4 #x2 #x1))
-
-
-    (define (integer64->bitvector v)
-      ;; 64 bit big-endian, two's complement for negative
-      (let ((bits (make-vector 64 #f)))
-        (let loop ((i 0)
-                   (v (if (< v 0) (+ #x10000000000000000 v) v)))
-          (cond ((= i 64)
-                 (if (= v 0)
-                     bits
-                     (error "integer64->bitvector -- v is too large")))
-                ((<= (vector-ref powers-of-two i) v)
-                 (vector-set! bits i #t)
-                 (loop (+ i 1) (- v (vector-ref powers-of-two i))))
-                (else
-                 (loop (+ i 1) v))))))
-
-
-    (define (bitvector->integer64 bits)
-      ;; big-endian
-      (let loop ((i 0)
-                 (v 0))
-        (cond ((= i 64)
-               (if (>= v #x8000000000000000)
-                   (- v #x10000000000000000)
-                   v))
-              ((vector-ref bits i)
-               (loop (+ i 1) (+ v (vector-ref powers-of-two i))))
-              (else
-               (loop (+ i 1) v)))))
-
-
-    (define (bitvector->str bits)
-      (let loop ((i 0)
-                 (result ""))
-        (if (= i 64) result
-            (loop (+ i 1)
-                  (string-append result
-                                 (if (vector-ref bits i) "1" "0"))))))
+    ;; "logical.scm", bit access and operations for integers for Scheme
+    ;; Copyright (C) 1991, 1993, 2001, 2003, 2005 Aubrey Jaffer
+    ;;
+    ;; Permission to copy this software, to modify it, to redistribute it,
+    ;; to distribute modified versions, and to use it for any purpose is
+    ;; granted, subject to the following restrictions and understandings.
+    ;;
+    ;; 1.  Any copy made of this software must include this copyright notice
+    ;; in full.
+    ;;
+    ;; 2.  I have made no warranty or representation that the operation of
+    ;; this software will be error-free, and I am under no obligation to
+    ;; provide any services, by way of maintenance, update, or otherwise.
+    ;;
+    ;; 3.  In conjunction with products arising from the use of this
+    ;; material, there shall be no use of my name in any advertising,
+    ;; promotional, or sales literature without prior written consent in
+    ;; each case.
 
 
     (cond-expand
-
-     ;; these have srfi-33 or srfi-60 available
-     ((or chibi chicken gauche sagittarius foment))
-
-     ;; (else
-     ;;  (define (arithmetic-shift n sft)
-     ;;    (if (> sft 0)
-     ;;        (bit-lsh n sft)
-     ;;        (bit-rsh n (- sft))))
-
-     ;;  ;; (define bitwise-ior bit-or)
-     ;;  (define (bitwise-ior . args)
-     ;;    (if (null? args)
-     ;;        0
-     ;;        (bit-or (car args) (apply bitwise-ior (cdr args)))))
-
-     ;;  (define bitwise-and bit-and)
-     ;;  (define bitwise-not bit-not)
-     ;;  (define (bitwise-xor . args)
-     ;;    (let loop ((v (car args))
-     ;;               (args (cdr args)))
-     ;;      (if (null? args) v
-     ;;          (loop (bit-xor v (car args))
-     ;;                (cdr args))))))
-
-     (else
-      (define (bitwise-op v0 v1 op)
-        (let ((v0-bits (integer64->bitvector v0))
-              (v1-bits (integer64->bitvector v1))
-              (bits (make-vector 64 #f)))
-          (let loop ((i 0))
-            (cond ((= i 64) (bitvector->integer64 bits))
-                  ((op (vector-ref v0-bits i)
-                       (vector-ref v1-bits i))
-                   (vector-set! bits i #t)
-                   (loop (+ i 1)))
-                  (else
-                   (loop (+ i 1)))))))
-
-
-      (define (bitwise-ior . args)
-        (let loop ((args args)
-                   (result 0))
-          (cond ((null? args) result)
-                (else
-                 (loop (cdr args)
-                       (bitwise-op (car args) result
-                                   ;; or
-                                   (lambda (b0 b1)
-                                     (cond (b0 #t)
-                                           (b1 #t)
-                                           (else #f)))))))))
-
-
-      (define (bitwise-and . args)
-        (let loop ((args args)
-                   (result -1))
-          (cond ((null? args) result)
-                (else
-                 (loop (cdr args)
-                       (bitwise-op (car args) result
-                                   ;; and
-                                   (lambda (b0 b1)
-                                     (cond ((not b0) #f)
-                                           ((not b1) #f)
-                                           (else #t)))))))))
-
-      (define (bitwise-xor . args)
-        (let loop ((args args)
-                   (result 0))
-          (cond ((null? args) result)
-                (else
-                 (loop (cdr args)
-                       (bitwise-op (car args) result
-                                   (lambda (b0 b1)
-                                     (cond ((and b0 b1) #f)
-                                           (b0 #t)
-                                           (b1 #t)
-                                           (else #f)))))))))
-
-      (define (bitwise-not v)
-        ;; (- 4294967295 v) 32 bit
-        ;; (- #xffffffffffffffff v)
-        (- -1 v))))
-
-
-    (cond-expand
-     ((or chicken chibi foment))
-     (gauche
-      (define bitwise-ior bitwise-ior)
-      (define bitwise-xor bitwise-xor)
-      (define arithmetic-shift arithmetic-shift))
      (sagittarius
-      (define arithmetic-shift bitwise-arithmetic-shift))
-     ;; (chibi
-     ;;  ;; work around a bug?  difference?  in chibi's arithmetic-shift
-     ;;  ;; https://code.google.com/p/chibi-scheme/issues/detail?id=208
-     ;;  (define (arithmetic-shift v n)
-     ;;    (cond ((< n 0)
-     ;;           (floor (/ v (vector-ref powers-of-two
-     ;;                                   (- (vector-length powers-of-two)
-     ;;                                      (- 0 n) 1)))))
-     ;;          ((> n 0)
-     ;;           (* v (vector-ref powers-of-two
-     ;;                            (- (vector-length powers-of-two) n 1))))
-     ;;          (else v))
-     ;;    ))
-     (else
-      ;; (define (arithmetic-shift v n)
-      ;;   (cond ((= n 0) v)
-      ;;         ((< n 0) (arithmetic-shift (floor (/ v 2)) (+ n 1)))
-      ;;         ((> n 0) (arithmetic-shift (* v 2) (- n 1)))))
-      (define (arithmetic-shift v n)
-        (cond ((< n 0)
-               (floor (/ v (vector-ref powers-of-two
-                                       (- (vector-length powers-of-two)
-                                          (- 0 n) 1)))))
-              ((> n 0)
-               (* v (vector-ref powers-of-two
-                                (- (vector-length powers-of-two) n 1))))
-              (else v))
-        ;;   #xffffffffffffffff)
-        )))
+      (define (arithmetic-shift n count)
+        (if (negative? count)
+            (let ((k (expt 2 (- count))))
+              (if (negative? n)
+                  (+ -1 (quotient (+ 1 n) k))
+                  (quotient n k)))
+            (* (expt 2 count) n)))
+
+      (define ash arithmetic-shift)
+
+
+      (define (logical:ash-4 x)
+        (if (negative? x)
+            (+ -1 (quotient (+ 1 x) 16))
+            (quotient x 16)))
+
+      (define integer-length
+        (letrec ((intlen (lambda (n tot)
+                           (case n
+                             ((0 -1) (+ 0 tot))
+                             ((1 -2) (+ 1 tot))
+                             ((2 3 -3 -4) (+ 2 tot))
+                             ((4 5 6 7 -5 -6 -7 -8) (+ 3 tot))
+                             (else (intlen (logical:ash-4 n) (+ 4 tot)))))))
+          (lambda (n) (intlen n 0)))))
+     (else))
+
+
+    (cond-expand
+     ((or chibi chicken sagittarius)
+      (define (log2-binary-factors n)
+        (+ -1 (integer-length (logand n (- n)))))
+
+      (define logand bitwise-and)
+      (define logior bitwise-ior)
+      (define lognot bitwise-not)
+      (define logxor bitwise-xor)
+
+
+      (define (copy-bit index to bool)
+        (if bool
+            (logior to (arithmetic-shift 1 index))
+            (logand to (lognot (arithmetic-shift 1 index)))))
+
+
+      (define (bit-field n start end)
+        (logand (lognot (ash -1 (- end start)))
+                (arithmetic-shift n (- start))))
+
+
+
+      (define (copy-bit-field to from start end)
+        (bitwise-if (arithmetic-shift (lognot (ash -1 (- end start))) start)
+                    (arithmetic-shift from start)
+                    to))
+
+
+      (define (rotate-bit-field n count start end)
+        (define width (- end start))
+        (set! count (modulo count width))
+        (let ((mask (lognot (ash -1 width))))
+          (define zn (logand mask (arithmetic-shift n (- start))))
+          (logior (arithmetic-shift
+                   (logior (logand mask (arithmetic-shift zn count))
+                           (arithmetic-shift zn (- count width)))
+                   start)
+                  (logand (lognot (ash mask start)) n))))
+
+      (define (reverse-bit-field n start end)
+        (define width (- end start))
+        (let ((mask (lognot (ash -1 width))))
+          (define zn (logand mask (arithmetic-shift n (- start))))
+          (logior (arithmetic-shift (bit-reverse width zn) start)
+                  (logand (lognot (ash mask start)) n))))
+
+
+      (define (bit-reverse k n)
+        (do ((m (if (negative? n) (lognot n) n) (arithmetic-shift m -1))
+             (k (+ -1 k) (+ -1 k))
+             (rvs 0 (logior (arithmetic-shift rvs 1) (logand 1 m))))
+            ((negative? k) (if (negative? n) (lognot rvs) rvs))))
+
+
+      (define (integer->list k . len)
+        (if (negative? k) (error 'integer->list 'negative? k))
+        (if (null? len)
+            (do ((k k (arithmetic-shift k -1))
+                 (lst '() (cons (odd? k) lst)))
+                ((<= k 0) lst))
+            (do ((idx (+ -1 (car len)) (+ -1 idx))
+                 (k k (arithmetic-shift k -1))
+                 (lst '() (cons (odd? k) lst)))
+                ((negative? idx) lst))))
+
+
+      (define (list->integer bools)
+        (do ((bs bools (cdr bs))
+             (acc 0 (+ acc acc (if (car bs) 1 0))))
+            ((null? bs) acc)))
+
+      (define (booleans->integer . bools)
+        (list->integer bools))
+
+      (define first-set-bit log2-binary-factors)
+      )
+     (else))
 
 
 
     (cond-expand
-     (sagittarius)
-     (else
-      (define (bitwise-if ei1 ei2 ei3)
-        (bitwise-ior (bitwise-and ei1 ei2)
-                     (bitwise-and (bitwise-not ei1) ei3)))))
+     ((or chibi chicken)
+
+      (define ash arithmetic-shift)
+
+      (define (bitwise-if mask n0 n1)
+        (logior (logand mask n0)
+                (logand (lognot mask) n1)))
+
+      )
+     (else))
 
 
-    (define (copy-bit-field to from start end)
-      (let* ((mask1 (arithmetic-shift -1 start))
-             (mask2 (bitwise-not (arithmetic-shift -1 end)))
-             (mask (bitwise-and mask1 mask2)))
-        (bitwise-if mask (arithmetic-shift from start) to)))
+    (cond-expand
+     (chicken
+      (define bitwise-bit-count
+        (letrec ((logcnt (lambda (n tot)
+                           (if (zero? n)
+                               tot
+                               (logcnt (quotient n 16)
+                                       (+ (vector-ref
+                                           '#(0 1 1 2 1 2 2 3 1 2 2 3 2 3 3 4)
+                                           (modulo n 16))
+                                          tot))))))
+          (lambda (n)
+            (cond ((negative? n) (lognot (logcnt (lognot n) 0)))
+                  ((positive? n) (logcnt n 0))
+                  (else 0))))))
+     (else))
+
+    (cond-expand
+     ((or chicken sagittarius)
+      (define (logtest n1 n2)
+        (not (zero? (bitwise-and n1 n2))))
+      (define any-bits-set? logtest)
+      (define bit-count bitwise-bit-count)
+      (define (logbit? index n)
+        (logtest (expt 2 index) n))
+      (define bit-set? logbit?)
+
+      (define bitwise-merge bitwise-if)
+
+      (define (logcount n)
+        (cond ((negative? n) (bitwise-bit-count (lognot n)))
+              (else (bitwise-bit-count n))))
+      )
+     (else))
+
+
+    (cond-expand
+     (chicken
+      (define bit-count logcount)
+      )
+     (else))
+
+
+    (cond-expand
+     (chibi
+      (define logbit? bit-set?)
+
+      (define (list->integer bools)
+        (do ((bs bools (cdr bs))
+             (acc 0 (+ acc acc (if (car bs) 1 0))))
+            ((null? bs) acc)))
+
+      (define (booleans->integer . bools)
+        (list->integer bools))
+
+
+      (define (logtest n1 n2)
+        (not (zero? (logand n1 n2))))
+
+      (define (logcount n)
+        (cond ((negative? n) (bit-count (lognot n)))
+              (else (bit-count n))))
+
+      )
+
+     (else)
+     )
 
     ))

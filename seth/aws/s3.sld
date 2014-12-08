@@ -13,7 +13,10 @@
   (import (scheme base)
           (scheme write)
           (snow bytevector)
-          (srfi 13)
+          (except (srfi 13)
+                  string-copy string-map string-for-each
+                  string-fill! string-copy! string->list
+                  string-upcase string-downcase)
           (snow extio)
           (seth uri)
           (seth port-extras)

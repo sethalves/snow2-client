@@ -51,8 +51,8 @@
    (chibi (import (chibi io)))
    (chicken (import (chicken) (srfi 4)))
    (foment)
-   (gauche (import (gauche uvector)
-                   (snow gauche-bv-string-utils)))
+   (gauche (import (only (gauche base) string-size string-byte-ref)
+                   (gauche uvector)))
    (sagittarius (import (util bytevector)))
    )
   (begin
@@ -88,7 +88,7 @@
 
     (cond-expand
 
-     ((or chibi chicken foment gauche sagittarius)
+     ((or chibi chicken foment gauche kawa sagittarius)
       (define (latin-1->string bytes)
         (list->string
          (map integer->char
@@ -155,7 +155,7 @@
 
 
     (cond-expand
-     ((or chibi chicken foment gauche sagittarius)
+     ((or chibi chicken foment gauche kawa sagittarius)
       ;; these didn't make it into final r7rs.
       (define (bytevector-copy-partial bv start end)
         (let ((res (make-bytevector (- end start))))

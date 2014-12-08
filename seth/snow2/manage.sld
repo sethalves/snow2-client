@@ -575,7 +575,14 @@
                           (display "test lib load failed")
                           (newline)
                           (list package 'lib-load-failed))
-                         ((run-tests env)
+                         ((and verbose (run-tests env))
+                          (display "ok\n")
+                          (list package 'ok))
+                         ((let ((result #f))
+                            ;; non-verbose mode, don't output stdout
+                            (with-output-to-string
+                              (lambda () (set! result (run-tests env))))
+                            result)
                           (display "ok\n")
                           (list package 'ok))
                          (else

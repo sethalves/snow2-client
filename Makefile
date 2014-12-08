@@ -149,7 +149,9 @@ uninstall-chicken:
 clean-chicken:
 	rm -f snow2-client-chicken snow2-client-chicken.c
 
-bootstrap-chicken: clean-chicken links build-chicken
+bootstrap-chicken-x: clean-chicken links build-chicken
+
+bootstrap-chicken: bootstrap-chicken-x
 	rm -rf snow seth srfi
 	./snow2-client-chicken -:a40 install '(seth snow2 types)'
 	make SCHEME=chicken build

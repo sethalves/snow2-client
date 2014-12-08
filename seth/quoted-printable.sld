@@ -7,8 +7,10 @@
           (scheme write)
           (scheme char)
           (srfi 60)
-          (srfi 13)
-          )
+          (except (srfi 13)
+                  string-copy string-map string-for-each
+                  string-fill! string-copy! string->list
+                  string-upcase string-downcase))
   (cond-expand
    (chibi
     (import (chibi quoted-printable)))
@@ -16,12 +18,10 @@
     (import (ports)))
    (gauche
     (import (rfc quoted-printable)))
-   (foment
-    (import (seth string-read-write))
-    )
    (sagittarius
-    (import (sagittarius io))
-    ))
+    (import (sagittarius io)))
+   (else
+    (import (seth string-read-write))))
   (begin
 
     (cond-expand
@@ -56,7 +56,7 @@
       (cond
         ((= i end)
          (if (pair? res)
-           (string-concatenate (reverse (cons (substring buf 0 col) res))
+           (string-join (reverse (cons (substring buf 0 col) res))
                                separator)
            (substring buf start-col col)))
         ((>= col (- max-col 3))

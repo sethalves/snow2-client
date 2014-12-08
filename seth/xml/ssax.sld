@@ -59,11 +59,14 @@
    (else))
 
   (cond-expand
-   ((or chibi foment)
+   ((or chibi foment kawa)
     (import (srfi 1)
             (scheme char)
             (scheme cxr)
-            (srfi 13)
+            (except (srfi 13)
+                    string-copy string-map string-for-each
+                    string-fill! string-copy! string->list
+                    string-upcase string-downcase)
             (snow input-parse)
             (snow assert)
             (only (seth string-read-write) call-with-input-string)))
@@ -72,7 +75,7 @@
    (sagittarius (import (text sxml ssax))))
   (begin
     (cond-expand
-     ((or chibi foment)
+     ((or chibi foment kawa)
 
 
 ;; a few defines to make SSAX.scm run under chibi...
@@ -114,21 +117,18 @@
   (newline (current-error-port)))
 
 
-(define (cout . strs)
-  (for-each
-   (lambda (str)
-     (display str))
-   strs))
+;; (define (cout . strs)
+;;   (for-each
+;;    (lambda (str)
+;;      (display str))
+;;    strs))
 
 
-(define (cerr . strs)
-  (for-each
-   (lambda (str)
-     (display str (current-error-port)))
-   strs))
-
-
-
+;; (define (cerr . strs)
+;;   (for-each
+;;    (lambda (str)
+;;      (display str (current-error-port)))
+;;    strs))
 
 
 
@@ -753,14 +753,14 @@
 ; Return (values found-el remaining-alist) or
 ;	 (values #f alist)
 
-(define (assq-values val alist)
-  (let loop ((alist alist) (scanned '()))
-    (cond
-     ((null? alist) (values #f scanned))
-     ((equal? val (caar alist))
-      (values (car alist) (append scanned (cdr alist))))
-     (else
-      (loop (cdr alist) (cons (car alist) scanned))))))
+;; (define (assq-values val alist)
+;;   (let loop ((alist alist) (scanned '()))
+;;     (cond
+;;      ((null? alist) (values #f scanned))
+;;      ((equal? val (caar alist))
+;;       (values (car alist) (append scanned (cdr alist))))
+;;      (else
+;;       (loop (cdr alist) (cons (car alist) scanned))))))
 
 ; From SRFI-1
 ;; (define (fold-right kons knil lis1)
@@ -2883,25 +2883,25 @@
 ; We can prove from the general case below that if LIST-OF-FRAGS
 ; has zero or one element, the result of the procedure is equal?
 ; to its argument. This fact justifies the shortcut evaluation below.
-(define (ssax:reverse-collect-str fragments)
-  (cond
-    ((null? fragments) '())	; a shortcut
-    ((null? (cdr fragments)) fragments) ; see the comment above
-    (else
-      (let loop ((fragments fragments) (result '()) (strs '()))
-	(cond
-	  ((null? fragments)
-	    (if (null? strs) result
-	      (cons (string-concatenate/shared strs) result)))
-	  ((string? (car fragments))
-	    (loop (cdr fragments) result (cons (car fragments) strs)))
-	  (else
-	    (loop (cdr fragments)
-	      (cons
-		(car fragments)
-		(if (null? strs) result
-		  (cons (string-concatenate/shared strs) result)))
-	      '())))))))
+;; (define (ssax:reverse-collect-str fragments)
+;;   (cond
+;;     ((null? fragments) '())	; a shortcut
+;;     ((null? (cdr fragments)) fragments) ; see the comment above
+;;     (else
+;;       (let loop ((fragments fragments) (result '()) (strs '()))
+;; 	(cond
+;; 	  ((null? fragments)
+;; 	    (if (null? strs) result
+;; 	      (cons (string-concatenate/shared strs) result)))
+;; 	  ((string? (car fragments))
+;; 	    (loop (cdr fragments) result (cons (car fragments) strs)))
+;; 	  (else
+;; 	    (loop (cdr fragments)
+;; 	      (cons
+;; 		(car fragments)
+;; 		(if (null? strs) result
+;; 		  (cons (string-concatenate/shared strs) result)))
+;; 	      '())))))))
 
 
 ;     ssax:reverse-collect-str-drop-ws LIST-OF-FRAGS -> LIST-OF-FRAGS

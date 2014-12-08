@@ -45,12 +45,19 @@
             (util match)
             (srfi 1)
             (srfi 14)))
+   (kawa
+    (import (srfi 1)
+            (srfi 14)
+            (chibi match)))
    (sagittarius
     (import (match)
             (sagittarius io)
             (srfi 1)
             (srfi 14))))
-  (import (srfi 13)
+  (import (except (srfi 13)
+                  string-copy string-map string-for-each
+                  string-fill! string-copy! string->list
+                  string-upcase string-downcase)
           (seth string-read-write))
 
   (begin

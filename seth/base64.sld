@@ -17,6 +17,7 @@
    (foment (import (srfi 60)))
    (gauche
     (import (rfc base64) (gauche uvector)))
+   (kawa (import (srfi 60)))
    (sagittarius
     (import (rfc base64)))
    )
@@ -236,7 +237,11 @@
               0))
         (let* ((mod3 (modulo (bytevector-length in-bv) 3))
                (in-byte-count (+ (bytevector-length in-bv)
-                                 (case mod3 ((0) 0) ((1) 2) ((2) 1))))
+                                 (case mod3
+                                   ((0) 0)
+                                   ((1) 2)
+                                   ((2) 1)
+                                   (else 0))))
                (out-byte-count (/ (* in-byte-count 8) 6))
                (output (make-bytevector out-byte-count)))
           (let loop ((in-pos 0)
@@ -302,7 +307,11 @@
         (let* ((mod4 (modulo (bytevector-length in-bv) 4))
                (in-len (bytevector-length in-bv))
                (in-byte-count
-                (+ in-len (case mod4 ((0) 0) ((1) 3) ((2) 2) ((3) 1))))
+                (+ in-len (case mod4 ((0) 0)
+                                ((1) 3)
+                                ((2) 2)
+                                ((3) 1)
+                                (else 0))))
                (out-byte-count (/ (* in-byte-count 6) 8))
                (pad-count (+ (if (eqv? (in-bv-ref (- in-len 1)) 61) 1 0)
                              (if (eqv? (in-bv-ref (- in-len 2)) 61) 1 0))))

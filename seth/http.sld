@@ -22,16 +22,15 @@
                     (only (http-client) call-with-input-request)
                     (uri-generic)
                     (intarweb)))
-   (gauche (import (rfc uri)
-                   (rfc http)
-                   (snow gauche-extio-utils)
-                   ))
+   (gauche (import (only (gauche base) make)
+                   (gauche vport)
+                   (rfc uri)
+                   (rfc http)))
    (sagittarius
     (import (scheme write)
             ;; (rfc uri)
             (match)
             (srfi 1)
-            (srfi 13)
             (srfi 14)
             (only (rnrs) make-custom-binary-input-port)))
 
@@ -43,7 +42,10 @@
   (import (snow bytevector)
           (snow binio)
           (srfi 29)
-          (srfi 13)
+          (except (srfi 13)
+                  string-copy string-map string-for-each
+                  string-fill! string-copy! string->list
+                  string-upcase string-downcase)
           (snow extio)
           (seth mime)
           (seth string-read-write)
@@ -158,7 +160,7 @@
            chunked-peek-char)) ; peek-char
 
          (gauche
-          (make-virutal-input-port
+          (make <virtual-input-port>
            :getb chunked-read-u8
            :getc chunked-read-char
            :ready chunked-char-ready?

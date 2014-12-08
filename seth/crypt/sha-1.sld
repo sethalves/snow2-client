@@ -2,11 +2,12 @@
   (export sha-1)
   (import (scheme base))
   (cond-expand
-   (chibi (import (snow bytevector) (srfi 60)))
    (chicken (import (message-digest) (sha1)))
-   (foment (import (snow bytevector) (srfi 60)))
    (gauche (import (rfc sha) (snow bytevector)))
-   (sagittarius (import (math hash) (snow bytevector))))
+   (kawa)
+   (sagittarius (import (math hash) (snow bytevector)))
+   (else
+    (import (snow bytevector) (srfi 60))))
   (begin
     (cond-expand
      (chicken
@@ -36,6 +37,17 @@
                   (let ((result (sha1-digest)))
                     (current-input-port save-cip)
                     result)))))))
+     (kawa
+      (define (sha-1 src) :: gnu.lists.U8Vector
+        (let* ((in :: gnu.lists.U8Vector
+                (cond ((bytevector? src) src)
+                      ((string? src) (string->utf8 src))
+                      ((input-port? src) (error "kawa sha-1 port write me"))
+                      (else (error "unknown digest source: " src))))
+               (md :: java.security.MessageDigest
+                   (java.security.MessageDigest:getInstance "SHA-1"))
+               (result (md:digest (in:getBuffer))))
+          (gnu.lists.U8Vector result))))
 
      (sagittarius
       ;; http://ktakashi.github.io/sagittarius-ref.html#G2116

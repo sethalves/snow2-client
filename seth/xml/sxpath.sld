@@ -35,23 +35,27 @@
      (only (scheme r5rs) inexact->exact exact->inexact)
      (srfi 1) (srfi 2)
      (snow assert)
-     (srfi 13)
+     (except (srfi 13)
+             string-copy string-map string-for-each
+             string-fill! string-copy! string->list
+             string-upcase string-downcase)
      (snow extio)))
    (chicken (import (sxpath) (txpath) (sxpath-lolevel)))
-   (foment
+   (gauche (import (sxml sxpath)))
+   (sagittarius (import (text sxml sxpath)))
+   (else
     (import
      (scheme read) (scheme write) (scheme char) (scheme cxr)
-     (srfi 13)
+     (except (srfi 13) string-copy string-map string-for-each
+             string-fill! string-copy! string->list
+             string-upcase string-downcase)
      (only (seth string-read-write) call-with-input-string)
      (only (scheme r5rs) inexact->exact exact->inexact)
      (srfi 1) (srfi 2)
      (snow assert) (snow extio))
-    )
-   (gauche (import (sxml sxpath)))
-   (sagittarius (import (text sxml sxpath))))
+    ))
 
   (begin
-
 
     (cond-expand
      ((or chicken gauche sagittarius) #t)
@@ -344,7 +348,7 @@
     ((sxml:attr-list-node obj)
      => list)
     ((sxml:aux-list-node obj)
-     '((@)))
+     (list (list '@)))
     (else '())))
 
 

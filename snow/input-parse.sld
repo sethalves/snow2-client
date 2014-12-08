@@ -20,12 +20,15 @@
                   (srfi 13)
                   ))
    (chicken (import (input-parse)))
-   (foment (import (srfi 1)
-                   (scheme char)
-                   (scheme cxr)
-                   (srfi 13)))
    (gauche (import (text parse)))
-   (sagittarius (import (text parse))))
+   (sagittarius (import (text parse)))
+   (else (import (srfi 1)
+                 (scheme char)
+                 (scheme cxr)
+                 (except (srfi 13)
+                         string-copy string-map string-for-each
+                         string-fill! string-copy! string->list
+                         string-upcase string-downcase))))
   (begin
 
     (cond-expand
@@ -77,13 +80,13 @@
           (read-char port)))
 
 
-      (define input-parse:init-buffer
+      (define input-parse%init-buffer
         (let ((buffer (make-string 512)))
           (lambda () buffer)))
 
 
       (define (next-token prefix-skipped-chars break-chars comment port)
-        (let outer ((buffer (input-parse:init-buffer)) (filled-buffer-l '())
+        (let outer ((buffer (input-parse%init-buffer)) (filled-buffer-l '())
                     (c (skip-while prefix-skipped-chars port)))
           (let ((curr-buf-len (string-length buffer)))
             (let loop ((i 0) (c c))
@@ -106,7 +109,7 @@
 
 
       (define (next-token-of incl-list/pred port)
-        (let* ((buffer (input-parse:init-buffer))
+        (let* ((buffer (input-parse%init-buffer))
                (curr-buf-len (string-length buffer)))
           (let outer ((buffer buffer) (filled-buffer-l '()))
             (let loop ((i 0))
@@ -166,16 +169,16 @@
 ;; we already know the characters before, they are in the STR itself, so
 ;; we don't need a special buffer for that.
 
-;;; "MISCIO" Search for string from port.
-      ;; Written 1995 by Oleg Kiselyov (oleg@ponder.csci.unt.edu)
-      ;; Modified 1996 by A. Jaffer (jaffer@ai.mit.edu)
-      ;;
-      ;; This code is in the public domain.
+;; "MISCIO" Search for string from port.
+;; Written 1995 by Oleg Kiselyov (oleg@ponder.csci.unt.edu)
+;; Modified 1996 by A. Jaffer (jaffer@ai.mit.edu)
+;;
+;; This code is in the public domain.
 
-      (define (MISCIO:find-string-from-port? str <input-port> . max-no-char)
-        (set! max-no-char (if (null? max-no-char) #f (car max-no-char)))
+      (define (MISCIO%find-string-from-port? str <input-port> . max-no-char-oa)
         (letrec
-            ((no-chars-read 0)
+            ((max-no-char (if (null? max-no-char-oa) #f (car max-no-char-oa)))
+             (no-chars-read 0)
              (my-peek-char			; Return a peeked char or #f
               (lambda () (and (or (not max-no-char) (< no-chars-read max-no-char))
                               (let ((c (peek-char <input-port>)))
@@ -226,7 +229,7 @@
              )
           (match-1st-char)))
 
-      (define find-string-from-port? MISCIO:find-string-from-port?)
+      (define find-string-from-port? MISCIO%find-string-from-port?)
 
       ))
 

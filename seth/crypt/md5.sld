@@ -14,6 +14,7 @@
             (md5)))
    (gauche
     (import (rfc md5)))
+   (kawa)
    (sagittarius
     (import (math hash)
             (snow bytevector))
@@ -55,6 +56,19 @@
                   (let ((result (md5-digest)))
                     (current-input-port save-cip)
                     result)))))))
+
+     (kawa
+      (define (md5 src) :: gnu.lists.U8Vector
+        (let* ((in :: gnu.lists.U8Vector
+                   (cond ((bytevector? src) src)
+                         ((string? src) (string->utf8 src))
+                         ;; http://stackoverflow.com/questions/304268/getting-a-files-md5-checksum-in-java
+                         ((input-port? src) (error "kawa md5 port write me"))
+                         (else (error "unknown digest source: " src))))
+               (md :: java.security.MessageDigest
+                   (java.security.MessageDigest:getInstance "MD5"))
+               (result (md:digest (in:getBuffer))))
+          (gnu.lists.U8Vector result))))
 
 
      (sagittarius

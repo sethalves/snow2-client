@@ -12,7 +12,7 @@
             (sha2)
             (snow bytevector)
             (srfi 60)))
-   (foment
+   ((or foment)
     (import (snow bytevector)
             (srfi 60)))
    (gauche
@@ -63,6 +63,31 @@
       (define (sha-256 src) (sha-2-worker src <sha256>))
 
       )
+     (else))
+
+
+    (cond-expand
+     (kawa
+      (define (sha-224 src) :: gnu.lists.U8Vector
+        (let* ((in :: gnu.lists.U8Vector
+                   (cond ((bytevector? src) src)
+                         ((string? src) (string->utf8 src))
+                         ((input-port? src) (error "kawa sha-1 port write me"))
+                         (else (error "unknown digest source: " src))))
+               (md :: java.security.MessageDigest
+                   (java.security.MessageDigest:getInstance "SHA-224"))
+               (result (md:digest (in:getBuffer))))
+          (gnu.lists.U8Vector result)))
+     (define (sha-256 src) :: gnu.lists.U8Vector
+       (let* ((in :: gnu.lists.U8Vector
+                  (cond ((bytevector? src) src)
+                        ((string? src) (string->utf8 src))
+                        ((input-port? src) (error "kawa sha-1 port write me"))
+                        (else (error "unknown digest source: " src))))
+              (md :: java.security.MessageDigest
+                  (java.security.MessageDigest:getInstance "SHA-256"))
+              (result (md:digest (in:getBuffer))))
+         (gnu.lists.U8Vector result))))
      (else))
 
 

@@ -17,7 +17,10 @@
           (scheme process-context)
           (srfi 1)
           (snow bytevector)
-          (srfi 13)
+          (except (srfi 13)
+                  string-copy string-map string-for-each
+                  string-fill! string-copy! string->list
+                  string-upcase string-downcase)
           (srfi 95)
           (srfi 29)
           (srfi 19)

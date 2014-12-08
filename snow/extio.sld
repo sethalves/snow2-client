@@ -19,7 +19,15 @@
                     (only (posix) file-position set-file-position!
                           seek/cur seek/end)
                     (ports)))
-   (gauche (import (snow gauche-extio-utils)))
+   (gauche (import
+            (gauche vport)
+            (only (gauche base)
+                  make
+                  port-tell
+                  port-seek
+                  SEEK_SET
+                  SEEK_CUR
+                  SEEK_END)))
    (sagittarius (import
                  (only (rnrs)
                        port-position
@@ -35,9 +43,19 @@
    )
   (import (snow bytevector)
           (srfi 60)
-          (srfi 13)
+          (except (srfi 13)
+                  string-copy string-map string-for-each
+                  string-fill! string-copy! string->list
+                  string-upcase string-downcase)
           )
   (begin
+
+    (cond-expand
+     (gauche
+      (define (make-virtual-input-port . args)
+        (apply make <virtual-input-port> args)))
+     (else))
+
 
     (cond-expand
 
@@ -47,7 +65,7 @@
      ((or chicken)
       (define snow-read-string read-string))
 
-     ((or chibi foment gauche sagittarius)
+     ((or chibi foment gauche kawa sagittarius)
       (define (read-string-until-eof port)
         (let loop ((strings '()))
           (let ((s (read-string 4000 port)))
@@ -69,55 +87,8 @@
         (flush-output-port port)))
 
 
-    ;; (cond-expand
-
-    ;;  ((or bigloo
-    ;;       chibi
-    ;;       larceny
-    ;;       chez
-    ;;       sagittarius
-    ;;       sisc
-    ;;       stklos)
-
-    ;;   (define (snow-force-output . maybe-port)
-    ;;     (let ((port (if (null? maybe-port) (current-output-port)
-    ;;                     (car maybe-port))))
-    ;;       (flush-output-port port))))
-
-    ;;  ((or gambit
-    ;;       guile
-    ;;       kawa
-    ;;       scheme48
-    ;;       scm
-    ;;       scsh)
-
-    ;;   (define (snow-force-output . maybe-port)
-    ;;     (let ((port (if (null? maybe-port) (current-output-port)
-    ;;                     (car maybe-port))))
-    ;;       (force-output port))))
-
-    ;;  ((or chicken)
-
-    ;;   (define (snow-force-output . maybe-port)
-    ;;     (let ((port (if (null? maybe-port) (current-output-port)
-    ;;                     (car maybe-port))))
-    ;;       (flush-output port))))
-
-    ;;  (gauche
-    ;;   ;; See gauche-extio-utils.sld
-    ;;   ;; this was done to get access to flush
-    ;;   ;; (define (snow-force-output . maybe-port)
-    ;;   ;;   (let ((port (if (null? maybe-port) (current-output-port)
-    ;;   ;;                   (car maybe-port))))
-    ;;   ;;     (flush port)))
-    ;;   )
-    ;;  )
-
-
-
-
     ;; trimmed down version of:
-      ;;; Pretty print:
+    ;; Pretty print:
     ;;
     ;; Copyright (c) 1991, Marc Feeley
     ;; Author: Marc Feeley (feeley@iro.umontreal.ca)
@@ -459,7 +430,7 @@
       (define (make-delimited-input-port port len)
         (let ((index 0)
               (saw-eof #f))
-          (make-virutal-input-port
+          (make-virtual-input-port
            :getb (lambda ()
                    (cond ((= index len) (eof-object))
                          (saw-eof (eof-object))
@@ -629,90 +600,94 @@
 
 
 
-    (define (utf8->char bv i len)
-      ;; http://en.wikipedia.org/wiki/Utf8
-      (define (check-following-bytes n)
-        (do ((x 0 (+ x 1)))
-            ((= x n))
-          (if (not (= (bitwise-and (bytevector-u8-ref bv (+ i x 1)) #xc0) #x80))
-              (error "invalid utf8" bv i len))))
-      (if (= i len)
-          (values #f 0)
-          (let ((b0 (bytevector-u8-ref bv i))
-                (available (- len i)))
-            (cond
-             ;; 0xxxxxxx
-             ((= (bitwise-and b0 #x80) #x00) (values (integer->char b0) 1))
-             ((not (= (bitwise-and b0 #xc0) #xc0))
-              (error "invalid utf8" bv i len))
-             ((= (bitwise-and b0 #xfe) #xfe)
-              (error "invalid utf8" bv i len))
-             ;; 110xxxxx 10xxxxxx
-             ((and (> available 1) (= (bitwise-and b0 #xe0) #xc0))
-              (check-following-bytes 1)
-              (values
-               (integer->char
-                (bitwise-ior
-                 (arithmetic-shift (bitwise-and b0 #x1f) 6)
-                 (bitwise-and (bytevector-u8-ref bv (+ i 1)) #x3f)))
-               2))
-             ;; 1110xxxx 10xxxxxx 10xxxxxx
-             ((and (> available 2) (= (bitwise-and b0 #xf0) #xe0))
-              (check-following-bytes 2)
-              (values
-               (integer->char
-                (bitwise-ior
-                 (arithmetic-shift (bitwise-and b0 #x0f) 12)
-                 (arithmetic-shift
-                  (bitwise-and (bytevector-u8-ref bv (+ i 1)) #x3f) 6)
-                 (bitwise-and (bytevector-u8-ref bv (+ i 2)) #x3f)))
-               3))
-             ;; 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-             ((and (> available 3) (= (bitwise-and b0 #xf8) #xf0))
-              (check-following-bytes 3)
-              (values
-               (integer->char
-                (bitwise-ior
-                 (arithmetic-shift (bitwise-and b0 #x07) 18)
-                 (arithmetic-shift
-                  (bitwise-and (bytevector-u8-ref bv (+ i 1)) #x3f) 12)
-                 (arithmetic-shift
-                  (bitwise-and (bytevector-u8-ref bv (+ i 2)) #x3f) 6)
-                 (bitwise-and (bytevector-u8-ref bv (+ i 3)) #x3f)))
-               4))
-             ;; 111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
-             ((and (> available 4) (= (bitwise-and b0 #xfc) #xf8))
-              (check-following-bytes 4)
-              (values
-               (integer->char
-                (bitwise-ior
-                 (arithmetic-shift (bitwise-and b0 #x03) 24)
-                 (arithmetic-shift
-                  (bitwise-and (bytevector-u8-ref bv (+ i 1)) #x3f) 18)
-                 (arithmetic-shift
-                  (bitwise-and (bytevector-u8-ref bv (+ i 2)) #x3f) 12)
-                 (arithmetic-shift
-                  (bitwise-and (bytevector-u8-ref bv (+ i 3)) #x3f) 6)
-                 (bitwise-and (bytevector-u8-ref bv (+ i 4)) #x3f)))
-               5))
-             ;; 1111110x 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
-             ((and (> available 5) (= (bitwise-and b0 #xfe) #xfc))
-              (check-following-bytes 5)
-              (values
-               (integer->char
-                (bitwise-ior
-                 (arithmetic-shift (bitwise-and b0 #x01) 30)
-                 (arithmetic-shift
-                  (bitwise-and (bytevector-u8-ref bv (+ i 1)) #x3f) 24)
-                 (arithmetic-shift
-                  (bitwise-and (bytevector-u8-ref bv (+ i 2)) #x3f) 18)
-                 (arithmetic-shift
-                  (bitwise-and (bytevector-u8-ref bv (+ i 3)) #x3f) 12)
-                 (arithmetic-shift
-                  (bitwise-and (bytevector-u8-ref bv (+ i 4)) #x3f) 6)
-                 (bitwise-and (bytevector-u8-ref bv (+ i 5)) #x3f)))
-               6))
-             (else (values #f 0))))))
+    (cond-expand
+     ((or chibi gauche)
+      (define (utf8->char bv i len)
+        ;; http://en.wikipedia.org/wiki/Utf8
+        (define (check-following-bytes n)
+          (do ((x 0 (+ x 1)))
+              ((= x n))
+            (if (not (= (bitwise-and (bytevector-u8-ref bv (+ i x 1)) #xc0)
+                        #x80))
+                (error "invalid utf8" bv i len))))
+        (if (= i len)
+            (values #f 0)
+            (let ((b0 (bytevector-u8-ref bv i))
+                  (available (- len i)))
+              (cond
+               ;; 0xxxxxxx
+               ((= (bitwise-and b0 #x80) #x00) (values (integer->char b0) 1))
+               ((not (= (bitwise-and b0 #xc0) #xc0))
+                (error "invalid utf8" bv i len))
+               ((= (bitwise-and b0 #xfe) #xfe)
+                (error "invalid utf8" bv i len))
+               ;; 110xxxxx 10xxxxxx
+               ((and (> available 1) (= (bitwise-and b0 #xe0) #xc0))
+                (check-following-bytes 1)
+                (values
+                 (integer->char
+                  (bitwise-ior
+                   (arithmetic-shift (bitwise-and b0 #x1f) 6)
+                   (bitwise-and (bytevector-u8-ref bv (+ i 1)) #x3f)))
+                 2))
+               ;; 1110xxxx 10xxxxxx 10xxxxxx
+               ((and (> available 2) (= (bitwise-and b0 #xf0) #xe0))
+                (check-following-bytes 2)
+                (values
+                 (integer->char
+                  (bitwise-ior
+                   (arithmetic-shift (bitwise-and b0 #x0f) 12)
+                   (arithmetic-shift
+                    (bitwise-and (bytevector-u8-ref bv (+ i 1)) #x3f) 6)
+                   (bitwise-and (bytevector-u8-ref bv (+ i 2)) #x3f)))
+                 3))
+               ;; 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+               ((and (> available 3) (= (bitwise-and b0 #xf8) #xf0))
+                (check-following-bytes 3)
+                (values
+                 (integer->char
+                  (bitwise-ior
+                   (arithmetic-shift (bitwise-and b0 #x07) 18)
+                   (arithmetic-shift
+                    (bitwise-and (bytevector-u8-ref bv (+ i 1)) #x3f) 12)
+                   (arithmetic-shift
+                    (bitwise-and (bytevector-u8-ref bv (+ i 2)) #x3f) 6)
+                   (bitwise-and (bytevector-u8-ref bv (+ i 3)) #x3f)))
+                 4))
+               ;; 111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
+               ((and (> available 4) (= (bitwise-and b0 #xfc) #xf8))
+                (check-following-bytes 4)
+                (values
+                 (integer->char
+                  (bitwise-ior
+                   (arithmetic-shift (bitwise-and b0 #x03) 24)
+                   (arithmetic-shift
+                    (bitwise-and (bytevector-u8-ref bv (+ i 1)) #x3f) 18)
+                   (arithmetic-shift
+                    (bitwise-and (bytevector-u8-ref bv (+ i 2)) #x3f) 12)
+                   (arithmetic-shift
+                    (bitwise-and (bytevector-u8-ref bv (+ i 3)) #x3f) 6)
+                   (bitwise-and (bytevector-u8-ref bv (+ i 4)) #x3f)))
+                 5))
+               ;; 1111110x 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
+               ((and (> available 5) (= (bitwise-and b0 #xfe) #xfc))
+                (check-following-bytes 5)
+                (values
+                 (integer->char
+                  (bitwise-ior
+                   (arithmetic-shift (bitwise-and b0 #x01) 30)
+                   (arithmetic-shift
+                    (bitwise-and (bytevector-u8-ref bv (+ i 1)) #x3f) 24)
+                   (arithmetic-shift
+                    (bitwise-and (bytevector-u8-ref bv (+ i 2)) #x3f) 18)
+                   (arithmetic-shift
+                    (bitwise-and (bytevector-u8-ref bv (+ i 3)) #x3f) 12)
+                   (arithmetic-shift
+                    (bitwise-and (bytevector-u8-ref bv (+ i 4)) #x3f) 6)
+                   (bitwise-and (bytevector-u8-ref bv (+ i 5)) #x3f)))
+                 6))
+               (else (values #f 0)))))))
+     (else))
 
 
 
@@ -765,7 +740,7 @@
       (define (binary-port->textual-port port)
         (let ((buffer (make-bytevector 6))
               (buffer-len 0))
-          (make-virutal-input-port
+          (make-virtual-input-port
            ;; :getb (lambda () (read-u8 port))
            :getc
            (lambda ()
@@ -863,7 +838,7 @@
       (define (textual-port->binary-port port)
         (let ((saw-eof #f)
               (buffer '()))
-          (make-virutal-input-port
+          (make-virtual-input-port
            :getb (lambda ()
                    (cond (saw-eof (eof-object))
                          ((not (null? buffer))
@@ -939,6 +914,7 @@
        (chibi (file-position p))
        (chicken (file-position p))
        (gauche (port-tell p))
+       (kawa (error "write snow-port-position"))
        ((or foment sagittarius) (port-position p))))
 
     (define (snow-set-port-position! port pos)
@@ -946,6 +922,7 @@
        (chibi (set-file-position! port pos seek/set))
        (chicken (set-file-position! port pos))
        (gauche (port-seek port pos SEEK_SET))
+       (kawa (error "write snow-set-port-position!"))
        ((or foment sagittarius) (set-port-position! port pos))))
 
     (define (snow-set-port-position-from-current! port offset)
@@ -953,6 +930,7 @@
        (chibi (set-file-position! port offset seek/cur))
        (chicken (set-file-position! port offset seek/cur))
        (gauche (port-seek port offset SEEK_CUR))
+       (kawa (error "write snow-set-port-position-from-current!"))
        ((or foment sagittarius) (set-port-position!
                                  port (+ (port-position port) offset)))))
 
@@ -962,6 +940,7 @@
          (chibi (set-file-position! port offset seek/end))
          (chicken (set-file-position! port offset seek/end))
          (gauche (port-seek port offset SEEK_END))
+         (kawa (error "write snow-set-port-position-from-end!"))
          ((or foment sagittarius)
           (set-port-position! port offset 'end))
           ;; ;; XXX is there a better way?

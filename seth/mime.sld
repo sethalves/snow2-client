@@ -16,19 +16,20 @@
             (scheme write)
             (srfi 13)
             (seth quoted-printable)))
-   (foment
-    (import (srfi 13)
-            (seth quoted-printable)
-            (seth string-read-write)
-            (prefix (seth base64) base64-)
-            ))
    (gauche
     (import (rfc mime)
             (srfi 13)))
    (sagittarius
     (import (except (rfc mime) mime-parse-content-type)
-            (srfi 13))
-    ))
+            (srfi 13)))
+   (else
+    (import (except (srfi 13)
+                    string-copy string-map string-for-each
+                    string-fill! string-copy! string->list
+                    string-upcase string-downcase)
+            (seth string-read-write)
+            (seth quoted-printable)
+            (prefix (seth base64) base64-))))
   (import (snow binio))
 
   (begin

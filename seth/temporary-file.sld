@@ -2,31 +2,40 @@
   (export temporary-file)
   (import (scheme base)
           (scheme process-context))
-  (import (srfi 27))
   (cond-expand
    (chibi
-    (import (scheme file)
+    (import (srfi 27)
+            (scheme file)
             (chibi io)
             (chibi process)))
    (chicken
-    (import (posix)))
+    (import (srfi 27)
+            (posix)))
    (foment
-    (import (scheme file)))
+    (import (srfi 27)
+            (scheme file)))
    (gauche
-    (import (scheme file)
+    (import (srfi 27)
+            (scheme file)
             (file util)))
+   (kawa (import (files)
+                 (scheme file)))
    (sagittarius
-    (import (scheme file)
+    (import (srfi 27)
+            (scheme file)
             (util file))))
   (begin
 
-    (random-source-randomize! default-random-source)
+    (cond-expand
+     (kawa)
+     (else
+      (random-source-randomize! default-random-source)
 
-    (define (env-tmp)
-      (let ((tmp (get-environment-variable "TMP")))
-        (if (and tmp (not (equal? tmp "")))
-            tmp
-            "/tmp")))
+      (define (env-tmp)
+        (let ((tmp (get-environment-variable "TMP")))
+          (if (and tmp (not (equal? tmp "")))
+              tmp
+              "/tmp")))))
 
 
     (cond-expand
@@ -66,7 +75,15 @@
                         (open-binary-output-file temp-path)
                         (open-output-file temp-path))
                     temp-path)))))
-
+     (kawa
+      ;; http://www.gnu.org/software/kawa/Files.html
+      (define (temporary-file . maybe-binary)
+        (let ((bin (and (pair? maybe-binary) (car maybe-binary))))
+          (let ((temp-path (make-temporary-file)))
+            (values (if bin
+                        (open-binary-output-file temp-path)
+                        (open-output-file temp-path))
+                    temp-path)))))
      (sagittarius
       (define (temporary-file . maybe-binary)
         (let ((bin (and (pair? maybe-binary) (car maybe-binary))))

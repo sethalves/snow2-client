@@ -23,9 +23,10 @@
           (scheme write) ;; XXX
           )
   (cond-expand
-   (foment
+   ((or foment kawa)
     (include "srfi-27/srfi-27-a.scm"
              "srfi-27/mrg32k3a-a.scm"
              "srfi-27/mrg32k3a.scm"))
-   (gauche (import (srfi-27)))
-   (sagittarius (import (srfi :27)))))
+   ;; (gauche (import (srfi-27)))
+   ;; (sagittarius (import (srfi :27)))
+   ))

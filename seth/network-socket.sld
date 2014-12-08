@@ -128,9 +128,21 @@
      (else))
 
 
+    (cond-expand
+     (kawa
+      (define (socket->path sock :: java.net.Socket) :: gnu.kawa.io.URIPath
+        (let* ((uri :: java.net.URI
+                    (java.net.URI
+                     (string-append
+                      "tcp://" ((sock:getRemoteSocketAddress):toString) ":"
+                      (number->string (sock:getPort)) "/"))))
+          (gnu.kawa.io.URIPath uri))))
+     (else))
+
+
     ;; http://trac.sacrideo.us/wg/wiki/NetworkEndpointsCowan
     (cond-expand
-     ((or chibi chicken foment sagittarius)
+     ((or chibi chicken foment kawa sagittarius)
       (define (network-endpoint-host addr) (car addr))
       (define (network-endpoint-port addr) (cadr addr))
       (define (make-network-endpoint hostname port) (list hostname port)))
@@ -145,7 +157,20 @@
         ;;   :port port)
         (make-sockaddr (if hostname hostname :any) port)
         ))
+     (kawa
+      (define (network-endpoint-host addr) ((car addr):toString))
+      (define (network-endpoint-port addr) (cadr addr))
+      (define (make-network-endpoint hostname port)
+        ;; (let ((address :: java.net.InetAddress
+        ;;                (if (or (eq? hostname #!null)
+        ;;                        (eq? hostname #f))
+        ;;                    #!null
+        ;;                    (java.net.InetAddress:getByName hostname))))
+        ;;   address)
 
+        (let ((address :: java.net.InetAddress
+                       (java.net.InetAddress:getByName hostname)))
+          (list address port))))
      (else))
 
 
@@ -196,6 +221,18 @@
                (local-addr (make-network-endpoint host port)))
           (make-server-socket 'inet (network-endpoint-port local-addr)
                               :reuse-addr? #t))))
+     (kawa
+      (define (make-network-listener settings-list)
+        (let* ((host (settings-list-get 'host settings-list "127.0.0.1"))
+               (s-port (settings-list-get 'port settings-list 0))
+               (port :: int
+                     (if (string? s-port) (string->number s-port) s-port))
+               (address :: java.net.InetAddress
+                        (if host
+                            (java.net.InetAddress:getByName host)
+                            ;; (java.net.InetAddress:getLocalHost)
+                            (java.net.InetAddress:getByName "localhost"))))
+          (list (java.net.ServerSocket port 5 address)))))
      (sagittarius
       (define (make-network-listener settings-list)
         (let* ((host (settings-list-get 'host settings-list "127.0.0.1"))
@@ -222,7 +259,16 @@
         (accept-socket listen-sock)))
      ((or gauche sagittarius)
       (define (open-network-server listen-sock)
-        (socket-accept listen-sock))))
+        (socket-accept listen-sock)))
+     (kawa
+      (define (open-network-server listen-sock)
+        (let* ((java-listen-sock :: java.net.ServerSocket (car listen-sock))
+               (sock :: java.net.Socket (java-listen-sock:accept))
+               (path :: gnu.kawa.io.URIPath (socket->path sock)))
+          (list sock
+                (gnu.kawa.io.BinaryOutPort (sock:getOutputStream) path)
+                (gnu.kawa.io.BinaryInPort (sock:getInputStream))))
+        )))
 
     (cond-expand
      (chibi
@@ -236,7 +282,11 @@
         (shutdown-socket sock *shut-rdwr*)))
      ((or gauche sagittarius)
       (define (close-network-listener sock)
-        (socket-close sock))))
+        (socket-close sock)))
+     (kawa
+      (define (close-network-listener sock)
+        (let ((java-sock :: java.net.ServerSocket (car sock)))
+          (java-sock:close)))))
 
     (cond-expand
      (chibi
@@ -290,6 +340,21 @@
                (port (network-endpoint-port addr))
                )
           (make-client-socket host port))))
+     (kawa
+      (define (open-network-client settings-list)
+        (let* ((host (settings-list-get 'host settings-list "127.0.0.1"))
+               (s-port (settings-list-get 'port settings-list 0))
+               (port :: int
+                     (if (string? s-port) (string->number s-port) s-port))
+               (address :: java.net.InetAddress
+                        (if host
+                            (java.net.InetAddress:getByName host)
+                            (java.net.InetAddress:getLocalHost)))
+               (sock :: java.net.Socket (java.net.Socket address port))
+               (path :: gnu.kawa.io.URIPath (socket->path sock)))
+          (list sock
+                (gnu.kawa.io.BinaryOutPort (sock:getOutputStream) path)
+                (gnu.kawa.io.BinaryInPort (sock:getInputStream))))))
      (sagittarius
       (define (open-network-client settings-list)
         (let ((host (settings-list-get 'host settings-list #f))
@@ -317,6 +382,11 @@
         (socket-output-port sock))
       (define (socket:inbound-read-port sock)
         (socket-input-port sock)))
+     (kawa
+      (define (socket:outbound-write-port sock)
+        (cadr sock))
+      (define (socket:inbound-read-port sock)
+        (car (cddr sock))))
      (sagittarius
       ;; (define (bin->textual port)
       ;;   (transcoded-port port (make-transcoder
@@ -349,6 +419,10 @@
      (foment
       (define (socket:send-eof sock)
         (shutdown-socket sock *shut-wr*)))
+     (kawa
+      (define (socket:send-eof sock)
+        (let ((java-sock :: java.net.Socket (car sock)))
+          (java-sock:shutdownOutput))))
      ((or gauche sagittarius)
       (define (socket:send-eof sock)
         (socket-shutdown sock SHUT_WR))))
@@ -366,6 +440,10 @@
      (foment
       (define (socket:close sock)
         (shutdown-socket sock *shut-rdwr*)))
+     (kawa
+      (define (socket:close sock)
+        (let ((java-sock :: java.net.Socket (car sock)))
+          (java-sock:close))))
      ((or gauche sagittarius)
       (define (socket:close sock)
         (socket-close sock))))
@@ -391,9 +469,13 @@
           (make-network-endpoint remote-host remote-port))))
      ((or gauche sagittarius)
       (define (socket:local-address sock)
-        (socket-getsockname sock))
+        (socket-getsockname sock)))
+     (kawa
+      (define (socket:local-address sock)
+        (error "no code for kawa"))
       (define (socket:remote-address sock)
-        (socket-getpeername sock))))
+        (error "no code for kawa")))
+     )
 
     ;;
     ;; ssl sockets
@@ -409,6 +491,9 @@
           (ssl-load-certificate-chain! listener "certificate-chain.pem")
           (ssl-load-private-key! listener "private-key.pem")
           listener)))
+     (kawa
+      (define (socket:ssl-listen local-addr)
+        (error "no code for kawa")))
      ((or gauche sagittarius)
       (define (socket:ssl-listen local-addr)
         (error "not implemented -- socket:ssl-listen"))))
@@ -421,6 +506,9 @@
       (define (socket:ssl-accept listen-sock)
         (let-values (((in-port out-port) (ssl-accept listen-sock)))
           (list in-port out-port))))
+     (kawa
+      (define (socket:ssl-accept listen-sock)
+        (error "no code for kawa")))
      ((or gauche sagittarius)
       (define (socket:ssl-accept listen-sock)
         (error "not implemented -- socket:ssl-accept"))))
@@ -435,6 +523,9 @@
                       (ssl-connect (network-endpoint-host remote-addr)
                                    (network-endpoint-port remote-addr))))
           (list insock outsock))))
+     (kawa
+      (define (socket:make-ssl-client local-addr remote-addr)
+        (error "no code for kawa")))
      ((or gauche sagittarius)
       ;; (define (socket:make-ssl-client local-addr remote-addr)
       ;;   (subprocess:spawn
@@ -462,7 +553,12 @@
       (define (socket:tls-outbound-write-port sock)
         (car sock))
       (define (socket:tls-inbound-read-port sock)
-        (cadr sock))))
+        (cadr sock)))
+     (kawa
+      (define (socket:tls-outbound-write-port sock)
+        (error "no code for kawa"))
+      (define (socket:tls-inbound-read-port sock)
+        (error "no code for kawa"))))
 
     (cond-expand
      ((or chibi foment)
@@ -472,6 +568,9 @@
       (define (socket:tls-close sock session)
         (close-input-port (ssl-port->tcp-port (car sock)))
         (close-output-port (ssl-port->tcp-port (cadr sock)))))
+     (kawa
+      (define (socket:tls-close sock session)
+        (error "no code for kawa")))
      ((or gauche sagittarius)
       (define (socket:tls-close sock)
         (close-input-port (car sock))
@@ -485,6 +584,11 @@
         (make-network-endpoint #f 0)))
      (chicken
       (define (socket:tls-local-address sock)))
+     (kawa
+      (define (socket:tls-local-address sock)
+        (error "no code for kawa"))
+      (define (socket:tls-remote-address sock)
+        (error "no code for kawa")))
      ((or gauche sagittarius)
       (define (socket:tls-local-address sock)
         (make-network-endpoint #f 0))
@@ -536,6 +640,9 @@
      (foment
       (define (socket:udp-server local-addr)
         (error "not implemented -- socket:udp-server")))
+     (kawa
+      (define (socket:udp-server local-addr)
+        (error "no code for kawa")))
      ((or gauche sagittarius)
       (define (socket:udp-server local-addr)
         (let ((sock (make-socket PF_INET SOCK_DGRAM)))
@@ -573,6 +680,9 @@
      (foment
       (define (socket:make-udp-client local-addr remote-addr)
         (error "not implemented -- socket:make-udp-client")))
+     (kawa
+      (define (socket:make-udp-client local-addr remote-addr)      
+        (error "no code for kawa")))
      ((or gauche sagittarius)
       (define (socket:make-udp-client local-addr remote-addr)
         (let ((sock (make-socket PF_INET SOCK_DGRAM)))
@@ -613,6 +723,11 @@
      (foment
       (define (socket:udp-outbound-write-port sock) sock)
       (define (socket:udp-inbound-read-port sock) sock))
+     (kawa
+      (define (socket:udp-outbound-write-port sock)
+        (error "no code for kawa"))
+      (define (socket:udp-inbound-read-port sock)
+        (error "no code for kawa")))
      ((or gauche sagittarius)
       (define (socket:udp-outbound-write-port sock)
         (socket-output-port sock))
@@ -656,6 +771,12 @@
       (define (socket:udp-write-to data sock destination-addr)
         (socket-sendto sock data destination-addr)))
 
+     (kawa
+      (define (socket:udp-read-from sock)
+        (error "no code for kawa"))
+      (define (socket:udp-write-to data sock destination-addr)
+        (error "no code for kawa")))
+
      (sagittarius
       (define (socket:udp-read-from sock)
         (error "not implemented -- socket:udp-read-from"))
@@ -675,6 +796,9 @@
      (foment
       (define (socket:udp-close sock)
         (shutdown-socket sock *shut-rdwr*)))
+     (kawa
+      (define (socket:udp-close sock)
+        (error "no code for kawa")))
      ((or gauche sagittarius)
       (define (socket:udp-close sock)
         (socket-close sock))))
@@ -692,6 +816,9 @@
      (foment
       (define (socket:udp-local-address sock)
         (error "not implemented -- socket:udp-local-address")))
+     (kawa
+      (define (socket:udp-local-address sock)
+        (error "no code for kawa")))
      ((or gauche sagittarius)
       (define (socket:udp-local-address sock)
         (socket-getsockname sock))))
@@ -706,6 +833,9 @@
      (foment
       (define (socket:udp-remote-address sock)
         (error "not implemented -- socket:udp-remote-address")))
+     (kawa
+      (define (socket:udp-remote-address sock)
+        (error "no code for kawa")))
      ((or gauche sagittarius)
       (define (socket:udp-remote-address sock)
         (socket-getpeername sock))))
@@ -715,7 +845,7 @@
     ;;
 
     (cond-expand
-     ((or chibi chicken foment gauche sagittarius)
+     ((or chibi chicken foment gauche sagittarius kawa)
       (define (socket:make-port-pair readable-port writable-port)
         (list readable-port writable-port))
 

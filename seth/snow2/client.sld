@@ -100,13 +100,13 @@
                      (error "unexpected file type in tar file")))
                    (loop (cdr tar-recs))))))))
 
-    (define (install repositories library-names use-symlinks steps verbose)
+    (define (install repositories library-names link-types steps verbose)
       ;; this is the main interface point for downloading/finding and
       ;; unpacking packages.  repositories is a list of repository records.
       ;; library-names is a list of library-name s-expressions.
-      ;; use-symlinks being true will cause symlinks to source files rather
+      ;; link-types can be #f or a list like '(symbolic hard).  it being
+      ;; a list will cause symlinks or hardlinks to source files rather
       ;; than copies (when possible).  verbose prints more.
-
 
       (define (install-from-tgz repo package local-package-tgz-file)
 
@@ -221,7 +221,7 @@
                   (else #f)))))
 
 
-      (define (install-symlinks local-repository package)
+      (define (install-links local-repository package link-types)
 
         (cond (verbose
                (newline)
@@ -270,17 +270,43 @@
                         (snow-file-symbolic-link? dst-filename))
                     (delete-file dst-filename)))
 
-               (snow-create-symbolic-link
-                (cond ((snow-filename-relative? src-filename)
-                       ;; we are making a link in a subdirectory,
-                       ;; so prepend the required number of ../
-                       (let* ((link-parts (snow-split-filename dst-filename))
-                              (depth (length link-parts))
-                              (dots (make-list (- depth 1) "..")))
-                         (apply snow-make-filename
-                                (reverse (cons src-filename dots)))))
-                      (else src-filename))
-                dst-filename)))
+             (let ((relative-file-name
+                    (cond ((snow-filename-relative? src-filename)
+                           ;; we are making a link in a subdirectory,
+                           ;; so prepend the required number of ../
+                           (let* ((link-parts
+                                   (snow-split-filename dst-filename))
+                                  (depth (length link-parts))
+                                  (dots (make-list (- depth 1) "..")))
+                             (apply snow-make-filename
+                                    (reverse (cons src-filename dots)))))
+                          (else src-filename))))
+
+               ;; try each link type in turn
+               (let loop ((link-types link-types))
+                 (cond ((null? link-types)
+                        (error "unable to create link"
+                               src-filename dst-filename))
+                       (else
+                        (let ((link-type (car link-types)))
+                          (guard
+                           (err (#t
+                                 (display-error
+                                  (string-append
+                                   "failed to " (write-to-string link-type)
+                                   " link " src-filename " to "
+                                   dst-filename)
+                                  err)
+                                 (loop (cdr link-types))))
+                           (cond
+                            ((eq? link-type 'symbolic)
+                             (snow-create-symbolic-link
+                              relative-file-name dst-filename))
+                            ((eq? link-type 'hard)
+                             (snow-create-hard-link
+                              src-filename dst-filename))
+                            (else
+                             (error "unknown link type")))))))))))
            manifest)))
 
 
@@ -305,8 +331,8 @@
                   (success
                    (cond
                     ;; local repository, use symlinks
-                    ((and (snow2-repository-local package-repo) use-symlinks)
-                     (install-symlinks package-repo package))
+                    ((and (snow2-repository-local package-repo) link-types)
+                     (install-links package-repo package link-types))
                     ;; local repository, use tgz files
                     ((snow2-repository-local package-repo)
                      (install-from-directory
@@ -398,29 +424,34 @@
       (list
        (option '(#\r "repo") #t #f
                (lambda (option name arg operation repos
-                               use-symlinks libs test verbose)
+                               link-types libs test verbose)
                  (values operation
                          (reverse (cons (uri-reference arg) (reverse repos)))
-                         use-symlinks libs test verbose)))
+                         link-types libs test verbose)))
 
        (option '(#\s "symlink") #f #f
                (lambda (option name arg operation repos
-                               use-symlinks libs test verbose)
-                 (values operation repos #t libs test verbose)))
+                               link-types libs test verbose)
+                 (values operation repos '(symbolic) libs test verbose)))
+
+       (option '(#\l "link") #f #f
+               (lambda (option name arg operation repos
+                               link-types libs test verbose)
+                 (values operation repos '(hard symbolic) libs test verbose)))
 
        (option '(#\t "test") #f #f
                (lambda (option name arg operation repos
-                               use-symlinks libs test verbose)
-                 (values operation repos use-symlinks libs #t verbose)))
+                               link-types libs test verbose)
+                 (values operation repos link-types libs #t verbose)))
 
        (option '(#\v "verbose") #f #f
                (lambda (option name arg operation repos
-                               use-symlinks libs test verbose)
-                 (values operation repos use-symlinks libs test #t)))
+                               link-types libs test verbose)
+                 (values operation repos link-types libs test #t)))
 
        (option '(#\h "help") #f #f
                (lambda (option name arg operation repos
-                               use-symlinks libs test verbose)
+                               link-types libs test verbose)
                  (usage "")))))
 
 
@@ -439,6 +470,9 @@
                  (current-error-port))
         (display "  -s --symlink         " (current-error-port))
         (display "Make symlinks to a repo's source files.\n"
+                 (current-error-port))
+        (display "  -l --link            " (current-error-port))
+        (display "Make hard-links to a repo's source files.\n"
                  (current-error-port))
         (display "  -t --test            " (current-error-port))
         (display "Install code needed to run tests.\n"
@@ -470,7 +504,7 @@
     (define (main-program)
       (random-source-randomize! default-random-source)
       (let-values
-          (((operation repository-urls use-symlinks args test verbose)
+          (((operation repository-urls link-types args test verbose)
             (args-fold
              (cdr (command-line))
              options
@@ -481,14 +515,14 @@
                                      (if (string? name) name (string name))
                                      "\n\n")))
              ;; operand (arguments that don't start with a hyphen)
-             (lambda (operand operation repos use-symlinks libs test verbose)
+             (lambda (operand operation repos link-types libs test verbose)
                (if operation
-                   (values operation repos use-symlinks
+                   (values operation repos link-types
                            (cons operand libs) test verbose)
-                   (values operand repos use-symlinks libs test verbose)))
+                   (values operand repos link-types libs test verbose)))
              #f ;; initial value of operation
              '() ;; initial value of repos
-             #f ;; initial value of use-symlinks
+             #f ;; initial value of link-types
              '() ;; initial value of args
              #f ;; initial value of test
              #f ;; initial value of verbose
@@ -559,7 +593,7 @@
                ;; install libraries and dependencies
                ((equal? operation "install")
                 (install (repositories) library-names
-                         use-symlinks steps verbose))
+                         link-types steps verbose))
 
                ;; uninstall libraries
                ((equal? operation "uninstall")

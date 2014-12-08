@@ -7,25 +7,16 @@
   (export hmac-sha-1)
   (import (scheme base))
   (cond-expand
-   (chibi
-    (import (snow bytevector)
-            (srfi 60)
-            (seth port-extras)
-            (seth crypt sha-1)
-            (scheme write)
-            ))
    (chicken (import (hmac) (sha1) (snow bytevector)))
-   (foment
-    (import (snow bytevector)
-            (srfi 60)
-            (seth port-extras)
-            (seth crypt sha-1)
-            (scheme write)
-            ))
    (gauche (import (rfc hmac) (rfc sha) (snow bytevector)))
    (sagittarius
-    (import (rfc hmac) (math) (snow bytevector))
-    ))
+    (import (rfc hmac) (math) (snow bytevector)))
+   (else
+    (import (snow bytevector)
+            (srfi 60)
+            (seth port-extras)
+            (seth crypt sha-1)
+            (scheme write))))
   (begin
     (cond-expand
 
@@ -53,6 +44,28 @@
             (latin-1->string message)
             :key (latin-1->string key)
             :hasher <sha1>)))))
+
+
+     (kawa
+      (define (hmac-sha-1 key-in message)
+        (let* ((key :: gnu.lists.U8Vector
+                    (cond ((bytevector? key-in) key-in)
+                          ((string? key-in) (string->utf8 key-in))
+                          (else
+                           (error "unknown key type: " key-in))))
+               (in :: gnu.lists.U8Vector
+                   (cond ((bytevector? message) message)
+                         ((string? message) (string->utf8 message))
+                         ((input-port? message)
+                          (error "kawa md5 port write me"))
+                         (else (error "unknown digest source: " message))))
+               (signing-key :: java.security.Key
+                            (javax.crypto.spec.SecretKeySpec
+                             (key:getBuffer) "HmacSHA1"))
+               (mac :: javax.crypto.Mac
+                    (javax.crypto.Mac:getInstance "HmacSHA1")))
+          (mac:init signing-key)
+          (gnu.lists.U8Vector (mac:doFinal (in:getBuffer))))))
 
 
      (sagittarius
