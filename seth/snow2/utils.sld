@@ -47,7 +47,9 @@
   (import (scheme base)
           (scheme write)
           (scheme file)
-          (scheme process-context))
+          (only (scheme r5rs) string-ci<?)
+          (scheme process-context)
+          (srfi 95))
   (cond-expand
    (chibi (import (only (srfi 1) filter make-list any fold
                         lset-intersection last drop-right find)
@@ -160,6 +162,7 @@
             (depends-sexps (get-multi-args-by-type library-sexp 'depends '()))
             (version (get-string-by-type library-sexp 'version "1.0"))
             (homepage (get-args-by-type library-sexp 'homepage '()))
+            (manual (get-args-by-type library-sexp 'manual '()))
             (maintainers (get-args-by-type library-sexp 'maintainers '()))
             (authors (get-args-by-type library-sexp 'authors '()))
             (description (get-args-by-type library-sexp 'description '()))
@@ -173,6 +176,7 @@
                 (map depend-from-sexp depends-sexps)
                 version
                 homepage
+                manual
                 maintainers
                 authors
                 description
@@ -188,6 +192,7 @@
        (deep-copy (snow2-library-depends library))
        (deep-copy (snow2-library-version library))
        (deep-copy (snow2-library-homepage library))
+       (deep-copy (snow2-library-manual library))
        (deep-copy (snow2-library-maintainers library))
        (deep-copy (snow2-library-authors library))
        (deep-copy (snow2-library-description library))
@@ -202,6 +207,7 @@
         (path ,(snow2-library-path library))
         (version ,(snow2-library-version library))
         (homepage ,@(snow2-library-homepage library))
+        (manual ,@(snow2-library-manual library))
         (maintainers ,@(snow2-library-maintainers library))
         (authors ,@(snow2-library-authors library))
         (description ,@(snow2-library-description library))
@@ -212,27 +218,33 @@
 
 
     (define (library->html library)
-      (let ((name (snow2-library-name library))
-            (path (snow2-library-path library))
-            (version (snow2-library-version library))
-            (homepage (cond ((pair? (snow2-library-homepage library))
-                             (car (snow2-library-homepage library)))
-                            (else #f)))
-            (maintainers
-             (string-join
-              (map write-to-string (snow2-library-maintainers library))
-              ", "))
-            (authors
-             (string-join
-              (map write-to-string (snow2-library-authors library))
-              ", "))
-            (description (snow2-library-description library))
-            (license (snow2-library-license library))
-            (depends
-             (string-join
-              (map display-to-string (snow2-library-depends library))
-              " "))
-            (use-for (snow2-library-use-for library)))
+      (let* ((name (snow2-library-name library))
+             (path (snow2-library-path library))
+             (version (snow2-library-version library))
+             (homepage (cond ((pair? (snow2-library-homepage library))
+                              (car (snow2-library-homepage library)))
+                             (else #f)))
+             (manuals-en (assq 'en (snow2-library-manual library)))
+             (manuals-else (assq 'else (snow2-library-manual library)))
+             (manuals (cond (manuals-en (cdr manuals-en))
+                            (manuals-else (cdr manuals-else))
+                            (else '())))
+             (maintainers
+              (string-join
+               (map write-to-string (snow2-library-maintainers library))
+               ", "))
+             (authors
+              (string-join
+               (map write-to-string (snow2-library-authors library))
+               ", "))
+             (description (snow2-library-description library))
+             (license (snow2-library-license library))
+             (depends
+              (string-join
+               (map display-to-string (snow2-library-depends library))
+               " "))
+             (use-for (snow2-library-use-for library)))
+
         `(html:li
           (html:p
            ,@(if homepage
@@ -243,6 +255,11 @@
            ,description)
           (html:p (@ (class "lib-details"))
                   "Version: " ,(display-to-string version))
+          ,@(map
+             (lambda (manual)
+               `((html:p (@ (class "lib-details"))
+                         (html:a (@ (href ,manual)) "manual"))))
+             manuals)
           (html:p (@ (class "lib-details"))
                   "Authors: " ,(display-to-string authors))
           (html:p (@ (class "lib-details"))
@@ -331,6 +348,33 @@
                package))))
 
 
+    (define not-hyphen-char-set
+      (char-set-complement (list->char-set (list #\-))))
+
+    (define (name-sorter name-a name-b)
+      ;; sort packages by their names.  sort by hyphen-delimited sections
+      ;; and if a section is numeric, sort numerically rather than
+      ;; alpha-numerically.  This is so srfi-1-lists will be before
+      ;; srfi-106-basic-socket-interface, etc.
+      (let* ((name-a-parts (string-tokenize name-a not-hyphen-char-set))
+             (name-b-parts (string-tokenize name-b not-hyphen-char-set)))
+        (let loop ((name-a-parts name-a-parts)
+                   (name-b-parts name-b-parts))
+          (cond ((null? name-a-parts) #t)
+                ((null? name-b-parts) #f)
+                (else
+                 (let* ((a-part (car name-a-parts))
+                        (a-as-num (string->number a-part))
+                        (b-part (car name-b-parts))
+                        (b-as-num (string->number b-part)))
+                   (cond ((and a-as-num b-as-num)
+                          (< a-as-num b-as-num))
+                         ((string-ci<? a-part b-part) #t)
+                         (else
+                          (loop (cdr name-a-parts)
+                                (cdr name-b-parts))))))))))
+
+
     (define (repository-from-sexp repository-sexp)
       ;; convert an s-exp into a repository record
       (cond ((not (list? repository-sexp))
@@ -375,6 +419,8 @@
     (define (repository->html repository)
       (serialize-sxml
        `(*TOP* (@ (*NAMESPACES* (html "http://www.w3.org/1999/xhtml")))
+               (meta (@ (http-equiv "Content-Type")
+                        (content "text/html; charset=UTF-8")))
                (html:html
                 (html:head (html:link (@ (rel "stylesheet")
                                          (type "text/css")
@@ -387,16 +433,25 @@
                        (snow2-repository-name repository)
                        "Snow2 Repository"))
 
-                 (html:h2 "Siblings")
-                 ,@(map sibling->html (snow2-repository-siblings repository))
+                 ,@(if (pair? (snow2-repository-siblings repository))
+                       (list
+                        '(html:h2 "Siblings")
+                        (map sibling->html
+                             (snow2-repository-siblings repository)))
+                       '())
 
-                 (html:h2 "Packages")
+                 ;; (html:h2 "Packages")
                  (html:table
                   (html:thead
                    (html:tr (html:th "Packages") (html:th "Libraries")))
                   (html:tbody
-                   ,@(map package->html (snow2-repository-packages repository))
-                   )))))
+                   ,@(map package->html
+                          (sort
+                           (snow2-repository-packages repository)
+                           (lambda (a b)
+                             (name-sorter
+                              (snow2-package-get-readable-name a)
+                              (snow2-package-get-readable-name b))))))))))
        'ns-prefixes '((*default* . "http://www.w3.org/1999/xhtml"))))
 
 

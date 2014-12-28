@@ -432,7 +432,8 @@
                                      (display "rewriting ")
                                      (write index-scm-filename)
                                      (newline)))
-                              (snow-pretty-print (repository->sexp repository) p)
+                              (snow-pretty-print
+                               (repository->sexp repository) p)
                               (close-output-port p)))
 
                           ;; update index.html if the repository is "dirty"

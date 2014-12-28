@@ -32,6 +32,7 @@
           snow2-library-depends set-snow2-library-depends!
           snow2-library-version set-snow2-library-version!
           snow2-library-homepage set-snow2-library-homepage!
+          snow2-library-manual set-snow2-library-manual!
           snow2-library-maintainers set-snow2-library-maintainers!
           snow2-library-authors set-snow2-library-authors!
           snow2-library-description set-snow2-library-description!
@@ -96,7 +97,7 @@
 
 
     (define-record-type <snow2-library>
-      (make-snow2-library name path depends version homepage
+      (make-snow2-library name path depends version homepage manual
                           maintainers authors description license
                           package use-for)
       snow2-library?
@@ -105,6 +106,7 @@
       (depends snow2-library-depends set-snow2-library-depends!)
       (version snow2-library-version set-snow2-library-version!)
       (homepage snow2-library-homepage set-snow2-library-homepage!)
+      (manual snow2-library-manual set-snow2-library-manual!)
       (maintainers snow2-library-maintainers set-snow2-library-maintainers!)
       (authors snow2-library-authors set-snow2-library-authors!)
       (description snow2-library-description set-snow2-library-description!)
@@ -242,6 +244,7 @@
            ;; (equal? (snow2-library-depends a) (snow2-library-depends b))
            (equal? (snow2-library-version a) (snow2-library-version b))
            (equal? (snow2-library-homepage a) (snow2-library-homepage b))
+           (equal? (snow2-library-manual a) (snow2-library-manual b))
            (equal? (snow2-library-maintainers a) (snow2-library-maintainers b))
            (equal? (snow2-library-authors a) (snow2-library-authors b))
            (equal? (snow2-library-description a) (snow2-library-description b))
