@@ -19,6 +19,9 @@
 ; In particular, for PLT, `filter' can be acquired as follows: 
 ;(require (lib "filter.ss" "srfi/1"))
 
+(define at-symbol (string->symbol "@"))
+(define at-at-symbol (string->symbol "@@"))
+
 ;==========================================================================
 ; Basic
 
@@ -209,10 +212,10 @@
 (define (srl:empty-elem? elem)
   (or (null? (cdr elem))  ; just the name      
       (and (null? (cddr elem))  ; just the name and attributes
-           (pair? (cadr elem)) (eq? (caadr elem) '@))
+           (pair? (cadr elem)) (eq? (caadr elem) at-symbol))
       (and (not (null? (cddr elem)))  ; name, attributes, and SXML 2.X aux-list
            (null? (cdddr elem))
-           (pair? (caddr elem)) (eq? (caaddr elem) '@@))))
+           (pair? (caddr elem)) (eq? (caaddr elem) at-at-symbol))))
 
 ;-------------------------------------------------
 ; Handling SXML namespaces
@@ -240,12 +243,12 @@
      (lambda (node) (and (pair? node) (eq? (car node) '*NAMESPACES*))))
     (append
      ((srl:select-kids  ; compatibility with SXML 3.0
-       (lambda (node) (and (pair? node) (eq? (car node) '@))))
+       (lambda (node) (and (pair? node) (eq? (car node) at-symbol))))
       ((srl:select-kids
-        (lambda (node) (and (pair? node) (eq? (car node) '@))))
+        (lambda (node) (and (pair? node) (eq? (car node) at-symbol))))
        elem))
      ((srl:select-kids  ; compatibility with SXML 2.X
-       (lambda (node) (and (pair? node) (eq? (car node) '@@))))
+       (lambda (node) (and (pair? node) (eq? (car node) at-at-symbol))))
       elem)))))
 
 ; Returns (listof <namespace-assoc>) for the SXML document node
@@ -257,7 +260,7 @@
       (lambda (node)
         ; After sequence normalization [1], the SXML 3.0 aux-list is used
         ; at the top-level
-        (and (pair? node) (eq? (car node) '@))))
+        (and (pair? node) (eq? (car node) at-symbol))))
      doc))))
 
 ; Extract original prefix-binding from `namespace-assoc-lst'
@@ -284,7 +287,7 @@
           ((srl:select-kids
             (lambda (node) (and (pair? node) (eq? (car node) 'xml:space))))
            ((srl:select-kids
-             (lambda (node) (and (pair? node) (eq? (car node) '@))))
+             (lambda (node) (and (pair? node) (eq? (car node) at-symbol))))
             elem)))))
     (cond
       ((null? xml-space-val)  ; no xml:space attribute
@@ -425,8 +428,8 @@
              (srl:separate-list
               (lambda (item)
                 (and (pair? item)
-                     (or (eq? (car item) '@@)  ; aux-list in SXML 2.X
-                         (eq? (car item) '@)  ; aux-list in SXML 3.0
+                     (or (eq? (car item) at-at-symbol)  ; aux-list in SXML 2.X
+                         (eq? (car item) at-symbol)  ; aux-list in SXML 3.0
                          )))
               seq))
            (lambda (aux-lists body)
@@ -834,10 +837,10 @@
 ;;                      (reverse
 ;;                       ((srl:select-kids 
 ;;                         (lambda (node)  ; not SXML 3.0 aux-list
-;;                           (and (pair? node) (not (eq? (car node) '@)))))
+;;                           (and (pair? node) (not (eq? (car node) at-symbol)))))
 ;;                        ((srl:select-kids
 ;;                          (lambda (node)
-;;                            (and (pair? node) (eq? (car node) '@))))
+;;                            (and (pair? node) (eq? (car node) at-symbol))))
 ;;                         elem))))
 ;;                     (start-tag
 ;;                      (if

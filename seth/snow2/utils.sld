@@ -60,7 +60,10 @@
    (chibi (import (chibi filesystem)))
    (else))
   (import (snow extio)
-          (srfi 13)
+          (except (srfi 13)
+                  string-copy string-map string-for-each
+                  string-fill! string-copy! string->list
+                  string-upcase string-downcase string-hash)
           (srfi 14)
           (srfi 69)
           (srfi 29)

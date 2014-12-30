@@ -3,54 +3,63 @@
 ;; http://ssax.sourceforge.net/
 
 (define-library (seth xml ssax)
-  (export
-   ;; xml-token?
-   xml-token-kind
-   xml-token-head
+  (cond-expand
+   ((or chicken gauche sagittarius)
+    (export
+     xml-token-kind
+     xml-token-head
+     ssax:read-char-data
+     ssax:make-pi-parser
+     ssax:make-elem-parser
+     ssax:xml->sxml))
+   (else
+    (export
+     ;; xml-token?
+     xml-token-kind
+     xml-token-head
 
-   ;; ssax:skip-S
-   ;; ssax:ncname-starting-char?
-   ;; ssax:read-NCName
-   ;; ssax:read-QName
-   ;; ssax:Prefix-XML
+     ;; skip-S
+     ;; ncname-starting-char?
+     ;; read-NCName
+     ;; read-QName
+     ;; Prefix-XML
 
-   ;; name-compare
+     ;; name-compare
 
-   ;; ssax:largest-unres-name
-   ;; ssax:read-markup-token
-   ;; ssax:skip-pi
-   ;; ssax:read-pi-body-as-string
-   ;; ssax:skip-internal-dtd
-   ;; ssax:read-cdata-body
-   ;; ssax:read-char-ref
-   ;; ssax:predefined-parsed-entities
-   ;; ssax:handle-parsed-entity
+     ;; largest-unres-name
+     ;; read-markup-token
+     ;; skip-pi
+     ;; read-pi-body-as-string
+     ;; skip-internal-dtd
+     ;; read-cdata-body
+     ;; read-char-ref
+     ;; predefined-parsed-entities
+     ;; handle-parsed-entity
 
-   ;; make-empty-attlist
-   ;; attlist-add
-   ;; attlist-null?
-   ;; attlist-remove-top
-   ;; attlist->alist
-   ;; attlist-fold
+     ;; make-empty-attlist
+     ;; attlist-add
+     ;; attlist-null?
+     ;; attlist-remove-top
+     ;; attlist->alist
+     ;; attlist-fold
 
-   ;; ssax:read-attributes
-   ;; ssax:resolve-name
-   ;; ssax:uri-string->symbol
-   ;; ssax:complete-start-tag
-   ;; ssax:read-external-id
-   ;; ssax:scan-Misc
-   ssax:read-char-data
-   ;; ssax:assert-token
-   ssax:make-parser
-   ssax:make-pi-parser
-   ssax:make-elem-parser
-   ;; ssax:make-parser/positional-args
-   ;; ssax:define-labeled-arg-macro
-   ;; ssax:reverse-collect-str
-   ;; ssax:reverse-collect-str-drop-ws
-   ssax:xml->sxml
-
-   )
+     ;; read-attributes
+     ;; resolve-name
+     ;; uri-string->symbol
+     ;; complete-start-tag
+     ;; read-external-id
+     ;; scan-Misc
+     (rename read-char-data ssax:read-char-data)
+     ;; assert-token
+     ;; make-parser
+     (rename make-pi-parser ssax:make-pi-parser)
+     (rename make-elem-parser ssax:make-elem-parser)
+     ;; make-parser/positional-args
+     ;; define-labeled-arg-macro
+     ;; reverse-collect-str
+     ;; reverse-collect-str-drop-ws
+     (rename xml->sxml ssax:xml->sxml)
+     )))
   (import (scheme base)
           (scheme write))
 
@@ -77,6 +86,7 @@
     (cond-expand
      ((or chibi foment kawa)
 
+      (define at-symbol (string->symbol "@"))
 
 ;; a few defines to make SSAX.scm run under chibi...
 
@@ -109,7 +119,7 @@
        (snow-assert should-be-true-1)))))
 
 
-(define (ssax:warn port . warn-args)
+(define (warn port . warn-args)
   (for-each
    (lambda (warn-arg)
      (display warn-arg (current-error-port)))
@@ -169,7 +179,7 @@
 ; seed to maintain user's state, to accumulate parsing results, etc. A
 ; user can freely mix his own functions with those of the
 ; framework. On the other hand, the user may wish to instantiate a
-; high-level parser: ssax:make-elem-parser or ssax:make-parser.  In
+; high-level parser: make-elem-parser or make-parser.  In
 ; the latter case, the user must provide functions of specific
 ; signatures, which are called at predictable moments during the
 ; parsing: to handle character data, element data, or processing
@@ -208,7 +218,7 @@
 ; Compare the last two equations with the left fold
 ; fold-left kons elem:list seed = fold-left kons list (kons elem seed)
 
-; The real parser created my ssax:make-parser is slightly more complicated,
+; The real parser created my make-parser is slightly more complicated,
 ; to account for processing instructions, entity references, namespaces,
 ; processing of document type declaration, etc.
 
@@ -238,7 +248,7 @@
 ; Functional Pearl. Proc ICFP'00, pp. 186-197.
 
 ; IMPORT
-; parser-error ssax:warn, see Handling of errors, below
+; parser-error warn, see Handling of errors, below
 ; functions declared in files util.scm, input-parse.scm and look-for-str.scm
 ; char-encoding.scm for various platform-specific character-encoding functions.
 ; From SRFI-13: string-concatenate/shared and string-concatenate-reverse/shared
@@ -263,12 +273,12 @@
 ;	http://pair.com/lisovsky/download/parse-error.scm
 ; for an excellent example of such a redefined parser-error function.
 ;
-; In addition, the present code invokes a function ssax:warn
-;   ssax:warn PORT MESSAGE SPECIALISING-MSG*
+; In addition, the present code invokes a function warn
+;   warn PORT MESSAGE SPECIALISING-MSG*
 ; to notify the user about warnings that are NOT errors but still
 ; may alert the user.
 ;
-; Again, parser-error and ssax:warn are supposed to be defined by the
+; Again, parser-error and warn are supposed to be defined by the
 ; user. However, if a run-test macro below is set to include
 ; self-tests, this present code does provide the definitions for these
 ; functions to allow tests to run.
@@ -291,7 +301,7 @@
 ; the end of a block of char data (after reading a new token.
 ; But the deepest interface that I needed to expose was that of reading
 ; attributes. In the official distribution, this is not even a separate
-; function. Instead, it is embedded within SSAX:read-attributes.  This
+; function. Instead, it is embedded within read-attributes.  This
 ; required some small re-structuring as well.
 ; This definitely will not be to everyone's taste (nor needed by most).
 ; Certainly, the existing make-parser interface addresses most custom
@@ -413,19 +423,19 @@
 ; corner of the R5RS macros. The reason is that run-test is used in
 ; the code below to introduce definitions. For example:
 ; (run-test
-;  (define (ssax:warn port msg . other-msg)
+;  (define (warn port msg . other-msg)
 ;    (apply cerr (cons* nl "Warning: " msg other-msg)))
 ; )
 ; This code expands to
 ; (begin
-;    (define (ssax:warn port msg . other-msg) ...))
+;    (define (warn port msg . other-msg) ...))
 ; so the definition gets spliced in into the top level. Right?
 ; Well, On Petite Chez Scheme it is so. However, many other systems
 ; don't like this approach. The reason is that the invocation of
-; (run-test (define (ssax:warn port msg . other-msg) ...))
+; (run-test (define (warn port msg . other-msg) ...))
 ; first expands into
 ; (letrec-syntax (...) 
-;   (scan-exp ((define (ssax:warn port msg . other-msg) ...)) ...))
+;   (scan-exp ((define (warn port msg . other-msg) ...)) ...))
 ; because of the presence of (letrec-syntax ...), the begin form that
 ; is generated eventually is no longer at the top level! The begin
 ; form in Scheme is an overloading of two distinct forms: top-level
@@ -782,7 +792,7 @@
 ;
 ; They deal with primitive lexical units (Names, whitespaces, tags)
 ; and with pieces of more generic productions. Most of these parsers
-; must be called in appropriate context. For example, ssax:complete-start-tag
+; must be called in appropriate context. For example, complete-start-tag
 ; must be called only when the start-tag has been detected and its GI
 ; has been read.
 
@@ -795,10 +805,10 @@
 ; encounters while scanning the PORT. This character is left
 ; on the input stream.
 
-(define ssax:S-chars (map ascii->char '(32 10 9 13)))
+(define S-chars (map ascii->char '(32 10 9 13)))
 
-(define (ssax:skip-S port)
-  (skip-while ssax:S-chars port))
+(define (skip-S port)
+  (skip-while S-chars port))
 
 
 ; Read a Name lexem and return it as string
@@ -821,7 +831,7 @@
 ; defined below.
 
 ; Check to see if a-char may start a NCName
-(define (ssax:ncname-starting-char? a-char)
+(define (ncname-starting-char? a-char)
   (and (char? a-char)
     (or
       (char-alphabetic? a-char)
@@ -830,9 +840,9 @@
 
 ; Read a NCName starting from the current position in the PORT and
 ; return it as a symbol.
-(define (ssax:read-NCName port)
+(define (read-NCName port)
   (let ((first-char (peek-char port)))
-    (or (ssax:ncname-starting-char? first-char)
+    (or (ncname-starting-char? first-char)
       (parser-error port "XMLNS [4] for '" first-char "'")))
   (string->symbol
     (next-token-of
@@ -851,36 +861,36 @@
 ;	[7] Prefix ::= NCName
 ;	[8] LocalPart ::= NCName
 ; Return: an UNRES-NAME
-(define (ssax:read-QName port)
-  (let ((prefix-or-localpart (ssax:read-NCName port)))
+(define (read-QName port)
+  (let ((prefix-or-localpart (read-NCName port)))
     (case (peek-char port)
       ((#\:)			; prefix was given after all
        (read-char port)		; consume the colon
-       (cons prefix-or-localpart (ssax:read-NCName port)))
+       (cons prefix-or-localpart (read-NCName port)))
       (else prefix-or-localpart) ; Prefix was omitted
       )))
 
 ; The prefix of the pre-defined XML namespace
-(define ssax:Prefix-XML (string->symbol "xml"))
+(define Prefix-XML (string->symbol "xml"))
 
 (run-test
  (assert (eq? '_
-		 (call-with-input-string "_" ssax:read-NCName)))
+		 (call-with-input-string "_" read-NCName)))
  (assert (eq? '_
-		 (call-with-input-string "_" ssax:read-QName)))
+		 (call-with-input-string "_" read-QName)))
  (assert (eq? (string->symbol "_abc_")
-	      (call-with-input-string "_abc_;" ssax:read-NCName)))
+	      (call-with-input-string "_abc_;" read-NCName)))
  (assert (eq? (string->symbol "_abc_")
-	      (call-with-input-string "_abc_;" ssax:read-QName)))
+	      (call-with-input-string "_abc_;" read-QName)))
  (assert (eq? (string->symbol "_a.b")
-	      (call-with-input-string "_a.b " ssax:read-QName)))
+	      (call-with-input-string "_a.b " read-QName)))
  (assert (equal? (cons (string->symbol "_a.b") (string->symbol "d.1-ef-"))
-	      (call-with-input-string "_a.b:d.1-ef-;" ssax:read-QName)))
+	      (call-with-input-string "_a.b:d.1-ef-;" read-QName)))
  (assert (equal? (cons (string->symbol "a") (string->symbol "b"))
-	      (call-with-input-string "a:b:c" ssax:read-QName)))
+	      (call-with-input-string "a:b:c" read-QName)))
 
- (assert (failed? (call-with-input-string ":abc" ssax:read-NCName)))
- (assert (failed? (call-with-input-string "1:bc" ssax:read-NCName)))
+ (assert (failed? (call-with-input-string ":abc" read-NCName)))
+ (assert (failed? (call-with-input-string "1:bc" read-NCName)))
 )
 
 ; Compare one RES-NAME or an UNRES-NAME with the other.
@@ -900,8 +910,8 @@
        ((symbol? name1) (if (symbol? name2) (symbol-compare name1 name2)
 			    '<))
        ((symbol? name2) '>)
-       ((eq? name2 ssax:largest-unres-name) '<)
-       ((eq? name1 ssax:largest-unres-name) '>)
+       ((eq? name2 largest-unres-name) '<)
+       ((eq? name1 largest-unres-name) '>)
        ((eq? (car name1) (car name2))	; prefixes the same
 	(symbol-compare (cdr name1) (cdr name2)))
        (else (symbol-compare (car name1) (car name2)))))))
@@ -909,7 +919,7 @@
 ; An UNRES-NAME that is postulated to be larger than anything that can occur in
 ; a well-formed XML document.
 ; name-compare enforces this postulate.
-(define ssax:largest-unres-name (cons 
+(define largest-unres-name (cons 
 				  (string->symbol "#LARGEST-SYMBOL")
 				  (string->symbol "#LARGEST-SYMBOL")))
 
@@ -922,14 +932,14 @@
  (assert (eq? '= (name-compare '(HTML . PRE) '(HTML . PRE))))
  (assert (eq? '< (name-compare '(HTML . PRE) '(XML . PRE))))
  (assert (eq? '> (name-compare '(HTML . PRE) '(HTML . P))))
- (assert (eq? '< (name-compare '(HTML . PRE) ssax:largest-unres-name)))
- (assert (eq? '< (name-compare '(ZZZZ . ZZZ) ssax:largest-unres-name)))
- (assert (eq? '> (name-compare ssax:largest-unres-name '(ZZZZ . ZZZ) )))
+ (assert (eq? '< (name-compare '(HTML . PRE) largest-unres-name)))
+ (assert (eq? '< (name-compare '(ZZZZ . ZZZ) largest-unres-name)))
+ (assert (eq? '> (name-compare largest-unres-name '(ZZZZ . ZZZ) )))
 )
 
 
 
-; procedure: ssax:read-markup-token PORT
+; procedure: read-markup-token PORT
 ; This procedure starts parsing of a markup token. The current position
 ; in the stream must be #\<. This procedure scans enough of the input stream
 ; to figure out what kind of a markup token it is seeing. The procedure returns
@@ -941,7 +951,7 @@
 ; when that particular value is returned:
 ;	PI-token:	only PI-target is read.
 ;			To finish the Processing Instruction and disregard it,
-;			call ssax:skip-pi. ssax:read-attributes may be useful
+;			call skip-pi. read-attributes may be useful
 ;			as well (for PIs whose content is attribute-value
 ;			pairs)
 ;	END-token:	The end tag is read completely; the current position
@@ -949,7 +959,7 @@
 ;	COMMENT		is read and skipped completely. The current position
 ;			is right after "-->" that terminates the comment.
 ;	CDSECT		The current position is right after "<!CDATA["
-;			Use ssax:read-cdata-body to read the rest.
+;			Use read-cdata-body to read the rest.
 ;	DECL		We have read the keyword (the one that follows "<!")
 ;			identifying this declaration markup. The current
 ;			position is after the keyword (usually a
@@ -958,10 +968,10 @@
 ;	START-token	We have read the keyword (GI) of this start tag.
 ;			No attributes are scanned yet. We don't know if this
 ;			tag has an empty content either.
-;			Use ssax:complete-start-tag to finish parsing of
+;			Use complete-start-tag to finish parsing of
 ;			the token.
 
-(define ssax:read-markup-token ; procedure ssax:read-markup-token port
+(define read-markup-token ; procedure read-markup-token port
  (let ()
   		; we have read "<!-". Skip through the rest of the comment
 		; Return the 'COMMENT token as an indication we saw a comment
@@ -981,33 +991,33 @@
     (assert-curr-char '(#\<) "start of the token" port)
     (case (peek-char port)
       ((#\/) (read-char port)
-       (begin0 (make-xml-token 'END (ssax:read-QName port))
-	       (ssax:skip-S port)
+       (begin0 (make-xml-token 'END (read-QName port))
+	       (skip-S port)
 	       (assert-curr-char '(#\>) "XML [42]" port)))
-      ((#\?) (read-char port) (make-xml-token 'PI (ssax:read-NCName port)))
+      ((#\?) (read-char port) (make-xml-token 'PI (read-NCName port)))
       ((#\!)
        (case (peek-next-char port)
 	 ((#\-) (read-char port) (skip-comment port))
 	 ((#\[) (read-char port) (read-cdata port))
-	 (else (make-xml-token 'DECL (ssax:read-NCName port)))))
-      (else (make-xml-token 'START (ssax:read-QName port)))))
+	 (else (make-xml-token 'DECL (read-NCName port)))))
+      (else (make-xml-token 'START (read-QName port)))))
 ))
 
 
 ; The current position is inside a PI. Skip till the rest of the PI
-(define (ssax:skip-pi port)      
+(define (skip-pi port)      
   (if (not (find-string-from-port? "?>" port))
     (parser-error port "Failed to find ?> terminating the PI")))
 
 
-; procedure: ssax:read-pi-body-as-string PORT
+; procedure: read-pi-body-as-string PORT
 ; The current position is right after reading the PITarget. We read the
 ; body of PI and return is as a string. The port will point to the
 ; character right after '?>' combination that terminates PI.
 ; [16] PI ::= '<?' PITarget (S (Char* - (Char* '?>' Char*)))? '?>'
 
-(define (ssax:read-pi-body-as-string port)
-  (ssax:skip-S port)		; skip WS after the PI target name
+(define (read-pi-body-as-string port)
+  (skip-S port)		; skip WS after the PI target name
   (string-concatenate/shared
     (let loop ()
       (let ((pi-fragment
@@ -1022,28 +1032,28 @@
  (assert (equal? "p1 content "
     (call-with-input-string "<?pi1  p1 content ?>"
       (lambda (port)
-	(ssax:read-markup-token port)
-	(ssax:read-pi-body-as-string port)))))
+	(read-markup-token port)
+	(read-pi-body-as-string port)))))
  (assert (equal? "pi2? content? ?"
     (call-with-input-string "<?pi2 pi2? content? ??>"
       (lambda (port)
-	(ssax:read-markup-token port)
-	(ssax:read-pi-body-as-string port)))))
+	(read-markup-token port)
+	(read-pi-body-as-string port)))))
 )
 
-;(define (ssax:read-pi-body-as-name-values port)
+;(define (read-pi-body-as-name-values port)
 
-; procedure: ssax:skip-internal-dtd PORT
+; procedure: skip-internal-dtd PORT
 ; The current pos in the port is inside an internal DTD subset
 ; (e.g., after reading #\[ that begins an internal DTD subset)
 ; Skip until the "]>" combination that terminates this DTD
-(define (ssax:skip-internal-dtd port)      
+(define (skip-internal-dtd port)      
   (if (not (find-string-from-port? "]>" port))
     (parser-error port
 		  "Failed to find ]> terminating the internal DTD subset")))
 
 
-; procedure+: ssax:read-cdata-body PORT STR-HANDLER SEED
+; procedure+: read-cdata-body PORT STR-HANDLER SEED
 ;
 ; This procedure must be called after we have read a string "<![CDATA["
 ; that begins a CDATA section. The current position must be the first
@@ -1053,11 +1063,11 @@
 ; The str-handler is a STR-HANDLER, a procedure STRING1 STRING2 SEED.
 ; The first STRING1 argument to STR-HANDLER never contains a newline.
 ; The second STRING2 argument often will. On the first invocation of
-; the STR-HANDLER, the seed is the one passed to ssax:read-cdata-body
+; the STR-HANDLER, the seed is the one passed to read-cdata-body
 ; as the third argument. The result of this first invocation will be
 ; passed as the seed argument to the second invocation of the line
 ; consumer, and so on. The result of the last invocation of the
-; STR-HANDLER is returned by the ssax:read-cdata-body.  Note a
+; STR-HANDLER is returned by the read-cdata-body.  Note a
 ; similarity to the fundamental 'fold' iterator.
 ;
 ; Within a CDATA section all characters are taken at their face value,
@@ -1068,7 +1078,7 @@
 ;	&gt; is treated as an embedded #\> character
 ; Note, &lt; and &amp; are not specially recognized (and are not expanded)!
 
-(define ssax:read-cdata-body 
+(define read-cdata-body 
   (let ((cdata-delimiters (list char-return #\newline #\] #\&)))
 
     (lambda (port str-handler seed)
@@ -1117,7 +1127,7 @@
 	   (let ((result
 		   (reverse 
 		     (call-with-input-string (unesc-string str)
-		       (lambda (port) (ssax:read-cdata-body port consumer '()))
+		       (lambda (port) (read-cdata-body port consumer '()))
 		       ))))
 	     (write result)
 	     (assert (equal? result expected-result)))))
@@ -1139,7 +1149,7 @@
 ))
 
             
-; procedure+: ssax:read-char-ref PORT
+; procedure+: read-char-ref PORT
 ;
 ; [66]  CharRef ::=  '&#' [0-9]+ ';' 
 ;                  | '&#x' [0-9a-fA-F]+ ';'
@@ -1161,7 +1171,7 @@
 ; code into the character -- *regardless* of the current character
 ; encoding of the input stream.
 
-(define (ssax:read-char-ref port)
+(define (read-char-ref port)
   (let* ((base
            (cond ((eqv? (peek-char port) #\x) (read-char port) 16)
                  (else 10)))
@@ -1172,7 +1182,7 @@
       (parser-error port "[wf-Legalchar] broken for '" name "'"))))
 
 
-; procedure+: ssax:handle-parsed-entity PORT NAME ENTITIES 
+; procedure+: handle-parsed-entity PORT NAME ENTITIES 
 ;		CONTENT-HANDLER STR-HANDLER SEED
 ;
 ; Expand and handle a parsed-entity reference
@@ -1189,7 +1199,7 @@
 ;	WFC: XML-Spec.html#wf-entdeclared
 ;	WFC: XML-Spec.html#norecursion
 
-(define ssax:predefined-parsed-entities
+(define predefined-parsed-entities
   `(
     (,(string->symbol "amp") . "&")
     (,(string->symbol "lt") . "<")
@@ -1197,7 +1207,7 @@
     (,(string->symbol "apos") . "'")
     (,(string->symbol "quot") . "\"")))
 
-(define (ssax:handle-parsed-entity port name entities
+(define (handle-parsed-entity port name entities
 				   content-handler str-handler seed)
   (cond	  ; First we check the list of the declared entities
    ((assq name entities) =>
@@ -1215,7 +1225,7 @@
 	     (close-input-port port))))
 	 (else
 	  (parser-error port "[norecursion] broken for " name))))))
-    ((assq name ssax:predefined-parsed-entities)
+    ((assq name predefined-parsed-entities)
      => (lambda (decl-entity)
 	  (str-handler (cdr decl-entity) "" seed)))
     (else (parser-error port "[wf-entdeclared] broken for " name))))
@@ -1255,7 +1265,7 @@
 ; procedure: attlist-fold
 (define attlist-fold fold)
 
-; procedure+:	ssax:read-attributes PORT ENTITIES
+; procedure+:	read-attributes PORT ENTITIES
 ;
 ; This procedure reads and parses a production Attribute*
 ; [41] Attribute ::= Name Eq AttValue
@@ -1287,8 +1297,8 @@
 ;	WFC: XML-Spec.html#CleanAttrVals
 ;	WFC: XML-Spec.html#uniqattspec
 
-(define ssax:read-attributes  ; ssax:read-attributes port entities
- (let ((value-delimeters (append ssax:S-chars '(#\< #\&))))
+(define read-attributes  ; read-attributes port entities
+ (let ((value-delimeters (append S-chars '(#\< #\&))))
 		; Read the AttValue from the PORT up to the delimiter
 		; (which can be a single or double-quote character,
 		; or even a symbol *eof*)
@@ -1309,7 +1319,7 @@
 	  (if (eqv? (peek-char port) #\newline) (read-char port))
 	  (read-attrib-value delimiter port entities
 	                     (cons " " new-fragments)))
-	((memv cterm ssax:S-chars)
+	((memv cterm S-chars)
 	  (read-attrib-value delimiter port entities
 	                     (cons " " new-fragments)))
 	((eqv? cterm #\&)
@@ -1317,7 +1327,7 @@
 	    ((eqv? (peek-char port) #\#)
 	      (read-char port)
 	      (read-attrib-value delimiter port entities
-		(cons (string (ssax:read-char-ref port)) new-fragments)))
+		(cons (string (read-char-ref port)) new-fragments)))
 	    (else
 	      (read-attrib-value delimiter port entities
 		(read-named-entity port entities new-fragments)))))
@@ -1331,9 +1341,9 @@
 		; The current position will be after ";" that terminates
 		; the entity reference
   (define (read-named-entity port entities fragments)
-    (let ((name (ssax:read-NCName port)))
+    (let ((name (read-NCName port)))
       (assert-curr-char '(#\;) "XML [68]" port)
-      (ssax:handle-parsed-entity port name entities
+      (handle-parsed-entity port name entities
 	(lambda (port entities fragments)
 	  (read-attrib-value '*eof* port entities fragments))
 	(lambda (str1 str2 fragments)
@@ -1343,11 +1353,11 @@
 
   (lambda (port entities)
     (let loop ((attr-list (make-empty-attlist)))
-      (if (not (ssax:ncname-starting-char? (ssax:skip-S port))) attr-list
-	  (let ((name (ssax:read-QName port)))
-	    (ssax:skip-S port)
+      (if (not (ncname-starting-char? (skip-S port))) attr-list
+	  (let ((name (read-QName port)))
+	    (skip-S port)
 	    (assert-curr-char '(#\=) "XML [25]" port)
-	    (ssax:skip-S port)
+	    (skip-S port)
 	    (let ((delimiter 
 		   (assert-curr-char '(#\' #\" ) "XML [10]" port)))
 	      (loop 
@@ -1367,7 +1377,7 @@
 	     (let ((result
 		     (call-with-input-string (unesc-string str)
 		       (lambda (port)
-			 (ssax:read-attributes port decl-entities)))))
+			 (read-attributes port decl-entities)))))
 	       (write result) (newline)
 	       (assert (equal? result expected-res))))))
     (test "" '() '())
@@ -1413,14 +1423,14 @@
     (test "html:href='ref1' xml:html='ref2'" '()
 	  `(((,(string->symbol "html") . ,(string->symbol "href"))
 	     . "ref1")
-	    ((,ssax:Prefix-XML . ,(string->symbol "html"))
+	    ((,Prefix-XML . ,(string->symbol "html"))
 	     . "ref2")))
     (assert (failed? (test "html:href='ref1' html:href='ref2'" '() '())))
     (assert (failed? (test "html:href='<' html:href='ref2'" '() '())))
     (assert (failed? (test "html:href='ref1' html:href='&ref2;'" '() '())))
 ))
 
-; ssax:resolve-name PORT UNRES-NAME NAMESPACES apply-default-ns?
+; resolve-name PORT UNRES-NAME NAMESPACES apply-default-ns?
 ;
 ; Convert an UNRES-NAME to a RES-NAME given the appropriate NAMESPACES
 ; declarations.
@@ -1433,13 +1443,13 @@
 ; This procedure tests for the namespace constraints:
 ; http://www.w3.org/TR/REC-xml-names/#nsc-NSDeclared
 
-(define (ssax:resolve-name port unres-name namespaces apply-default-ns?)
+(define (resolve-name port unres-name namespaces apply-default-ns?)
   (cond
    ((pair? unres-name)		; it's a QNAME
     (cons 
      (cond
      ((assq (car unres-name) namespaces) => cadr)
-     ((eq? (car unres-name) ssax:Prefix-XML) ssax:Prefix-XML)
+     ((eq? (car unres-name) Prefix-XML) Prefix-XML)
      (else
       (parser-error port "[nsc-NSDeclared] broken; prefix " (car unres-name))))
      (cdr unres-name)))
@@ -1465,31 +1475,31 @@
 	(port (current-input-port)))
 
    (assert (equal? 'ABC 
-		   (ssax:resolve-name port 'ABC namespaces #t)))
+		   (resolve-name port 'ABC namespaces #t)))
    (assert (equal? '(DEF . ABC)
-		   (ssax:resolve-name port 'ABC namespaces-def #t)))
+		   (resolve-name port 'ABC namespaces-def #t)))
    (assert (equal? 'ABC
-		   (ssax:resolve-name port 'ABC namespaces-def #f)))
+		   (resolve-name port 'ABC namespaces-def #f)))
    (assert (equal? 'ABC
-		   (ssax:resolve-name port 'ABC namespaces-undef #t)))
+		   (resolve-name port 'ABC namespaces-undef #t)))
    (assert (equal? '(UHTML . ABC)
-		   (ssax:resolve-name port '(HTML . ABC) namespaces-def #t)))
+		   (resolve-name port '(HTML . ABC) namespaces-def #t)))
    (assert (equal? '(UHTML . ABC)
-		   (ssax:resolve-name port '(HTML . ABC) namespaces-def #f)))
-   (assert (equal? `(,ssax:Prefix-XML . space)
-		   (ssax:resolve-name port 
+		   (resolve-name port '(HTML . ABC) namespaces-def #f)))
+   (assert (equal? `(,Prefix-XML . space)
+		   (resolve-name port 
 		       `(,(string->symbol "xml") . space) namespaces-def #f)))
    (assert (failed?
-		   (ssax:resolve-name port '(XXX . ABC) namespaces-def #f)))
+		   (resolve-name port '(XXX . ABC) namespaces-def #f)))
 ))
 
 
-; procedure+: ssax:uri-string->symbol URI-STR
+; procedure+: uri-string->symbol URI-STR
 ; Convert a URI-STR to an appropriate symbol
-(define (ssax:uri-string->symbol uri-str)
+(define (uri-string->symbol uri-str)
   (string->symbol uri-str))
 
-; procedure+: ssax:complete-start-tag TAG PORT ELEMS ENTITIES NAMESPACES
+; procedure+: complete-start-tag TAG PORT ELEMS ENTITIES NAMESPACES
 ;
 ; This procedure is to complete parsing of a start-tag markup. The
 ; procedure must be called after the start tag token has been
@@ -1521,11 +1531,11 @@
 ; xmlns and xmlns: attributes don't have to be declared (although they
 ; can be declared, to specify their default value)
 
-; Procedure:  ssax:complete-start-tag tag-head port elems entities namespaces
-(define ssax:complete-start-tag
+; Procedure:  complete-start-tag tag-head port elems entities namespaces
+(define complete-start-tag
 
  (let ((xmlns (string->symbol "xmlns"))
-       (largest-dummy-decl-attr (list ssax:largest-unres-name #f #f #f)))
+       (largest-dummy-decl-attr (list largest-unres-name #f #f #f)))
 
   ; Scan through the attlist and validate it, against decl-attrs
   ; Return an assoc list with added fixed or implied attrs.
@@ -1580,7 +1590,7 @@
 		     (parser-error port "[enum] broken for " attr-name "="
 			    (cdr attr))))
 		(else
-		 (ssax:warn port "declared content type " content-type
+		 (warn port "declared content type " content-type
 		       " not verified yet")))
 	       (loop attr-others other-decls (cons attr result)))))
 	   ))))
@@ -1595,7 +1605,7 @@
   (define (add-ns port prefix uri-str namespaces)
     (and (equal? "" uri-str)
 	 (parser-error port "[dt-NSName] broken for " prefix))
-    (let ((uri-symbol (ssax:uri-string->symbol uri-str)))
+    (let ((uri-symbol (uri-string->symbol uri-str)))
       (let loop ((nss namespaces))
 	(cond 
 	 ((null? nss)
@@ -1624,10 +1634,10 @@
     ; The body of the function
  (lambda (tag-head port elems entities namespaces)
   (let*-values
-   (((attlist) (ssax:read-attributes port entities))
+   (((attlist) (read-attributes port entities))
     ((empty-el-tag?)
      (begin
-       (ssax:skip-S port)
+       (skip-S port)
        (and
 	(eqv? #\/ 
 	      (assert-curr-char '(#\> #\/) "XML [40], XML [44], no '>'" port))
@@ -1654,12 +1664,12 @@
    ;(cerr "proper attrs: " proper-attrs nl)
    ; build the return value
    (values
-    (ssax:resolve-name port tag-head namespaces #t)
+    (resolve-name port tag-head namespaces #t)
     (fold-right
      (lambda (name-value attlist)
        (or
 	(attlist-add attlist
-	   (cons (ssax:resolve-name port (car name-value) namespaces #f)
+	   (cons (resolve-name port (car name-value) namespaces #f)
 		 (cdr name-value)))
 	(parser-error port "[uniqattspec] after NS expansion broken for " 
 	       name-value)))
@@ -1681,9 +1691,9 @@
 		(lambda (port)
 		  (call-with-values
 		      (lambda ()
-			      (ssax:complete-start-tag
+			      (complete-start-tag
 			       (call-with-input-string tag-head-name
-				      (lambda (port) (ssax:read-QName port)))
+				      (lambda (port) (read-QName port)))
 			       port
 			       elems '() namespaces))
 		    list))))))
@@ -1839,7 +1849,7 @@
 	     "B:HREF='b' xmlns:B='urn:b'>")))
 ))
 
-; procedure+: ssax:read-external-id PORT
+; procedure+: read-external-id PORT
 ;
 ; This procedure parses an ExternalID production:
 ; [75] ExternalID ::= 'SYSTEM' S SystemLiteral
@@ -1854,10 +1864,10 @@
 ; correspondingly a SYSTEM or PUBLIC token. This procedure returns the
 ; SystemLiteral as a string. A PubidLiteral is disregarded if present.
  
-(define (ssax:read-external-id port)
-  (let ((discriminator (ssax:read-NCName port)))
-    (assert-curr-char ssax:S-chars "space after SYSTEM or PUBLIC" port)
-    (ssax:skip-S port)
+(define (read-external-id port)
+  (let ((discriminator (read-NCName port)))
+    (assert-curr-char S-chars "space after SYSTEM or PUBLIC" port)
+    (skip-S port)
     (let ((delimiter 
           (assert-curr-char '(#\' #\" ) "XML [11], XML [12]" port)))
       (cond
@@ -1868,8 +1878,8 @@
             ))
          ((eq? discriminator (string->symbol "PUBLIC"))
            (skip-until (list delimiter) port)
-           (assert-curr-char ssax:S-chars "space after PubidLiteral" port)
-           (ssax:skip-S port)
+           (assert-curr-char S-chars "space after PubidLiteral" port)
+           (skip-S port)
            (let* ((delimiter 
                   (assert-curr-char '(#\' #\" ) "XML [11]" port))
                   (systemid
@@ -1895,27 +1905,27 @@
 ;
 ; The following function should be called in the prolog or epilog contexts.
 ; In these contexts, whitespaces are completely ignored.
-; The return value from ssax:scan-Misc is either a PI-token,
+; The return value from scan-Misc is either a PI-token,
 ; a DECL-token, a START token, or EOF.
 ; Comments are ignored and not reported.
 
-(define (ssax:scan-Misc port)
-  (let loop ((c (ssax:skip-S port)))
+(define (scan-Misc port)
+  (let loop ((c (skip-S port)))
     (cond
       ((eof-object? c) c)
       ((not (char=? c #\<))
         (parser-error port "XML [22], char '" c "' unexpected"))
       (else
-        (let ((token (ssax:read-markup-token port)))
+        (let ((token (read-markup-token port)))
           (case (xml-token-kind token)
-            ((COMMENT) (loop (ssax:skip-S port)))
+            ((COMMENT) (loop (skip-S port)))
             ((PI DECL START) token)
             (else 
               (parser-error port "XML [22], unexpected token of kind "
 		     (xml-token-kind token)
 		     ))))))))
 
-; procedure+: ssax:read-char-data PORT EXPECT-EOF? STR-HANDLER SEED
+; procedure+: read-char-data PORT EXPECT-EOF? STR-HANDLER SEED
 ;
 ; This procedure is to read the character content of an XML document
 ; or an XML element.
@@ -1958,8 +1968,8 @@
 ; otherwise. See Secs. 2.10 and 2.11 of the XML Recommendation. See also
 ; the canonical XML Recommendation.
 
-	; ssax:read-char-data port expect-eof? str-handler seed
-(define ssax:read-char-data
+	; read-char-data port expect-eof? str-handler seed
+(define read-char-data
  (let
      ((terminators-usual (list #\< #\& char-return))
       (terminators-usual-eof (list #\< '*eof* #\& char-return))
@@ -1977,14 +1987,14 @@
      (if (eqv? #\< (peek-char port))
 
          ; The fast path
-	 (let ((token (ssax:read-markup-token port)))
+	 (let ((token (read-markup-token port)))
 	   (case (xml-token-kind token)
 	     ((START END)	; The most common case
 	      (values seed token))
 	     ((CDSECT)
-	      (let ((seed (ssax:read-cdata-body port str-handler seed)))
-		(ssax:read-char-data port expect-eof? str-handler seed)))
-	     ((COMMENT) (ssax:read-char-data port expect-eof?
+	      (let ((seed (read-cdata-body port str-handler seed)))
+		(read-char-data port expect-eof? str-handler seed)))
+	     ((COMMENT) (read-char-data port expect-eof?
 					     str-handler seed))
 	     (else
 	      (values seed token))))
@@ -2006,11 +2016,11 @@
 		    term-char)
 		   (case term-char
 		     ((#\<)
-		      (let ((token (ssax:read-markup-token port)))
+		      (let ((token (read-markup-token port)))
 			(case (xml-token-kind token)
 			  ((CDSECT)
 			   (loop
-			    (ssax:read-cdata-body port str-handler
+			    (read-cdata-body port str-handler
 			        (handle-fragment fragment str-handler seed))))
 			  ((COMMENT)
 			   (loop (handle-fragment fragment str-handler seed)))
@@ -2022,10 +2032,10 @@
 		      (case (peek-next-char port)
 			((#\#) (read-char port) 
 			 (loop (str-handler fragment
-				       (string (ssax:read-char-ref port))
+				       (string (read-char-ref port))
 				       seed)))
 			(else
-			 (let ((name (ssax:read-NCName port)))
+			 (let ((name (read-NCName port)))
 			   (assert-curr-char '(#\;) "XML [68]" port)
 			   (values
 			    (handle-fragment fragment str-handler seed)
@@ -2052,7 +2062,7 @@
 	   (((seed token)
 	     (call-with-input-string (unesc-string str)
 		(lambda (port)
-		 (ssax:read-char-data port expect-eof? str-handler '()))))
+		 (read-char-data port expect-eof? str-handler '()))))
 	    ((result) (reverse seed)))
 	   (write result)
 	   (display " ")
@@ -2100,13 +2110,13 @@
 
 
 
-; procedure+: ssax:assert-token TOKEN KIND GI
+; procedure+: assert-token TOKEN KIND GI
 ; Make sure that TOKEN is of anticipated KIND and has anticipated GI
 ; Note GI argument may actually be a pair of two symbols, Namespace
 ; URI or the prefix, and of the localname.
 ; If the assertion fails, error-cont is evaluated by passing it
 ; three arguments: token kind gi. The result of error-cont is returned.
-(define (ssax:assert-token token kind gi error-cont)
+(define (assert-token token kind gi error-cont)
   (or
     (and (xml-token? token)
       (eq? kind (xml-token-kind token))
@@ -2123,7 +2133,7 @@
 ; with the parsed character and element data. The latter handlers
 ; determine if the parsing follows a SAX or a DOM model.
 
-; syntax: ssax:make-pi-parser my-pi-handlers
+; syntax: make-pi-parser my-pi-handlers
 ; Create a parser to parse and process one Processing Element (PI).
 
 ; my-pi-handlers
@@ -2136,15 +2146,15 @@
 ;	return a new seed.
 ;	One of the PI-TAGs may be the symbol *DEFAULT*. The corresponding
 ;	handler will handle PIs that no other handler will. If the
-;	*DEFAULT* PI-TAG is not specified, ssax:make-pi-parser will assume
+;	*DEFAULT* PI-TAG is not specified, make-pi-parser will assume
 ;	the default handler that skips the body of the PI
 ;	
-; The output of the ssax:make-pi-parser is a procedure
+; The output of the make-pi-parser is a procedure
 ;	PORT PI-TAG SEED
 ; that will parse the current PI according to the user-specified handlers.
 ;
-; The previous version of ssax:make-pi-parser was a low-level macro:
-; (define-macro ssax:make-pi-parser
+; The previous version of make-pi-parser was a low-level macro:
+; (define-macro make-pi-parser
 ;   (lambda (my-pi-handlers)
 ;   `(lambda (port target seed)
 ;     (case target
@@ -2154,8 +2164,8 @@
 ; 	  ((null? pi-handlers)
 ; 	   (if default `((else (,default port target seed)))
 ; 	       '((else
-; 		  (ssax:warn port "Skipping PI: " target nl)
-; 		  (ssax:skip-pi port)
+; 		  (warn port "Skipping PI: " target nl)
+; 		  (skip-pi port)
 ; 		  seed))))
 ; 	  ((eq? '*DEFAULT* (caar pi-handlers))
 ; 	   (loop (cdr pi-handlers) (cdar pi-handlers)))
@@ -2164,9 +2174,9 @@
 ; 	    `((,(caar pi-handlers)) (,(cdar pi-handlers) port target seed))
 ; 	    (loop (cdr pi-handlers) default)))))))))
 
-(define-syntax ssax:make-pi-parser
+(define-syntax make-pi-parser
   (syntax-rules ()
-    ((ssax:make-pi-parser orig-handlers)
+    ((make-pi-parser orig-handlers)
      (letrec-syntax 
 	; Generate the clauses of the case statement
       ((loop
@@ -2174,8 +2184,8 @@
 	   ((loop () #f accum port target seed) 	; no default
 	    (make-case 
 	      ((else
-		 (ssax:warn port "Skipping PI: " target nl)
-		 (ssax:skip-pi port)
+		 (warn port "Skipping PI: " target nl)
+		 (skip-pi port)
 		 seed)
 		. accum)
 	      () target))
@@ -2203,14 +2213,14 @@
        ))))
 
 (run-test
- (pp (ssax:make-pi-parser ()))
- (pp (ssax:make-pi-parser ((xml . (lambda (port target seed) seed)))))
- (pp (ssax:make-pi-parser ((xml . (lambda (port target seed) seed))
+ (pp (make-pi-parser ()))
+ (pp (make-pi-parser ((xml . (lambda (port target seed) seed)))))
+ (pp (make-pi-parser ((xml . (lambda (port target seed) seed))
 			   (html . list)
-			   (*DEFAULT* . ssax:warn))))
+			   (*DEFAULT* . warn))))
 )
 
-; syntax: ssax:make-elem-parser my-new-level-seed my-finish-element
+; syntax: make-elem-parser my-new-level-seed my-finish-element
 ;				my-char-data-handler my-pi-handlers
 
 ; Create a parser to parse and process one element, including its
@@ -2243,7 +2253,7 @@
 ;	A STR-HANDLER
 ;
 ; my-pi-handlers
-;	See ssax:make-pi-handler above
+;	See make-pi-handler above
 ;
 
 ; The generated parser is a
@@ -2252,22 +2262,22 @@
 ; The procedure must be called after the start tag token has been
 ; read. START-TAG-HEAD is an UNRES-NAME from the start-element tag.
 ; ELEMS is an instance of xml-decl::elems.
-; See ssax:complete-start-tag::preserve-ws?
+; See complete-start-tag::preserve-ws?
 
 ; Faults detected:
 ;	VC: XML-Spec.html#elementvalid 
 ;	WFC: XML-Spec.html#GIMatch
 
 
-(define-syntax ssax:make-elem-parser
+(define-syntax make-elem-parser
   (syntax-rules ()
-    ((ssax:make-elem-parser my-new-level-seed my-finish-element
+    ((make-elem-parser my-new-level-seed my-finish-element
                             my-char-data-handler my-pi-handlers)
   
    (lambda (start-tag-head port elems entities namespaces
 			   preserve-ws? seed)
 
-     (define xml-space-gi (cons ssax:Prefix-XML
+     (define xml-space-gi (cons Prefix-XML
 				(string->symbol "space")))
 
      (let handle-start-tag ((start-tag-head start-tag-head)
@@ -2276,7 +2286,7 @@
 			    (preserve-ws? preserve-ws?) (parent-seed seed))
        (let*-values
 	(((elem-gi attributes namespaces expected-content)
-	  (ssax:complete-start-tag start-tag-head port elems
+	  (complete-start-tag start-tag-head port elems
 				   entities namespaces))
 	 ((seed)
 	  (my-new-level-seed elem-gi attributes
@@ -2286,8 +2296,8 @@
 	   (my-finish-element
 	    elem-gi attributes namespaces parent-seed seed))
 	  ((EMPTY)		; The end tag must immediately follow
-	   (ssax:assert-token 
-	    (and (eqv? #\< (ssax:skip-S port)) (ssax:read-markup-token port))
+	   (assert-token 
+	    (and (eqv? #\< (skip-S port)) (read-markup-token port))
 	    'END  start-tag-head
 	    (lambda (token exp-kind exp-head)
 	      (parser-error port "[elementvalid] broken for " token 
@@ -2306,13 +2316,13 @@
 			(expect-eof? #f) (seed seed))
 	       (let*-values
 		(((seed term-token)
-		  (ssax:read-char-data port expect-eof?
+		  (read-char-data port expect-eof?
 				       my-char-data-handler seed)))
 		(if (eof-object? term-token)
 		    seed
 		    (case (xml-token-kind term-token)
 		      ((END)
-		       (ssax:assert-token term-token 'END  start-tag-head
+		       (assert-token term-token 'END  start-tag-head
 			  (lambda (token exp-kind exp-head)
 			    (parser-error port "[GIMatch] broken for "
 				   term-token " while expecting "
@@ -2321,12 +2331,12 @@
 			elem-gi attributes namespaces parent-seed seed))
 		      ((PI)
 		       (let ((seed 
-			  ((ssax:make-pi-parser my-pi-handlers)
+			  ((make-pi-parser my-pi-handlers)
 			   port (xml-token-head term-token) seed)))
 			 (loop port entities expect-eof? seed)))
 		      ((ENTITY-REF)
 		       (let ((seed
-			      (ssax:handle-parsed-entity
+			      (handle-parsed-entity
 			       port (xml-token-head term-token)
 			       entities
 			       (lambda (port entities seed)
@@ -2354,7 +2364,7 @@
 ))))
 
 
-; syntax: ssax:make-parser user-handler-tag user-handler-proc ...
+; syntax: make-parser user-handler-tag user-handler-proc ...
 ;
 ; Create an XML parser, an instance of the XML parsing framework.
 ; This will be a SAX, a DOM, or a specialized parser depending
@@ -2402,23 +2412,23 @@
 ; The default handler-procedure is the identity function.
 
 ; tag: NEW-LEVEL-SEED
-; handler-procedure: see ssax:make-elem-parser, my-new-level-seed
+; handler-procedure: see make-elem-parser, my-new-level-seed
 
 ; tag: FINISH-ELEMENT
-; handler-procedure: see ssax:make-elem-parser, my-finish-element
+; handler-procedure: see make-elem-parser, my-finish-element
 
 ; tag: CHAR-DATA-HANDLER
-; handler-procedure: see ssax:make-elem-parser, my-char-data-handler
+; handler-procedure: see make-elem-parser, my-char-data-handler
 
 ; tag: PI
-; handler-procedure: see ssax:make-pi-parser
+; handler-procedure: see make-pi-parser
 ; The default value is '()
  
 ; The generated parser is a
 ;	procedure PORT SEED
 
 ; This procedure parses the document prolog and then exits to
-; an element parser (created by ssax:make-elem-parser) to handle
+; an element parser (created by make-elem-parser) to handle
 ; the rest.
 ;
 ; [1]  document ::=  prolog element Misc*
@@ -2434,11 +2444,11 @@
 ;
 
 
-; This is ssax:make-parser with all the (specialization) handlers given
-; as positional arguments. It is called by ssax:make-parser, see below
-(define-syntax ssax:make-parser/positional-args
+; This is make-parser with all the (specialization) handlers given
+; as positional arguments. It is called by make-parser, see below
+(define-syntax make-parser/positional-args
   (syntax-rules ()
-    ((ssax:make-parser/positional-args
+    ((make-parser/positional-args
        *handler-DOCTYPE
        *handler-UNDECL-ROOT
        *handler-DECL-ROOT
@@ -2456,15 +2466,15 @@
        (or (eq? (string->symbol "DOCTYPE") token-head)
 	   (parser-error port "XML [22], expected DOCTYPE declaration, found "
 		  token-head))
-       (assert-curr-char ssax:S-chars "XML [28], space after DOCTYPE" port)
-       (ssax:skip-S port)
+       (assert-curr-char S-chars "XML [28], space after DOCTYPE" port)
+       (skip-S port)
        (let*-values
-	(((docname) (ssax:read-QName port))
+	(((docname) (read-QName port))
 	 ((systemid)
-	  (and (ssax:ncname-starting-char? (ssax:skip-S port))
-	       (ssax:read-external-id port)))
+	  (and (ncname-starting-char? (skip-S port))
+	       (read-external-id port)))
 	 ((internal-subset?)
-	  (begin (ssax:skip-S port)
+	  (begin (skip-S port)
 	    (eqv? #\[ (assert-curr-char '(#\> #\[)
 					"XML [28], end-of-DOCTYPE" port))))
 	 ((elems entities namespaces seed)
@@ -2479,13 +2489,13 @@
      ; or a start token (of the root element)
      ; In the latter two cases, we exit to the appropriate continuation
      (define (scan-for-significant-prolog-token-1 port seed)
-       (let ((token (ssax:scan-Misc port)))
+       (let ((token (scan-Misc port)))
 	 (if (eof-object? token)
 	     (parser-error port "XML [22], unexpected EOF")
 	     (case (xml-token-kind token)
 	       ((PI)
 		(let ((seed 
-		       ((ssax:make-pi-parser *handler-PI)
+		       ((make-pi-parser *handler-PI)
 			port (xml-token-head token) seed)))
 		  (scan-for-significant-prolog-token-1 port seed)))
 	       ((DECL) (handle-decl port (xml-token-head token) seed))
@@ -2504,13 +2514,13 @@
      ; to the element parser
      (define (scan-for-significant-prolog-token-2 port elems entities
 						  namespaces seed)
-       (let ((token (ssax:scan-Misc port)))
+       (let ((token (scan-Misc port)))
 	 (if (eof-object? token)
 	     (parser-error port "XML [22], unexpected EOF")
 	     (case (xml-token-kind token)
 	       ((PI)
 		(let ((seed 
-		       ((ssax:make-pi-parser *handler-PI)
+		       ((make-pi-parser *handler-PI)
 			port (xml-token-head token) seed)))
 		  (scan-for-significant-prolog-token-2 port elems entities
 						       namespaces seed)))
@@ -2525,7 +2535,7 @@
      ; A procedure start-tag-head port elems entities namespaces
      ;		 preserve-ws? seed
      (define element-parser
-       (ssax:make-elem-parser *handler-NEW-LEVEL-SEED
+       (make-elem-parser *handler-NEW-LEVEL-SEED
 			      *handler-FINISH-ELEMENT
 			      *handler-CHAR-DATA-HANDLER
 			      *handler-PI))
@@ -2538,12 +2548,12 @@
 
 ; The following meta-macro turns a regular macro (with positional
 ; arguments) into a form with keyword (labeled) arguments.  We later
-; use the meta-macro to convert ssax:make-parser/positional-args into
-; ssax:make-parser. The latter provides a prettier (with labeled
+; use the meta-macro to convert make-parser/positional-args into
+; make-parser. The latter provides a prettier (with labeled
 ; arguments and defaults) interface to
-; ssax:make-parser/positional-args
+; make-parser/positional-args
 ;
-; ssax:define-labeled-arg-macro LABELED-ARG-MACRO-NAME 
+; define-labeled-arg-macro LABELED-ARG-MACRO-NAME 
 ;		(POS-MACRO-NAME ARG-DESCRIPTOR ...)
 ; expands into the definition of a macro
 ;	LABELED-ARG-MACRO-NAME KW-NAME KW-VALUE KW-NAME1 KW-VALUE1 ...
@@ -2562,9 +2572,9 @@
 ; ARG-NAME can be anything: an identifier, a string, or even a number.
 
 
-(define-syntax ssax:define-labeled-arg-macro
+(define-syntax define-labeled-arg-macro
   (syntax-rules ()
-    ((ssax:define-labeled-arg-macro
+    ((define-labeled-arg-macro
        labeled-arg-macro-name
        (positional-macro-name
 	 (arg-name . arg-def) ...))
@@ -2597,15 +2607,15 @@
 		(arg-name . arg-def) ...))))))))
 
 
-; The definition of ssax:make-parser
-(ssax:define-labeled-arg-macro ssax:make-parser
-  (ssax:make-parser/positional-args
+; The definition of make-parser
+(define-labeled-arg-macro make-parser
+  (make-parser/positional-args
     (DOCTYPE
       (lambda (port docname systemid internal-subset? seed)
 	(when internal-subset?
-	  (ssax:warn port "Internal DTD subset is not currently handled ")
-	  (ssax:skip-internal-dtd port))
-	(ssax:warn port "DOCTYPE DECL " docname " " 
+	  (warn port "Internal DTD subset is not currently handled ")
+	  (skip-internal-dtd port))
+	(warn port "DOCTYPE DECL " docname " " 
 	  systemid " found and skipped")
 	(values #f '() '() seed)
 	))
@@ -2624,7 +2634,7 @@
 	   (lambda (str doctype-fn)
 	     (call-with-input-string str
 		 (lambda (port)
-		   ((ssax:make-parser
+		   ((make-parser
 		     NEW-LEVEL-SEED 
 		     (lambda (elem-gi attributes namespaces
 				      expected-content seed)
@@ -2638,7 +2648,7 @@
 					    (reverse seed)))))
 			 (let ((seed (if (attlist-null? attributes) seed
 					 (cons 
-					  (cons '@ 
+					  (cons at-symbol 
 					   (map (lambda (attr)
 					      (list (car attr) (cdr attr)))
 						(attlist->alist attributes)))
@@ -2653,10 +2663,10 @@
 		     DOCTYPE
 		     (lambda (port docname systemid internal-subset? seed)
 		       (when internal-subset?
-			  (ssax:warn port
+			  (warn port
 			    "Internal DTD subset is not currently handled ")
-			  (ssax:skip-internal-dtd port))
-		       (ssax:warn port "DOCTYPE DECL " docname " "
+			  (skip-internal-dtd port))
+		       (warn port "DOCTYPE DECL " docname " "
 			     systemid " found and skipped")
 		       (doctype-fn docname seed))
 
@@ -2877,13 +2887,13 @@
 
 ; First, a few utility procedures that turned out useful
 
-; procedure: ssax:reverse-collect-str LIST-OF-FRAGS -> LIST-OF-FRAGS
+; procedure: reverse-collect-str LIST-OF-FRAGS -> LIST-OF-FRAGS
 ; given the list of fragments (some of which are text strings)
 ; reverse the list and concatenate adjacent text strings.
 ; We can prove from the general case below that if LIST-OF-FRAGS
 ; has zero or one element, the result of the procedure is equal?
 ; to its argument. This fact justifies the shortcut evaluation below.
-;; (define (ssax:reverse-collect-str fragments)
+;; (define (reverse-collect-str fragments)
 ;;   (cond
 ;;     ((null? fragments) '())	; a shortcut
 ;;     ((null? (cdr fragments)) fragments) ; see the comment above
@@ -2904,7 +2914,7 @@
 ;; 	      '())))))))
 
 
-;     ssax:reverse-collect-str-drop-ws LIST-OF-FRAGS -> LIST-OF-FRAGS
+;     reverse-collect-str-drop-ws LIST-OF-FRAGS -> LIST-OF-FRAGS
 ; given the list of fragments (some of which are text strings)
 ; reverse the list and concatenate adjacent text strings.
 ; We also drop "unsignificant" whitespace, that is, whitespace
@@ -2913,9 +2923,9 @@
 ; We use this procedure to "intelligently" drop "insignificant"
 ; whitespace in the parsed SXML. If the strict compliance with
 ; the XML Recommendation regarding the whitespace is desired, please
-; use the ssax:reverse-collect-str procedure instead.
+; use the reverse-collect-str procedure instead.
 
-(define (ssax:reverse-collect-str-drop-ws fragments)
+(define (reverse-collect-str-drop-ws fragments)
   (cond 
     ((null? fragments) '())		; a shortcut
     ((null? (cdr fragments))		; another shortcut
@@ -2941,7 +2951,7 @@
 	      '() #t)))))))
 
 
-; procedure: ssax:xml->sxml PORT NAMESPACE-PREFIX-ASSIG
+; procedure: xml->sxml PORT NAMESPACE-PREFIX-ASSIG
 ;
 ; This is an instance of a SSAX parser above that returns an SXML
 ; representation of the XML document to be read from PORT.
@@ -2951,11 +2961,11 @@
 ; The procedure returns an SXML tree. The port points out to the
 ; first character after the root element.
 
-(define (ssax:xml->sxml port namespace-prefix-assig)
+(define (xml->sxml port namespace-prefix-assig)
   (letrec
       ((namespaces
 	(map (lambda (el)
-	       (cons* #f (car el) (ssax:uri-string->symbol (cdr el))))
+	       (cons* #f (car el) (uri-string->symbol (cdr el))))
 	     namespace-prefix-assig))
 
        (RES-NAME->SXML
@@ -2969,7 +2979,7 @@
        )
     (let ((result
 	   (reverse
-	    ((ssax:make-parser
+	    ((make-parser
 	     NEW-LEVEL-SEED 
 	     (lambda (elem-gi attributes namespaces
 			      expected-content seed)
@@ -2977,7 +2987,7 @@
    
 	     FINISH-ELEMENT
 	     (lambda (elem-gi attributes namespaces parent-seed seed)
-	       (let ((seed (ssax:reverse-collect-str-drop-ws seed))
+	       (let ((seed (reverse-collect-str-drop-ws seed))
 		     (attrs
 		      (attlist-fold
 		       (lambda (attr accum)
@@ -2991,7 +3001,7 @@
 		   (if (symbol? elem-gi) elem-gi
 		       (RES-NAME->SXML elem-gi))
 		   (if (null? attrs) seed
-		       (cons (cons '@ attrs) seed)))
+		       (cons (cons at-symbol attrs) seed)))
 		  parent-seed)))
 
 	     CHAR-DATA-HANDLER
@@ -3002,10 +3012,10 @@
 	     DOCTYPE
 	     (lambda (port docname systemid internal-subset? seed)
 	       (when internal-subset?
-		     (ssax:warn port
+		     (warn port
 			   "Internal DTD subset is not currently handled ")
-		     (ssax:skip-internal-dtd port))
-	       (ssax:warn port "DOCTYPE DECL " docname " "
+		     (skip-internal-dtd port))
+	       (warn port "DOCTYPE DECL " docname " "
 		     systemid " found and skipped")
 	       (values #f '() namespaces seed))
 
@@ -3017,14 +3027,14 @@
 	     ((*DEFAULT* .
 		(lambda (port pi-tag seed)
 		  (cons
-		   (list '*PI* pi-tag (ssax:read-pi-body-as-string port))
+		   (list '*PI* pi-tag (read-pi-body-as-string port))
 		   seed))))
 	     )
 	    port '()))))
       (cons '*TOP*
 	    (if (null? namespace-prefix-assig) result
 		(cons
-		 (list '@ (cons '*NAMESPACES* 
+		 (list at-symbol (cons '*NAMESPACES* 
 				 (map (lambda (ns) (list (car ns) (cdr ns)))
 				      namespace-prefix-assig)))
 		      result)))
@@ -3038,7 +3048,7 @@
 	  (let ((result
 		 (call-with-input-string (unesc-string str)
 		     (lambda (port)
-		       (ssax:xml->sxml port namespace-assig)))))
+		       (xml->sxml port namespace-assig)))))
 	    (pp result)
 	    (assert (equal_? result expected-res))))))
 

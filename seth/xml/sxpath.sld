@@ -61,6 +61,8 @@
      ((or chicken gauche sagittarius) #t)
      (else
 
+(define at-symbol (string->symbol "@"))
+(define at-at-symbol (string->symbol "@@"))
 
 (define (write-to-string obj)
   (let ((s (open-output-string)))
@@ -336,7 +338,7 @@
 (define (sxml:attr-list-node obj)
   (if (and (not (null? (cdr obj)))
 	    (pair? (cadr obj)) 
-	    (eq? '@ (caadr obj)))
+	    (eq? at-symbol (caadr obj)))
 	 (cadr obj)
 	 #f))
 
@@ -348,7 +350,7 @@
     ((sxml:attr-list-node obj)
      => list)
     ((sxml:aux-list-node obj)
-     (list (list '@)))
+     (list (list at-symbol)))
     (else '())))
 
 
@@ -359,7 +361,7 @@
     (or (null? (cdr obj))
 	(null? (cddr obj))
 	(not (pair? (caddr obj)))
-	(not (eq? (caaddr obj) '@@)))
+	(not (eq? (caaddr obj) at-at-symbol)))
     #f
     (caddr obj)))
 
@@ -424,12 +426,13 @@
     (and (or 
 	   (and 
 	     (pair? (cadr obj)) 
-	     (eq? (caadr obj) '@))
-	   (not ((select-first-kid (ntype-names?? '(@ @@))) obj)))
+	     (eq? (caadr obj) at-symbol))
+	   (not ((select-first-kid
+                  (ntype-names?? (list at-symbol at-at-symbol))) obj)))
 	 (or (null? (cddr obj))
 	     (and (pair? (caddr obj)) 
-		  (eq? (caaddr obj) '@@))
-	     (not ((select-first-kid (ntype?? '@@)) obj))))))
+		  (eq? (caaddr obj) at-at-symbol))
+	     (not ((select-first-kid (ntype?? at-at-symbol)) obj))))))
 
 ; Returns #t if the given <obj> is normalized SXML element.
 ;  The element itself and all its nested elements have to be normalised.
@@ -563,9 +566,9 @@
 ; This function is faster than sxml:content
 (define (sxml:content-raw obj)
   ((if (and (not (null? (cdr obj))) 
-	    (pair? (cadr obj)) (eq? (caadr obj) '@))
+	    (pair? (cadr obj)) (eq? (caadr obj) at-symbol))
      (if (and (not (null? (cddr obj))) 
-	      (pair? (caddr obj)) (eq? (caaddr obj) '@@))
+	      (pair? (caddr obj)) (eq? (caaddr obj) at-at-symbol))
        cdddr
        cddr)
      cdr) obj))
@@ -575,7 +578,7 @@
 ; Analog of ((sxpath '(@ *)) obj)
 ; Empty list is returned if there is no list of attributes.
 (define (sxml:attr-list-u obj)
-  (cond (((select-first-kid (ntype?? '@)) obj)
+  (cond (((select-first-kid (ntype?? at-symbol)) obj)
 	 => cdr)
 	(else '())))
 
@@ -587,7 +590,7 @@
     (or (null? (cdr obj))
 	(null? (cddr obj))
 	(not (pair? (caddr obj)))
-	(not (eq? (caaddr obj) '@@)))
+	(not (eq? (caaddr obj) at-at-symbol)))
     '()
     (cdaddr obj)))  
 
@@ -595,7 +598,7 @@
 ; Analog of ((sxpath '(@@ *)) obj)
 ; Empty list is returned if a list of auxiliary nodes is absent.
 (define (sxml:aux-list-u obj)
-  (cond (((select-first-kid (ntype?? '@@)) obj)
+  (cond (((select-first-kid (ntype?? at-at-symbol)) obj)
 	 => cdr)
 	(else '())))
 
@@ -657,9 +660,9 @@
 	   (cond
 	     ((and (not (null? (cdr obj))) 
 		   (pair? (cadr obj))
-		   (eq? '@ (caadr obj)))
+		   (eq? at-symbol (caadr obj)))
 	      (cdadr obj))   ; fast track for normalized elements 
-	     ((eq? '@ (car obj))
+	     ((eq? at-symbol (car obj))
 	      (cdr obj))     ; if applied to attr-list
 	     (else (sxml:attr-list-u obj))))
      => cadr)
@@ -776,9 +779,9 @@
   `(,(sxml:name obj) 
      ,@(cond 
 	 (new-attrlist
-	  `((@ ,@new-attrlist)))
+	  `((,at-symbol ,@new-attrlist)))
 	 ((sxml:aux-list-node obj)
-	   '((@)))
+          (list (list at-symbol)))
 	 (else `()))
      ,@(sxml:aux-as-list obj)
      ,@(sxml:content obj)))
@@ -796,9 +799,9 @@
               `(
                 ,@(cond 
                     (new-attrlist
-                     `((@ ,@new-attrlist)))
+                     `((,at-symbol ,@new-attrlist)))
                     ((sxml:aux-list-node obj)
-                     '((@)))
+                     (list (list at-symbol)))
                     (else `()))
                 ,@(sxml:aux-as-list obj)
                 ,@(sxml:content obj))))
@@ -1103,10 +1106,10 @@
       ((elt obj)
        (p '*TOP*)
        (at-aux (if (eq? (sxml:name obj) '*TOP*)
-                   (list (cons '@@ (sxml:aux-list-u obj)))
+                   (list (cons at-at-symbol (sxml:aux-list-u obj)))
                    (list
-                    (cons '@ (sxml:attr-list obj))
-                    (cons '@@ (cons `(*PARENT* ,(lambda() (car top-ptr))) 
+                    (cons at-symbol (sxml:attr-list obj))
+                    (cons at-at-symbol (cons `(*PARENT* ,(lambda() (car top-ptr))) 
                                     (sxml:aux-list obj))))))
        ) ; *TOP* is a parent for top-level element
       (let* ((h (list (sxml:name elt)))
@@ -1118,8 +1121,8 @@
                        (((ntype?? '*) x)
                         (rpt x h
                              (list
-                              (cons '@ (sxml:attr-list x))
-                              (cons '@@ (cons `(*PARENT* ,(lambda() h)) 
+                              (cons at-symbol (sxml:attr-list x))
+                              (cons at-at-symbol (cons `(*PARENT* ,(lambda() h)) 
                                               (sxml:aux-list x))))
                              ))
                        (else x)))
@@ -3218,7 +3221,7 @@
 (define (sxml:node? node)
   (not (and 
 	 (pair? node)
-	 (memq (car node) '(@ @@)))))
+	 (memq (car node) (list at-symbol at-at-symbol)))))
 
 ; Returns the list of attributes for a given SXML node
 ; Empty list is returned if the given node os not an element,
@@ -3227,7 +3230,7 @@
   (if (and  (sxml:element? obj) 
 	    (not (null? (cdr obj)))
 	    (pair? (cadr obj)) 
-	    (eq? '@ (caadr obj)))
+	    (eq? at-symbol (caadr obj)))
 	 (cdadr obj)
 	 '()))
 
@@ -3470,7 +3473,7 @@
 (define (sxml:core-id arg-func)
   (lambda (nodeset root-node context var-binding)
     (let* ((id-nset ((sxml:child (ntype?? 'id-index))
-                     ((sxml:child (ntype?? '@@)) root-node))))
+                     ((sxml:child (ntype?? at-at-symbol)) root-node))))
       (if
        (null? id-nset)  ; no id-index
        '()  ; ID function returns an empty nodeset
@@ -4266,7 +4269,7 @@
                          number-lst))))
            (lambda (nodeset root-node context var-binding)
              (let ((id-nset ((sxml:child (ntype?? 'id-index))
-                             ((sxml:child (ntype?? '@@)) root-node))))
+                             ((sxml:child (ntype?? at-at-symbol)) root-node))))
                (if
                 (null? id-nset)  ; no id-index
                 '()
@@ -5149,7 +5152,7 @@
       ((eq? '// (car path))
        (if (or (null? (cdr path))
                (not (symbol? (cadr path)))
-               (eq? (cadr path) '@))
+               (eq? (cadr path) at-symbol))
            (loop (cons (sxml:descendant-or-self sxml:node?)
                        converters)
                  (cons #f root-vars)

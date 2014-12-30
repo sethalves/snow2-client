@@ -200,10 +200,10 @@
                      (reverse
                       ((srl:select-kids 
                         (lambda (node)  ; not SXML 3.0 aux-list
-                          (and (pair? node) (not (eq? (car node) '@)))))
+                          (and (pair? node) (not (eq? (car node) at-symbol)))))
                        ((srl:select-kids
                          (lambda (node)
-                           (and (pair? node) (eq? (car node) '@))))
+                           (and (pair? node) (eq? (car node) at-symbol))))
                         elem))))
                     (start-tag
                      (if

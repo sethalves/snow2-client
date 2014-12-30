@@ -22,7 +22,10 @@
           (snow tar)
           (snow zlib)
           (snow filesys)
-          (srfi 13)
+          (except (srfi 13)
+                  string-copy string-map string-for-each
+                  string-fill! string-copy! string->list
+                  string-upcase string-downcase)
           (snow extio)
           (srfi 29)
           (seth uri)

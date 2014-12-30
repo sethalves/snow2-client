@@ -272,8 +272,10 @@
           (exact (floor (vector-ref (file-stat filename) 8))))
          (gauche
           (exact (floor (file-mtime filename))))
-         ((or foment sagittarius)
-          (exact (floor (file-stat-mtime filename))))))))
+         (foment
+          (exact (floor (file-stat-mtime filename))))
+         (sagittarius
+          (exact (floor (/ (file-stat-mtime filename) 1000000000.0))))))))
 
 
 

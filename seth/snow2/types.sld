@@ -59,7 +59,10 @@
    (chibi (import (only (srfi 1) filter make-list any fold last)))
    (else (import (srfi 1))))
 
-  (import (srfi 13)
+  (import (except (srfi 13)
+                  string-copy string-map string-for-each
+                  string-fill! string-copy! string->list
+                  string-upcase string-downcase)
           (seth uri)
           (seth string-read-write))
 
