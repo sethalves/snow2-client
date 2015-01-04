@@ -7,6 +7,7 @@
           snow2-repository-local set-snow2-repository-local!
           snow2-repository-url set-snow2-repository-url!
           snow2-repository-dirty set-snow2-repository-dirty!
+          snow2-repository-force
 
           make-snow2-sibling
           snow2-sibling?
@@ -51,10 +52,14 @@
           snow2-libraries-equal?
           snow2-packages-equal?
           snow2-package-get-readable-name
+
+          snow2-trace
           )
 
 
-  (import (scheme base))
+  (import (scheme base)
+          (scheme write)
+          (scheme lazy))
   (cond-expand
    (chibi (import (only (srfi 1) filter make-list any fold last)))
    (else (import (srfi 1))))
@@ -67,15 +72,49 @@
           (seth string-read-write))
 
   (begin
+
+    ;; repositories might be promises.
     (define-record-type <snow2-repository>
       (make-snow2-repository name siblings packages local url dirty)
-      snow2-repository?
-      (name snow2-repository-name set-snow2-repository-name!)
-      (siblings snow2-repository-siblings set-snow2-repository-siblings!)
-      (packages snow2-repository-packages set-snow2-repository-packages!)
-      (local snow2-repository-local set-snow2-repository-local!)
-      (url snow2-repository-url set-snow2-repository-url!)
-      (dirty snow2-repository-dirty set-snow2-repository-dirty!))
+      snow2-repository~?
+      (name snow2-repository-name~ set-snow2-repository-name~!)
+      (siblings snow2-repository-siblings~ set-snow2-repository-siblings~!)
+      (packages snow2-repository-packages~ set-snow2-repository-packages~!)
+      (local snow2-repository-local~ set-snow2-repository-local~!)
+      (url snow2-repository-url~ set-snow2-repository-url~!)
+      (dirty snow2-repository-dirty~ set-snow2-repository-dirty~!))
+
+
+    (define (snow2-repository-force repo)
+      (let ((frepo (if (promise? repo) (force repo) repo)))
+        frepo))
+
+    (define (snow2-repository? repo)
+      (snow2-repository~? (snow2-repository-force repo)))
+    (define (snow2-repository-name repo)
+      (snow2-repository-name~ (snow2-repository-force repo)))
+    (define (set-snow2-repository-name! repo v)
+      (set-snow2-repository-name~! (snow2-repository-force repo) v))
+    (define (snow2-repository-siblings repo)
+      (snow2-repository-siblings~ (snow2-repository-force repo)))
+    (define (set-snow2-repository-siblings! repo v)
+      (set-snow2-repository-siblings~! (snow2-repository-force repo) v))
+    (define (snow2-repository-packages repo)
+      (snow2-repository-packages~ (snow2-repository-force repo)))
+    (define (set-snow2-repository-packages! repo v)
+      (set-snow2-repository-packages~! (snow2-repository-force repo) v))
+    (define (snow2-repository-local repo)
+      (snow2-repository-local~ (snow2-repository-force repo)))
+    (define (set-snow2-repository-local! repo v)
+      (set-snow2-repository-local~! (snow2-repository-force repo) v))
+    (define (snow2-repository-url repo)
+      (snow2-repository-url~ (snow2-repository-force repo)))
+    (define (set-snow2-repository-url! repo v)
+      (set-snow2-repository-url~! (snow2-repository-force repo) v))
+    (define (snow2-repository-dirty repo)
+      (snow2-repository-dirty~ (snow2-repository-force repo)))
+    (define (set-snow2-repository-dirty! repo v)
+      (set-snow2-repository-dirty~! (snow2-repository-force repo) v))
 
 
     (define-record-type <snow2-sibling>
@@ -286,5 +325,17 @@
                                 (- (string-length tgz-name) 4))
                      tgz-name)))
               (else "unknown"))))
+
+
+
+    ;; (define-syntax snow2-trace
+    ;;   (syntax-rules ()
+    ;;     ((_ what) (begin
+    ;;                 (write what)
+    ;;                 (newline)))))
+
+    (define-syntax snow2-trace
+      (syntax-rules ()
+        ((_ what) #t)))
 
     ))

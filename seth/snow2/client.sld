@@ -19,7 +19,12 @@
    (else (import (except (srfi 13) string-copy string-map string-for-each
                          string-fill! string-copy! string->list)
                  (srfi 37) (srfi 27) (srfi 29))))
-  (import (snow filesys) (snow binio) (snow genport) (snow zlib) (snow tar)
+  (import (snow filesys)
+          (snow binio)
+          (snow genport)
+          (snow zlib)
+          (snow tar)
+          (snow assert)
           (prefix (seth http) http-)
           (seth temporary-file)
           (seth string-read-write)
@@ -100,9 +105,9 @@
                      (error "unexpected file type in tar file")))
                    (loop (cdr tar-recs))))))))
 
-    (define (install repositories library-names link-types steps verbose)
+    (define (install library-names link-types steps verbose)
       ;; this is the main interface point for downloading/finding and
-      ;; unpacking packages.  repositories is a list of repository records.
+      ;; unpacking packages.
       ;; library-names is a list of library-name s-expressions.
       ;; link-types can be #f or a list like '(symbolic hard).  it being
       ;; a list will cause symlinks or hardlinks to source files rather
@@ -322,9 +327,9 @@
           (install-from-tgz repo package local-package-tgz-file)))
 
 
-      (let* ((pkgs (find-packages-with-libraries repositories library-names))
+      (let* ((pkgs (find-packages-with-libraries library-names))
              (libraries (snow2-packages-libraries pkgs))
-             (packages (gather-depends repositories libraries steps)))
+             (packages (gather-depends libraries steps)))
         (for-each
          (lambda (package)
            (let* ((package-repo (snow2-package-repository package))
@@ -355,15 +360,15 @@
          packages)))
 
 
-    (define (uninstall repositories library-names)
+    (define (uninstall library-names)
       #f)
 
 
-    (define (list-depends repositories library-names steps)
+    (define (list-depends library-names steps)
       ;; print out what library-name depends on
-      (let* ((pkgs (find-packages-with-libraries repositories library-names))
+      (let* ((pkgs (find-packages-with-libraries library-names))
              (libraries (snow2-packages-libraries pkgs))
-             (packages (gather-depends repositories libraries steps)))
+             (packages (gather-depends libraries steps)))
         (for-each
          (lambda (package)
            (for-each
@@ -388,36 +393,37 @@
                            results)))))))
 
 
-    (define (search-for-libraries repositories search-terms)
+    (define (search-for-libraries search-terms)
       (for-each
        (lambda (result)
          (display (snow2-library-name result))
          (newline))
        (let loop ((search-terms search-terms)
-                  (libs (all-libraries repositories)))
+                  (libs (all-libraries)))
          (if (null? search-terms) libs
              (loop (cdr search-terms)
                    (filter-libraries libs (car search-terms)))))))
 
 
-    (define (all-libraries repositories)
+    (define (all-libraries)
       ;; make a list of all libraries in all repositories
-      (let repo-loop ((repositories repositories)
-                      (results '()))
-        (cond ((null? repositories) results)
-              (else
-               (let pkg-loop ((packages (snow2-repository-packages
-                                         (car repositories)))
-                              (results results))
-                 (cond ((null? packages)
-                        (repo-loop (cdr repositories)
-                                   results))
-                       (else
-                        (pkg-loop
-                         (cdr packages)
-                         (append results
-                                 (snow2-package-libraries
-                                  (car packages)))))))))))
+      (let ((iter (make-repository-iterator)))
+        (let repo-loop ((repository (get-next-repository iter))
+                        (results '()))
+          (cond ((not repository) results)
+                (else
+                 (let pkg-loop ((packages
+                                 (snow2-repository-packages repository))
+                                (results results))
+                   (cond ((null? packages)
+                          (repo-loop (get-next-repository iter)
+                                     results))
+                         (else
+                          (pkg-loop
+                           (cdr packages)
+                           (append results
+                                   (snow2-package-libraries
+                                    (car packages))))))))))))
 
 
     (define options
@@ -527,58 +533,54 @@
              #f ;; initial value of test
              #f ;; initial value of verbose
              )))
+        (snow2-trace "starting...")
         (let* ((default-repo-url
                  "http://snow2.s3-website-us-east-1.amazonaws.com/index.scm")
                (repository-urls
                 (if (null? repository-urls)
                     (list (uri-reference default-repo-url))
                     repository-urls))
-               (repositories
-                (let ((cached-repositories #f))
-                  (lambda ()
-                    (cond (cached-repositories cached-repositories)
-                          (else
-                           (set! cached-repositories
-                                 (get-repositories-and-siblings
-                                  '() repository-urls))
-                           cached-repositories)))))
                (steps (if test '(test final) '(final)))
                (credentials #f))
 
+          (snow2-trace "done deciding repos")
+          (for-each caching-get-repository repository-urls)
+
           (cond (verbose
                  (display "repositories:\n" (current-error-port))
-                 (for-each
-                  (lambda (repository)
-                    (display "  " (current-error-port))
-                    (display (uri->string (snow2-repository-url repository))
-                             (current-error-port))
-                    (newline (current-error-port)))
-                  (repositories))))
+                 (let ((iter (make-repository-iterator)))
+                   (let repo-loop ((repository (get-next-repository iter)))
+                     (cond (repository
+                            (display "  " (current-error-port))
+                            (display (uri->string
+                                      (snow2-repository-url repository))
+                                     (current-error-port))
+                            (newline (current-error-port))
+                            (repo-loop (get-next-repository iter))))))))
 
           (cond
            ((not operation) (usage ""))
 
            ;; search operation
            ((member operation '("search"))
-            (search-for-libraries (repositories) args))
+            (search-for-libraries args))
 
            ;; tar up and gzip a package
            ((member operation '("package"))
-            (make-package-archives (repositories) args verbose))
+            (make-package-archives args verbose))
 
            ;; run tests in a source repository
            ((member operation '("run-source-tests"))
-            (run-source-tests (repositories) args verbose))
+            (run-source-tests args verbose))
 
            ;; upload a tgz package file
            ((member operation '("s3-upload" "upload-s3" "upload"))
-            (upload-packages-to-s3 credentials (repositories)
-                                   args verbose))
+            (upload-packages-to-s3 credentials args verbose))
 
            ;; repository source sanity checker
            ((member operation '("check" "lint"))
-            (for-each sanity-check-repository (repositories))
-            (check-packages credentials (repositories) args verbose))
+            (for-each-repository sanity-check-repository)
+            (check-packages credentials args verbose))
 
            ;; librarys operations
            (else
@@ -592,16 +594,15 @@
               (cond
                ;; install libraries and dependencies
                ((equal? operation "install")
-                (install (repositories) library-names
-                         link-types steps verbose))
+                (install library-names link-types steps verbose))
 
                ;; uninstall libraries
                ((equal? operation "uninstall")
-                (uninstall (repositories) library-names))
+                (uninstall library-names))
 
                ;; list what a library depends on
                ((member operation '("list-dep" "list-depends"))
-                (list-depends (repositories) library-names steps))
+                (list-depends library-names steps))
 
                ;; unknown operation
                (else

@@ -12,6 +12,7 @@
           (scheme file)
           (scheme time)
           (scheme process-context)
+          (scheme lazy)
           )
   (cond-expand
    (chibi (import (only (srfi 1) filter make-list any
@@ -42,7 +43,7 @@
   (begin
 
     (define (make-package-archive
-             repositories local-repository package-metafile package verbose)
+             local-repository package-metafile package verbose)
       ;; create the .tgz file that gets uploaded to a repository.
       ;; update the size and md5 sum and depends in the package meta-data
       ;; in index.scm.
@@ -187,8 +188,7 @@
                     (deps
                      (filter
                       (lambda (dep-lib-name)
-                        (find-package-with-library
-                         repositories dep-lib-name))
+                        (find-package-with-library dep-lib-name))
                       all-deps)))
 
                (define (lib-name<? a b)
@@ -403,19 +403,26 @@
            package-metafiles))
 
 
-    (define (local-repository-operation repositories op verbose)
+    (define (repository-is-local? repository)
+      ;; only remote repositores are promises.
+      (if (promise? repository) #f
+          (snow2-repository-local repository)))
+
+
+    (define (local-repository-operation op verbose)
       ;; decide which local repository is intended.
       ;; call (op local-repository)
-      (let ((repositories (filter snow2-repository-local repositories)))
+      (let ((local-repositories (filter repository-is-local?
+                                        (get-current-repositories))))
         (let ((repository
-               (cond ((> (length repositories) 1)
-                      (let ((repo (last repositories)))
+               (cond ((> (length local-repositories) 1)
+                      (let ((repo (last local-repositories)))
                         (display "multiple local repositories given, using ")
                         (write (uri->string (snow2-repository-url repo)))
                         (newline)
                         repo))
-                     ((= (length repositories) 1)
-                      (car repositories))
+                     ((= (length local-repositories) 1)
+                      (car local-repositories))
                      (else (find-implied-local-repository)))))
           (cond (repository
                  (set-snow2-repository-dirty! repository #t)
@@ -472,12 +479,11 @@
               (else #f))))
 
 
-    (define (local-packages-operation repositories package-metafiles op verbose)
+    (define (local-packages-operation package-metafiles op verbose)
       ;; decide which local repository is intended.
       ;; call (op local-repo package) for each package-file.
       ;; return a list of results.
       (local-repository-operation
-       repositories
        (lambda (local-repository)
          (let* ((package-metafiles
                  (cond ((pair? package-metafiles) package-metafiles)
@@ -503,20 +509,19 @@
        verbose))
 
 
-    (define (make-package-archives repositories package-metafiles verbose)
+    (define (make-package-archives package-metafiles verbose)
       ;; call make-package-archive for each of packages-files
-      (local-packages-operation
-       repositories package-metafiles
+      (local-packages-operation package-metafiles
        (lambda (local-repository package-metafile package)
          ;; (refresh-package-from-filename
          ;;  local-repository package-metafile verbose)
+         
          (make-package-archive
-          (cons local-repository repositories)
           local-repository package-metafile package verbose))
        verbose))
 
 
-    (define (run-source-tests repositories package-metafiles verbose)
+    (define (run-source-tests package-metafiles verbose)
       ;; find the names of any libraries in the package that are
       ;; part of the 'test step.  set up an environment which
       ;; imports the test libraries and eval '(run-tests)
@@ -561,8 +566,7 @@
 
       (let* ((test-results
               (local-packages-operation
-               repositories package-metafiles
-
+               package-metafiles
                (lambda (local-repository package-metafile package)
                  (set-snow2-repository-dirty! local-repository #f)
                  (display "calling run-tests for ")
@@ -571,7 +575,8 @@
 
                  (let* ((test-libs
                          (filter
-                          (lambda (lib) (memq 'test (snow2-library-use-for lib)))
+                          (lambda (lib)
+                            (memq 'test (snow2-library-use-for lib)))
                           (snow2-package-libraries package)))
                         (test-lib-names (get-test-lib-names test-libs))
                         (env (build-test-environment test-lib-names)))
@@ -622,16 +627,14 @@
       (reverse (cons new-elt (cdr (reverse lst)))))
 
 
-    (define (upload-packages-to-s3 credentials repositories
-                                   package-metafiles verbose)
+    (define (upload-packages-to-s3 credentials package-metafiles verbose)
       ;; to avoid re-uploading indexes, use dirty flag on
-      ;; repository to keep track.
+      ;; local repository to keep track.
       (for-each (lambda (repository)
                   (set-snow2-repository-dirty! repository #t))
-                repositories)
+                (filter repository-is-local? (get-current-repositories)))
       ;; call upload-package-to-s3 for each pacakge
-      (local-packages-operation
-       repositories package-metafiles
+      (local-packages-operation package-metafiles
        (lambda (local-repository package-metafile package)
          (upload-package-to-s3 credentials local-repository package)
          ;; if this repository is still dirty, upload its index files
@@ -680,10 +683,8 @@
             imported-lib-exports))
 
 
-    (define (check-packages credentials repositories package-metafiles
-                            verbose)
-      (local-packages-operation
-       repositories package-metafiles
+    (define (check-packages credentials package-metafiles verbose)
+      (local-packages-operation package-metafiles
        (lambda (local-repository package-metafile package)
          (let ((meta-data (let* ((p (open-input-file package-metafile))
                                  (meta-data (read p)))
@@ -764,7 +765,7 @@
 
                    (let-values (((imported-lib-name imported-lib-exports)
                                  (r7rs-get-exports-from-import-set
-                                  repositories import-decl)))
+                                  import-decl)))
 
                      (cond ((and
                              imported-lib-name

@@ -177,13 +177,12 @@
 
 
 
-    (define (r7rs-get-exports-from-import-set repositories import-set)
+    (define (r7rs-get-exports-from-import-set import-set)
 
-      (define (r7rs-get-exports-from-import-set-prefix repositories import-set)
+      (define (r7rs-get-exports-from-import-set-prefix import-set)
         (let ((prefix (symbol->string (caddr import-set))))
           (let-values (((sub-lib sub-identifiers)
-                        (r7rs-get-exports-from-import-set
-                         repositories (cadr import-set))))
+                        (r7rs-get-exports-from-import-set (cadr import-set))))
             (values sub-lib
                     (map (lambda (identifier)
                            (string->symbol
@@ -191,11 +190,10 @@
                              prefix (symbol->string identifier))))
                          sub-identifiers)))))
 
-      (define (r7rs-get-exports-from-import-set-rename repositories import-set)
+      (define (r7rs-get-exports-from-import-set-rename import-set)
         (let ((renames (cddr import-set)))
           (let-values (((sub-lib sub-identifiers)
-                        (r7rs-get-exports-from-import-set
-                         repositories (cadr import-set))))
+                        (r7rs-get-exports-from-import-set (cadr import-set))))
             (values sub-lib
                     (map (lambda (identifier)
                            (let ((rename (assq identifier renames)))
@@ -204,11 +202,10 @@
                          sub-identifiers)))))
 
 
-      (define (r7rs-get-exports-from-import-set-except repositories import-set)
+      (define (r7rs-get-exports-from-import-set-except import-set)
         (let ((excepts (cddr import-set)))
           (let-values (((sub-lib sub-identifiers)
-                        (r7rs-get-exports-from-import-set
-                         repositories (cadr import-set))))
+                        (r7rs-get-exports-from-import-set (cadr import-set))))
             (values sub-lib
                     (filter (lambda (identifier)
                               (not (member identifier excepts)))
@@ -222,14 +219,15 @@
              (let ((lib (car (r7rs-import-set->libs (list (cadr import-set))))))
                (values lib (cddr import-set))))
             ((eq? (car import-set) 'prefix)
-             (r7rs-get-exports-from-import-set-prefix repositories import-set))
+             (r7rs-get-exports-from-import-set-prefix import-set))
             ((eq? (car import-set) 'rename)
-             (r7rs-get-exports-from-import-set-rename repositories import-set))
+             (r7rs-get-exports-from-import-set-rename import-set))
             ((eq? (car import-set) 'except)
-             (r7rs-get-exports-from-import-set-except repositories import-set)
+             (r7rs-get-exports-from-import-set-except import-set)
              )
             (else
-             (let* ((local-repos (filter snow2-repository-local repositories))
+             (let* ((local-repos (filter snow2-repository-local
+                                         (get-current-repositories)))
                     (libs (find-libraries-by-name local-repos import-set))
                     (libs-len (length libs)))
                (cond ((= libs-len 0)

@@ -176,7 +176,7 @@
 ;; This code is in the public domain.
 
       (define (MISCIO%find-string-from-port? str <input-port> . max-no-char-oa)
-        (letrec
+        (letrec* ;; XXX letrec should be enough here.  bug in foment?
             ((max-no-char (if (null? max-no-char-oa) #f (car max-no-char-oa)))
              (no-chars-read 0)
              (my-peek-char			; Return a peeked char or #f
