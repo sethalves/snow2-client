@@ -215,13 +215,15 @@ assumes you've already run "snow2 pacakge".  It also assumes you've
 created an index.css file and placed it in the top-level directory.
 
 For aws credentials, the client looks for environment variables:
-
-  AWS_ACCESS_KEY_ID
-  AWS_SECRET_ACCESS_KEY
+```
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+```
 
 When it doesn't find those, it looks for the environment variable:
-
-  AWS_CREDENTIAL_FILE
+```
+AWS_CREDENTIAL_FILE
+```
 
 Lastly, it looks for a file called: "/etc/aws/s3-*bucket-name*"
 
