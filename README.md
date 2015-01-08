@@ -225,9 +225,11 @@ When it doesn't find those, it looks for the environment variable:
 
 Lastly, it looks for a file called: "/etc/aws/s3-*bucket-name*"
 
-For example, if the repository url (in index.scm) is "http://snow2.s3-website-us-east-1.amazonaws.com/index.scm" the file "/etc/aws/s3-snow2"
-
-would be checked.  If the credentials are in a file, the format should be:
+For example, if the repository url (in index.scm) is
+```
+"http://snow2.s3-website-us-east-1.amazonaws.com/index.scm"
+```
+the file "/etc/aws/s3-snow2" would be checked.  If the credentials are in a file, the format should be:
 
 ```
   AWSAccessKeyId=...
