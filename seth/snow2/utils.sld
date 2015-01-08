@@ -129,9 +129,9 @@
     (define (for-each-repository proc)
       (let ((iter (make-repository-iterator)))
         (let repo-loop ((repository (get-next-repository iter)))
-          (cond ((repository
-                  (proc repository)
-                  (repo-loop (get-next-repository iter))))))))
+          (cond (repository
+                 (proc repository)
+                 (repo-loop (get-next-repository iter)))))))
 
 
     (define (snow2-package-absolute-url/path repo-url package)
@@ -896,7 +896,8 @@
       ;; or a list containing these.
       (snow-assert (or (snow2-library? container)
                        (snow2-package? container)
-                       (snow2-repository? container)))
+                       (snow2-repository? container)
+                       (list? container)))
       (snow-assert (list? library-name))
       (cond ((snow2-library? container)
              (cond ((equal? library-name (snow2-library-name container))

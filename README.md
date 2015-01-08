@@ -6,7 +6,9 @@ Client for snow2 repositories.
 This is alpha-quality software.  It might delete your files!
 
 snow2-client is experimental software for finding and installing
-scheme libraries which are portable between r7rs schemes.  The
+libraries which are portable between
+<a href="http://trac.sacrideo.us/wg/raw-attachment/wiki/WikiStart/r7rs.pdf">r7rs</a>
+schemes.  The
 libraries are stored in repositories which are described in:
 
   http://trac.sacrideo.us/wg/wiki/Snow
@@ -173,6 +175,114 @@ $ snow2 search
 ```
 
 See <a href="https://github.com/sethalves/snow2-test-chicken">snow2-test-chicken</a> or <a href="https://github.com/sethalves/snow2-test-chibi">snow2-test-chibi</a> for more examples.
+
+
+Managing Repositories
+=====================
+snow2-client can also help maintain repositories.
+
+#### run-source-tests
+
+For each package indicated (or all of them, if none are indicated)
+the package metafile is checked for libraries with a use-for phase of
+test.  Each of these libraries is loaded into an environment and
+the procedure run-tests is called.  run-tests is expected to return #t
+if all its tests pass.  Packages with failing tests will be listed at
+the end.
+
+This currently fails with the CHICKEN version of snow2-client, because
+chicken's r7rs (import ...) doesn't automatically load .sld files.
+
+#### package
+
+Combine the information in the indicated package metafiles (or all)
+with information from the define-library clause of the relevant .sld
+files.  Rewrite index.scm and index.html.  Create .tgz files containing
+the files referenced (directly or indirectly) in the (path ...) clauses
+in the package metafile.
+
+Some of the information in index.scm is automatically computed (checksums,
+file-sizes, library dependencies, etc) and shouldn't be in the package
+metafiles.  By-hand changes should not be made to index.scm (or index.html)
+because they will be overwritten when "snow2 package" is run.
+
+#### upload
+
+Check the md5 sum of index.scm, index.html, and each .tgz file against
+copies in the s3 bucket implied by the repository's (url ...) clause
+in index.scm.  For any mismatches, upload the local file to s3.  This
+assumes you've already run "snow2 pacakge".  It also assumes you've
+created an index.css file and placed it in the top-level directory.
+
+For aws credentials, the client looks for environment variables:
+
+  AWS_ACCESS_KEY_ID
+  AWS_SECRET_ACCESS_KEY
+
+When it doesn't find those, it looks for the environment variable:
+
+  AWS_CREDENTIAL_FILE
+
+Lastly, it looks for a file called:
+
+  /etc/aws/s3-*bucket-name*
+
+For example, if the repository url (in index.scm) is
+
+  "http://snow2.s3-website-us-east-1.amazonaws.com/index.scm"
+
+the file
+
+  /etc/aws/s3-snow2
+
+would be checked.  If the credentials are in a file, the format should be:
+
+  AWSAccessKeyId=...
+  AWSSecretKey=...
+
+
+#### check
+
+Do some sanity checking of the source repository.
+
+
+Source Repository Structure
+===========================
+
+snow2-client makes a variety of assumptions about the layout of
+a local source repository.
+
+* The entire repository is inside one top-level directory.
+* The top-level directory contains a packages/ directory.
+* The top-level directory contains an index.scm file.
+* The index.scm file has at least (repository (url "http://...")).
+* Each package in the source repository has a .package metafile in the packages/ directory.
+
+Each package metafile should be of the form:
+
+```
+(package
+ (name (some name))
+ (url "something.tgz")
+ ... library declarations ...
+ )
+```
+
+Each library declaration should look something like:
+
+```
+ (library
+  (path "something/some-library.sld")
+  (version "1.0")
+  (homepage "https://github.com/sethalves")
+  (maintainers "Seth Alves <seth@hungry.com>")
+  (authors "Seth Alves <seth@hungry.com>")
+  (description "some library")
+  (license BSD-style))
+```
+
+See <a href="https://github.com/sethalves/snow2-example-source-repository">https://github.com/sethalves/snow2-example-source-repository</a> for a small example repository.
+
 
 Other Scheme Package Managers
 =============================

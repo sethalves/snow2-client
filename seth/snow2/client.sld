@@ -463,37 +463,48 @@
 
     (define (usage msg)
       (let ((pargs (command-line)))
-        (display msg (current-error-port))
-        (display (car pargs) (current-error-port))
-        (display " " (current-error-port))
-        (display "[arguments] <operation> '(library name)' ...\n"
-                 (current-error-port))
-        (display "  <operation> can be one of: install " (current-error-port))
-        (display "uninstall list-depends " (current-error-port))
-        (display "search\n" (current-error-port))
-        (display "  -r --repo <url>      " (current-error-port))
-        (display "Add to list of snow2 repositories.\n"
-                 (current-error-port))
-        (display "  -s --symlink         " (current-error-port))
-        (display "Make symlinks to a repo's source files.\n"
-                 (current-error-port))
-        (display "  -l --link            " (current-error-port))
-        (display "Make hard-links to a repo's source files.\n"
-                 (current-error-port))
-        (display "  -t --test            " (current-error-port))
-        (display "Install code needed to run tests.\n"
-                 (current-error-port))
-        (display "  -v --verbose         " (current-error-port))
-        (display "Print more.\n" (current-error-port))
-        (display "  -h --help            " (current-error-port))
-        (display "Print usage message.\n" (current-error-port))
-        (display "\nExample: snow2 install '(snow hello)'\n"
-                 (current-error-port))
-        (display "\nsee "
-                 (current-error-port))
-        (display "https://github.com/sethalves/snow2-client#snow2-client\n"
-                 (current-error-port))
-        (exit 1)))
+        (parameterize
+         ((current-output-port (current-error-port)))
+         (display msg)
+         (display (car pargs))
+         (display " ")
+         (display "[arguments] <operation> '(library name)' ...\n"
+                 )
+         (display "  <operation> can be one of: install ")
+         (display "uninstall list-depends ")
+         (display "search\n")
+         (display "  -r --repo <url>      ")
+         (display "Add to list of snow2 repositories.\n"
+                 )
+         (display "  -s --symlink         ")
+         (display "Make symlinks to a repo's source files.\n"
+                 )
+         (display "  -l --link            ")
+         (display "Make hard-links to a repo's source files.\n"
+                 )
+         (display "  -t --test            ")
+         (display "Install code needed to run tests.\n"
+                 )
+         (display "  -v --verbose         ")
+         (display "Print more.\n")
+         (display "  -h --help            ")
+         (display "Print usage message.\n")
+
+         (newline)
+         (display "Repository Maintenance:\n")
+
+         (display "  When the current directory is within a source ")
+         (display "repository, <operation>\n  can also be one of: ")
+         (display "run-source-tests package upload check\n")
+
+
+         (display "\nExample: snow2 install '(snow hello)'\n"
+                 )
+         (display "\nsee "
+                 )
+         (display "https://github.com/sethalves/snow2-client#snow2-client\n"
+                 )
+         (exit 1))))
 
 
     (define (read-library-name library-name-argument)

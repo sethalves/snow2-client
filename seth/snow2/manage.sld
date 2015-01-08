@@ -28,6 +28,7 @@
                   string-fill! string-copy! string->list
                   string-upcase string-downcase)
           (snow extio)
+          (snow assert)
           (srfi 29)
           (seth uri)
           (seth crypt md5)
@@ -47,6 +48,12 @@
       ;; create the .tgz file that gets uploaded to a repository.
       ;; update the size and md5 sum and depends in the package meta-data
       ;; in index.scm.
+      (snow-assert (snow2-repository? local-repository))
+      (snow-assert (snow2-repository-local local-repository))
+      (snow-assert (string? package-metafile))
+      (snow-assert (snow2-package? package))
+      (snow-assert (boolean? verbose))
+      (snow2-trace `(make-package-archive ,package-metafile))
 
       (cond
        (verbose
@@ -62,6 +69,7 @@
                              "-" (snow2-package-version package))))
 
         (define (lib-file->tar-recs lib-filename)
+          (snow-assert (string? lib-filename))
           ;; create a tar-rec for a file
           (let* ((lib-rel-path (snow-split-filename lib-filename))
                  (lib-full-path (repo-path->file-path repo-path lib-rel-path))
@@ -84,6 +92,7 @@
                      (car tar-recs))))))
 
         (define (lib-dir->tar-recs lib-dirname)
+          (snow-assert (string? lib-dirname))
           ;; create a tar-rec for a directory
           (let* ((lib-rel-path (snow-split-filename lib-dirname))
                  (tar-rec
@@ -110,6 +119,7 @@
         (define (file->directories filename)
           ;; given a relative filename, return a list of directory
           ;; paths.  if filename is "a/b/c", return '("a/" "a/b/")
+          (snow-assert (string? filename))
           (let loop ((parts (drop-right (snow-split-filename filename) 1))
                      (result '()))
             (cond ((null? parts)
@@ -121,6 +131,7 @@
         (define (manifest->directories manifest)
           ;; product a list of directories needed in order to hold
           ;; all the files listed in manifest.
+          (snow-assert (list? manifest))
           (delete-duplicates
            (fold append '() (map file->directories manifest))
            equal?))
@@ -284,6 +295,11 @@
     (define (conditional-put-object! credentials bucket s3-path local-filename)
       ;; ask s3 for the md5-sum of the file we're about to upload.  if
       ;; they don't match, upload the new file.
+      (snow-assert (credentials? credentials))
+      (snow-assert (string? bucket))
+      (snow-assert (string? s3-path))
+      (snow-assert (string? local-filename))
+      (snow2-trace `(conditional-put-object! ,bucket ,s3-path, local-filename))
       (let ((local-md5 (filename->md5 local-filename))
             (local-p (open-binary-input-file local-filename))
             (md5-on-s3 (get-object-md5 credentials bucket s3-path)))
@@ -328,6 +344,9 @@
 
 
     (define (upload-package-to-s3 credentials local-repository package)
+      ;; if a package has changed, upload it to s3
+      (snow-assert (credentials? credentials))
+
       (let ((url (snow2-package-absolute-url package)))
         (cond (url
                (let* ((bucket (uri->bucket url))
