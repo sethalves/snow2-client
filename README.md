@@ -223,22 +223,16 @@ When it doesn't find those, it looks for the environment variable:
 
   AWS_CREDENTIAL_FILE
 
-Lastly, it looks for a file called:
+Lastly, it looks for a file called: "/etc/aws/s3-*bucket-name*"
 
-  /etc/aws/s3-*bucket-name*
-
-For example, if the repository url (in index.scm) is
-
-  "http://snow2.s3-website-us-east-1.amazonaws.com/index.scm"
-
-the file
-
-  /etc/aws/s3-snow2
+For example, if the repository url (in index.scm) is "http://snow2.s3-website-us-east-1.amazonaws.com/index.scm" the file "/etc/aws/s3-snow2"
 
 would be checked.  If the credentials are in a file, the format should be:
 
+```
   AWSAccessKeyId=...
   AWSSecretKey=...
+```
 
 
 #### check
