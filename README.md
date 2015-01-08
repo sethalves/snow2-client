@@ -255,6 +255,7 @@ a local source repository.
 * The top-level directory contains an index.scm file.
 * The index.scm file has at least (repository (url "http://...")).
 * Each package in the source repository has a .package metafile in the packages/ directory.
+* Libraries are contained in .sld files and each of these only contains one library.
 
 Each package metafile should be of the form:
 
