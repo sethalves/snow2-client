@@ -345,7 +345,7 @@
 
     (define (upload-package-to-s3 credentials local-repository package)
       ;; if a package has changed, upload it to s3
-      (snow-assert (credentials? credentials))
+      (snow-assert (or (credentials? credentials) (not credentials)))
 
       (let ((url (snow2-package-absolute-url package)))
         (cond (url

@@ -58,7 +58,7 @@
                   (error-object-irritants err))))
 
 
-    (define (write-tar-recs-to-disk tar-recs paths-to-extract)
+    (define (write-tar-recs-to-disk destination-path tar-recs paths-to-extract)
 
       (let loop ((tar-recs tar-recs))
         (cond ((null? tar-recs) #t)
@@ -71,8 +71,12 @@
                  ;; XXX this is a hack, do something better here.
                  (let* ((path (snow-split-filename (tar-rec-name t)))
                         (path-sans-container (cdr path))
+                        ;; name-sans-container is the file-name on the
+                        ;; actual file-system where a change is about
+                        ;; to be made
                         (name-san-container
-                         (snow-combine-filename-parts path-sans-container)))
+                         (snow-combine-filename-parts
+                          (append destination-path path-sans-container))))
                    (cond
                     ;; the tar file will contain files we don't want
                     ;; to install.  skip over anything that doesn't
@@ -88,6 +92,13 @@
                            (snow-create-directory-recursive
                             (snow-combine-filename-parts parent-path))))
 
+                     ;; be careful that we don't chase a symlink and
+                     ;; overwrite the target.  If snow2 was used to
+                     ;; make symlinks to libraries, we don't want to
+                     ;; accidently overwrite local changes with a
+                     ;; downloaded (and older) version.  If the destination
+                     ;; file is a directory... punt; who knows what's
+                     ;; happening?
                      (cond ((or (snow-file-symbolic-link? (tar-rec-name t))
                                 (snow-file-directory? (tar-rec-name t)))
                             (display "not overwriting " (current-error-port))
@@ -105,7 +116,7 @@
                      (error "unexpected file type in tar file")))
                    (loop (cdr tar-recs))))))))
 
-    (define (install library-names link-types steps verbose)
+    (define (install library-names link-types steps destination-path verbose)
       ;; this is the main interface point for downloading/finding and
       ;; unpacking packages.
       ;; library-names is a list of library-name s-expressions.
@@ -176,12 +187,14 @@
                   (let* ((file-for-step (snow2-library-path lib))
                          (path-for-step (snow-split-filename file-for-step)))
                     ;; extract the main .sld file for each library
-                    (write-tar-recs-to-disk tar-recs (list path-for-step))
+                    (write-tar-recs-to-disk
+                     destination-path tar-recs (list path-for-step))
 
                     ;; examine each extracted .sld file and see if they
                     ;; include other files
                     (let* ((lib-filename
-                            (snow-combine-filename-parts path-for-step))
+                            (snow-combine-filename-parts
+                             (append destination-path path-for-step)))
                            ;; read the library s-exp back in
                            (lib-sexp (r7rs-library-file->sexp lib-filename))
                            ;; find included files
@@ -194,7 +207,8 @@
                            (included-paths
                             (map snow-split-filename included-files)))
                       ;; write out files included by this library
-                      (write-tar-recs-to-disk tar-recs included-paths))))
+                      (write-tar-recs-to-disk
+                       destination-path tar-recs included-paths))))
                 libs-for-steps))))))
 
 
@@ -430,34 +444,43 @@
       (list
        (option '(#\r "repo") #t #f
                (lambda (option name arg operation repos
-                               link-types libs test verbose)
+                               link-types libs test verbose destination)
                  (values operation
                          (reverse (cons (uri-reference arg) (reverse repos)))
-                         link-types libs test verbose)))
+                         link-types libs test verbose destination)))
+
+       (option '(#\d "destination") #t #f
+               (lambda (option name arg operation repos
+                               link-types libs test verbose destination)
+                 (values operation repos
+                         link-types libs test verbose arg)))
 
        (option '(#\s "symlink") #f #f
                (lambda (option name arg operation repos
-                               link-types libs test verbose)
-                 (values operation repos '(symbolic) libs test verbose)))
+                               link-types libs test verbose destination)
+                 (values operation repos '(symbolic)
+                         libs test verbose destination)))
 
        (option '(#\l "link") #f #f
                (lambda (option name arg operation repos
-                               link-types libs test verbose)
-                 (values operation repos '(hard symbolic) libs test verbose)))
+                               link-types libs test verbose destination)
+                 (values operation repos '(hard symbolic)
+                         libs test verbose destination)))
 
        (option '(#\t "test") #f #f
                (lambda (option name arg operation repos
-                               link-types libs test verbose)
-                 (values operation repos link-types libs #t verbose)))
+                               link-types libs test verbose destination)
+                 (values operation repos link-types libs
+                         #t verbose destination)))
 
        (option '(#\v "verbose") #f #f
                (lambda (option name arg operation repos
-                               link-types libs test verbose)
-                 (values operation repos link-types libs test #t)))
+                               link-types libs test verbose destination)
+                 (values operation repos link-types libs test #t destination)))
 
        (option '(#\h "help") #f #f
                (lambda (option name arg operation repos
-                               link-types libs test verbose)
+                               link-types libs test verbose destination)
                  (usage "")))))
 
 
@@ -474,17 +497,15 @@
          (display "uninstall list-depends ")
          (display "search\n")
          (display "  -r --repo <url>      ")
-         (display "Add to list of snow2 repositories.\n"
-                 )
+         (display "Add to list of snow2 repositories.\n")
+         (display "  -d --destination <directory>      ")
+         (display "Set where to install packages.\n")
          (display "  -s --symlink         ")
-         (display "Make symlinks to a repo's source files.\n"
-                 )
+         (display "Make symlinks to a repo's source files.\n")
          (display "  -l --link            ")
-         (display "Make hard-links to a repo's source files.\n"
-                 )
+         (display "Make hard-links to a repo's source files.\n")
          (display "  -t --test            ")
-         (display "Install code needed to run tests.\n"
-                 )
+         (display "Install code needed to run tests.\n")
          (display "  -v --verbose         ")
          (display "Print more.\n")
          (display "  -h --help            ")
@@ -498,12 +519,9 @@
          (display "run-source-tests package upload check\n")
 
 
-         (display "\nExample: snow2 install '(snow hello)'\n"
-                 )
-         (display "\nsee "
-                 )
-         (display "https://github.com/sethalves/snow2-client#snow2-client\n"
-                 )
+         (display "\nExample: snow2 install '(snow hello)'\n")
+         (display "\nsee ")
+         (display "https://github.com/sethalves/snow2-client#snow2-client\n")
          (exit 1))))
 
 
@@ -521,7 +539,7 @@
     (define (main-program)
       (random-source-randomize! default-random-source)
       (let-values
-          (((operation repository-urls link-types args test verbose)
+          (((operation repository-urls link-types args test verbose destination)
             (args-fold
              (cdr (command-line))
              options
@@ -532,17 +550,20 @@
                                      (if (string? name) name (string name))
                                      "\n\n")))
              ;; operand (arguments that don't start with a hyphen)
-             (lambda (operand operation repos link-types libs test verbose)
+             (lambda (operand operation repos link-types
+                              libs test verbose destination)
                (if operation
                    (values operation repos link-types
-                           (cons operand libs) test verbose)
-                   (values operand repos link-types libs test verbose)))
+                           (cons operand libs) test verbose destination)
+                   (values operand repos link-types libs
+                           test verbose destination)))
              #f ;; initial value of operation
              '() ;; initial value of repos
              #f ;; initial value of link-types
              '() ;; initial value of args
              #f ;; initial value of test
              #f ;; initial value of verbose
+             #f ;; initial value of destination
              )))
         (snow2-trace "starting...")
         (let* ((default-repo-url
@@ -552,7 +573,10 @@
                     (list (uri-reference default-repo-url))
                     repository-urls))
                (steps (if test '(test final) '(final)))
-               (credentials #f))
+               (credentials #f)
+               (destination-path
+                (cond (destination (snow-split-filename destination))
+                      (else (snow-split-filename ".")))))
 
           (snow2-trace "done deciding repos")
           (for-each caching-get-repository repository-urls)
@@ -605,7 +629,8 @@
               (cond
                ;; install libraries and dependencies
                ((equal? operation "install")
-                (install library-names link-types steps verbose))
+                (install library-names link-types steps
+                         destination-path verbose))
 
                ;; uninstall libraries
                ((equal? operation "uninstall")
