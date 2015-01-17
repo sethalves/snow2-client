@@ -1,7 +1,6 @@
 (define-library (seth snow2 r7rs-library)
   (export r7rs-get-import-decls
           r7rs-get-imported-library-names
-          is-system-import?
           r7rs-get-exports-from-import-set
           r7rs-get-referenced-symbols
           r7rs-library-file->sexp
@@ -82,35 +81,6 @@
             (else (cons (car lst) (uniq (cdr lst))))))
 
 
-    (define (is-system-import? lib-name)
-      ;; I haven't figured out a good way to do this, so for now, try
-      ;; to find all libraries.
-
-      ;; (cond ((not (pair? lib-name)) #f)
-      ;;       ((memq (car lib-name)
-      ;;              '(scheme r7rs gauche sagittarius
-      ;;                       ;; chibi
-      ;;                       ports tcp rnrs use openssl udp posix
-      ;;                       chicken ssax sxml sxpath txpath
-      ;;                       sxpath-lolevel text md5 rfc math sha1 sha2
-      ;;                       util memcached matchable match
-      ;;                       extras http-client uri-generic intarweb
-      ;;                       message-digest file z3 base64 hmac
-      ;;                       binary input-parse foment
-      ;;                       ))
-      ;;        #t)
-      ;;       (else #f))
-      #f
-      )
-
-
-    (define (r7rs-filter-known-imports r7rs-imports)
-      (filter
-       (lambda (r7rs-import)
-         (not (is-system-import? r7rs-import)))
-       r7rs-imports))
-
-
     (define (r7rs-import-set->libs r7rs-import)
       (cond ((not (pair? r7rs-import))
              (display "Warning: unexpected import form: ")
@@ -163,7 +133,10 @@
         ;;        (display "  lib-imports-clean=")
         ;;        (write lib-imports-clean)
         ;;        (newline)))
-        (r7rs-filter-known-imports (uniq lib-imports-clean))))
+
+        ;; (r7rs-filter-known-imports (uniq lib-imports-clean))
+        (uniq lib-imports-clean)
+        ))
 
 
     (define (r7rs-get-library-exports filename)

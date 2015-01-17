@@ -249,7 +249,7 @@
                (write (snow2-package-get-readable-name package))
                (newline)))
 
-        (let* ((libraries (snow2-package-libraries package))
+        (let* ((libraries (find-libraries-for-steps package steps))
                (lib-sexps (map (lambda (lib)
                                  (let* ((lib-filename
                                          (local-repository->in-fs-lib-filename
@@ -390,7 +390,7 @@
             (lambda (library)
               (display (snow2-library-name library))
               (newline))
-            (snow2-package-libraries package)))
+            (find-libraries-for-steps package steps)))
          packages)))
 
 
@@ -444,43 +444,61 @@
     (define options
       (list
        (option '(#\r "repo") #t #f
-               (lambda (option name arg operation repos
+               (lambda (option name arg
+                               operation repos prepos
                                link-types libs test verbose destination)
                  (values operation
                          (reverse (cons (uri-reference arg) (reverse repos)))
+                         prepos
+                         link-types libs test verbose destination)))
+
+       (option '(#\p "prepend-repo") #t #f
+               (lambda (option name arg
+                               operation repos prepos
+                               link-types libs test verbose destination)
+                 (values operation
+                         repos
+                         (reverse (cons (uri-reference arg) (reverse prepos)))
                          link-types libs test verbose destination)))
 
        (option '(#\d "destination") #t #f
-               (lambda (option name arg operation repos
+               (lambda (option name arg
+                               operation repos prepos
                                link-types libs test verbose destination)
-                 (values operation repos
+                 (values operation repos prepos
                          link-types libs test verbose arg)))
 
        (option '(#\s "symlink") #f #f
-               (lambda (option name arg operation repos
+               (lambda (option name arg
+                               operation repos prepos
                                link-types libs test verbose destination)
-                 (values operation repos '(symbolic)
+                 (values operation repos prepos '(symbolic)
                          libs test verbose destination)))
 
        (option '(#\l "link") #f #f
-               (lambda (option name arg operation repos
+               (lambda (option name arg
+                               operation repos prepos
                                link-types libs test verbose destination)
-                 (values operation repos '(hard symbolic)
+                 (values operation repos prepos '(hard symbolic)
                          libs test verbose destination)))
 
        (option '(#\t "test") #f #f
-               (lambda (option name arg operation repos
+               (lambda (option name arg
+                               operation repos prepos
                                link-types libs test verbose destination)
-                 (values operation repos link-types libs
+                 (values operation repos prepos link-types libs
                          #t verbose destination)))
 
        (option '(#\v "verbose") #f #f
-               (lambda (option name arg operation repos
+               (lambda (option name arg
+                               operation repos prepos
                                link-types libs test verbose destination)
-                 (values operation repos link-types libs test #t destination)))
+                 (values operation repos prepos
+                         link-types libs test #t destination)))
 
        (option '(#\h "help") #f #f
-               (lambda (option name arg operation repos
+               (lambda (option name arg
+                               operation repos prepos
                                link-types libs test verbose destination)
                  (usage "")))))
 
@@ -498,6 +516,8 @@
          (display "uninstall list-depends search\n")
          (display "  -r --repo <url>                ")
          (display "Add to list of snow2 repositories.\n")
+         (display "  -p --prepend-repo <url>                ")
+         (display "Prepend to built-in list of snow2 repositories.\n")
          (display "  -v --verbose                   ")
          (display "Print more.\n")
          (display "  -h --help                      ")
@@ -543,7 +563,10 @@
     (define (main-program)
       (random-source-randomize! default-random-source)
       (let-values
-          (((operation repository-urls link-types args test verbose destination)
+          (((operation
+             repository-urls
+             prepend-repository-urls
+             link-types args test verbose destination)
             (args-fold
              (cdr (command-line))
              options
@@ -554,15 +577,16 @@
                                      (if (string? name) name (string name))
                                      "\n\n")))
              ;; operand (arguments that don't start with a hyphen)
-             (lambda (operand operation repos link-types
+             (lambda (operand operation repos prepos link-types
                               libs test verbose destination)
                (if operation
-                   (values operation repos link-types
+                   (values operation repos prepos link-types
                            (cons operand libs) test verbose destination)
-                   (values operand repos link-types libs
+                   (values operand repos prepos link-types libs
                            test verbose destination)))
              #f ;; initial value of operation
              '() ;; initial value of repos
+             '() ;; initial value of prepos
              #f ;; initial value of link-types
              '() ;; initial value of args
              #f ;; initial value of test
@@ -570,11 +594,18 @@
              #f ;; initial value of destination
              )))
         (snow2-trace "starting...")
+
+        (if (and (pair? repository-urls)
+                 (pair? prepend-repository-urls))
+            (usage "don't use both -r and -p"))
+
         (let* ((default-repo-url
                  "http://snow2.s3-website-us-east-1.amazonaws.com/index.scm")
                (repository-urls
                 (if (null? repository-urls)
-                    (list (uri-reference default-repo-url))
+                    (append
+                     prepend-repository-urls
+                     (list (uri-reference default-repo-url)))
                     repository-urls))
                (steps (if test '(test final) '(final)))
                (credentials #f)
@@ -605,7 +636,8 @@
 
            ;; tar up and gzip a package
            ((member operation '("package"))
-            (make-package-archives args verbose))
+            (make-package-archives args verbose)
+            (report-unfound-libs))
 
            ;; run tests in a source repository
            ((member operation '("run-source-tests"))
@@ -646,4 +678,6 @@
                ;; unknown operation
                (else
                 (usage (string-append "Unknown operation: "
-                                      operation "\n\n"))))))))))))
+                                      operation "\n\n"))))
+
+              (report-unfound-libs)))))))))

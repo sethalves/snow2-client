@@ -238,6 +238,12 @@ the file "/etc/aws/s3-snow2" would be checked.  If the credentials are in a file
   AWSSecretKey=...
 ```
 
+For a css-file starting point, try
+
+```
+wget http://snow2.s3-website-us-east-1.amazonaws.com/index.css
+```
+
 
 #### check
 

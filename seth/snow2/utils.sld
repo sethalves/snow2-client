@@ -49,6 +49,9 @@
           sanity-check-package
 
           repository->html
+
+          report-unfound-libs
+          is-system-import?
           )
 
   (import (scheme base)
@@ -89,6 +92,51 @@
     (define (list-replace-last lst new-elt)
       ;; what's the srfi-1 one-liner for this?
       (reverse (cons new-elt (cdr (reverse lst)))))
+
+
+    (define (is-system-import? lib-name)
+      ;; XXX generate this list with (features) ?
+
+      (member lib-name
+              '((base64)
+                (binary io) (chibi) (chibi base64) (chibi char-set)
+                (chibi char-set ascii) (chibi crypto md5)
+                (chibi filesystem) (chibi io) (chibi mime)
+                (chibi net) (chibi net http) (chibi process)
+                (chibi quoted-printable) (chibi show base) (chibi string)
+                (chicken) (extras) (files) (file util)
+                (foment base) (gauche base) (gauche fileutil)
+                (gauche net) (gauche process) (gauche uvector)
+                (gauche vport) (hmac) (http-client) (input-parse)
+                (intarweb) (match) (matchable) (math) (math hash)
+                (md5) (message-digest) (openssl) (ports) (posix)
+                (r7rs) (rfc base64) (rfc hmac) (rfc http) (rfc md5)
+                (rfc mime) (rfc quoted-printable) (rfc sha)
+                (rfc uri) (rfc zlib) (rnrs) (sagittarius)
+                (sagittarius io) (sagittarius process)
+                (sagittarius socket) (scheme base) (scheme char)
+                (scheme cxr) (scheme eval) (scheme file) (scheme lazy)
+                (scheme process-context) (scheme r5rs)
+                (scheme read) (scheme time) (scheme write) (sha1) (sha2)
+                (srfi 4) (ssax) (sxml ssax) (sxml sxpath) (sxpath)
+                (sxpath-lolevel) (tcp) (text parse) (text sxml ssax)
+                (text sxml sxpath) (txpath) (udp)
+                (uri-generic) (util bytevector) (util digest)
+                (util file) (util match) (z3)
+                )))
+
+
+    (define unfound-lib-hash (make-hash-table))
+
+    (define (add-to-unfound-libs library-name)
+      (if (not (is-system-import? library-name))
+          (hash-table-set! unfound-lib-hash (write-to-string library-name) #t)))
+
+    (define (report-unfound-libs)
+      (let ((unfound (sort (hash-table-keys unfound-lib-hash) string<=?)))
+        (if (> (length unfound) 0)
+            (cout "couldn't find libraries: " unfound "\n"))))
+
 
 
     (define repository-hash (make-hash-table))
@@ -630,11 +678,11 @@
           (cond
            ((not repository)
             (cond ((null? candidate-packages)
-                   ;; (error "couldn't find library" library-name)
-                   (display "couldn't find library: " (current-error-port))
-                   (write library-name (current-error-port))
-                   (newline (current-error-port))
-                   (flush-output-port (current-error-port))
+                   ;; (display "couldn't find library: " (current-error-port))
+                   ;; (write library-name (current-error-port))
+                   ;; (newline (current-error-port))
+                   ;; (flush-output-port (current-error-port))
+                   (add-to-unfound-libs library-name)
                    '())
                   ;; XXX rather than just taking the last one,
                   ;; select one based on version requirements, etc

@@ -244,7 +244,7 @@
 
           (display "writing ")
           (display local-package-path)
-          (newline)
+          ;; (newline)
 
           ;; if the .tgz file already exists, delete it
           (cond ((or (file-exists? local-package-filename)
@@ -435,9 +435,9 @@
                                         (get-current-repositories))))
         (let ((repository
                (cond ((> (length local-repositories) 1)
-                      (let ((repo (last local-repositories)))
+                      (let ((repo (car local-repositories)))
                         (display "multiple local repositories given, using ")
-                        (write (uri->string (snow2-repository-url repo)))
+                        (write (uri->string (snow2-repository-local repo)))
                         (newline)
                         repo))
                      ((= (length local-repositories) 1)
