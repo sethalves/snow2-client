@@ -26,6 +26,7 @@
           (snow tar)
           (snow assert)
           (prefix (seth http) http-)
+          (seth cout)
           (seth temporary-file)
           (seth string-read-write)
           (seth uri)
@@ -244,7 +245,7 @@
 
         (cond (verbose
                (newline)
-               (display "intalling package: ")
+               (display "installing package: ")
                (write (snow2-package-get-readable-name package))
                (newline)))
 
@@ -585,16 +586,15 @@
           (for-each caching-get-repository repository-urls)
 
           (cond (verbose
-                 (display "repositories:\n" (current-error-port))
+                 (display "repositories:\n")
                  (let ((iter (make-repository-iterator)))
                    (let repo-loop ((repository (get-next-repository iter)))
-                     (cond (repository
-                            (display "  " (current-error-port))
-                            (display (uri->string
-                                      (snow2-repository-url repository))
-                                     (current-error-port))
-                            (newline (current-error-port))
-                            (repo-loop (get-next-repository iter))))))))
+                     (cond
+                      (repository
+                       (cout "  " (uri->string
+                                   (snow2-repository-local-or-url repository)
+                                   ) "\n")
+                       (repo-loop (get-next-repository iter))))))))
 
           (cond
            ((not operation) (usage ""))

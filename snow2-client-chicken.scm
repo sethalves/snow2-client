@@ -21,6 +21,7 @@ exec csi -include-path /usr/local/share/scheme -s $0 "$@"
 (include "snow/genport.sld")
 (include "snow/zlib.sld")
 (include "snow/tar.sld")
+(include "seth/cout.sld")
 (include "seth/deep-copy.sld")
 (include "seth/xml/ssax.sld")
 (include "seth/xml/sxpath.sld")

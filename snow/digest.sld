@@ -24,12 +24,15 @@
           digest-u8vector
           digest-subu8vector
           digest-file)
-  (import (scheme base) (scheme cxr) (scheme char))
+  (import (scheme base)
+          (scheme cxr)
+          (scheme char))
   (import (srfi 60))
   (cond-expand
    (chibi (import (scheme cxr)))
    (else))
-  (import (snow binio) (snow bytevector))
+  (import (snow binio)
+          (snow bytevector))
   (begin
 
 
@@ -392,8 +395,8 @@
 
 ;; (define-macro (wnot dst a body)
 ;;   `(wlet ,dst
-;;          (snow-fxnot (LO ,a))
-;;          (snow-fxnot (HI ,a))
+;;          (bitwise-not (LO ,a))
+;;          (bitwise-not (HI ,a))
 ;;          ,body))
 
 ;; (define-macro (wref dst v i body)
@@ -415,6 +418,168 @@
 ;;       `(begin
 ;;          (vector-set! ,v (+ (* 2 ,i) 0) (LO ,x))
 ;;          (vector-set! ,v (+ (* 2 ,i) 1) (HI ,x)))))
+
+
+
+
+;; (define (LO var)
+;;   (let-values (((var-lo var-hi) var))
+;;     var-lo))
+
+(define (LO var) (car var))
+
+;; (define (HI var)
+;;   (let-values (((var-lo var-hi) var))
+;;     var-hi))
+
+(define (HI var) (cdr var))
+
+
+;; (define-syntax wlet
+;;   (syntax-rules ()
+;;     ((_ var lo hi body ...)
+;;      (let ((var (values lo hi)))
+;;        body ...))))
+
+(define-syntax wlet
+  (syntax-rules ()
+    ((_ var lo hi body ...)
+     (let ((var (cons lo hi)))
+       body ...))))
+
+
+(define (cast-u16 x)
+  (bitwise-and #xffff x))
+
+(define (shift-left-u16 n shift)
+  (arithmetic-shift
+   (bitwise-and n (- (expt 2 (- 16 shift)) 1))
+   shift))
+
+
+(define-syntax wshr
+  (syntax-rules ()
+    ((_ dst w r body ...)
+     (wlet dst
+           (if (< r 16) 
+               (bitwise-ior
+                (arithmetic-shift (LO w) (- r))
+                (shift-left-u16 (HI w) (- 16 r)))
+               (arithmetic-shift (HI w) (- (- r 16))))
+           (if (< r 16)
+               (arithmetic-shift (HI w) (- r))
+               0)
+           body ...))))
+
+(define-syntax wrot
+  (syntax-rules ()
+    ((_  dst w r body ...)
+     (wlet dst
+           (if (< r 16)
+               (bitwise-ior
+                (shift-left-u16 (LO w) r)
+                (arithmetic-shift (HI w) (- (- 16 r))))
+               (bitwise-ior
+                (shift-left-u16 (HI w) (- r 16))
+                (arithmetic-shift (LO w) (- (- 32 r)))))
+           (if (< r 16)
+               (bitwise-ior
+                (shift-left-u16 (HI w) r)
+                (arithmetic-shift (LO w) (- (- 16 r))))
+               (bitwise-ior
+                (shift-left-u16 (LO w) (- r 16))
+                (arithmetic-shift (HI w) (- (- 32 r)))))
+           body ...))))
+
+
+(define-syntax wadd
+  (syntax-rules ()
+    ((_  dst a b body ...)
+     (wlet R
+           (+ (LO a) (LO b))
+           (+ (HI a) (HI b))
+           (wlet dst
+                 (cast-u16 (LO R))
+                 (cast-u16
+                  (+ (HI R)
+                     (arithmetic-shift (LO R) (- 16))))
+                 body ...)))))
+
+
+(define-syntax wxor
+  (syntax-rules ()
+    ((_ dst a b body ...)
+     (wlet dst
+           (bitwise-xor (LO a) (LO b))
+           (bitwise-xor (HI a) (HI b))
+           body ...))))
+
+
+(define-syntax wior
+  (syntax-rules ()
+    ((_  dst a b body ...)
+     (wlet dst
+           (bitwise-ior (LO a) (LO b))
+           (bitwise-ior (HI a) (HI b))
+           body ...))))
+
+
+(define-syntax wand
+  (syntax-rules ()
+    ((_  dst a b body ...)
+     (wlet dst
+           (bitwise-and (LO a) (LO b))
+           (bitwise-and (HI a) (HI b))
+           body ...))))
+
+
+(define-syntax wnot
+  (syntax-rules ()
+    ((_  dst a body ...)
+     (wlet dst
+           (bitwise-and (bitwise-not (LO a)) #xffff)
+           (bitwise-and (bitwise-not (HI a)) #xffff)
+           body ...))))
+
+
+(define-syntax wref
+  (syntax-rules ()
+    ((_  dst v i body ...)
+     (wlet dst
+           (vector-ref v (+ (* 2 i) 0))
+           (vector-ref v (+ (* 2 i) 1))
+           body ...))))
+
+
+(define (wset v i x)
+  (vector-set! v (+ (* 2 i) 0) (LO x))
+  (vector-set! v (+ (* 2 i) 1) (HI x)))
+
+
+
+(define (wbitwise-ior a b)
+  (cons
+   (bitwise-ior (LO a) (LO b))
+   (bitwise-ior (HI a) (HI b))))
+
+
+(define (wbitwise-and a b)
+  (cons
+   (bitwise-and (LO a) (LO b))
+   (bitwise-and (HI a) (HI b))))
+
+
+(define (wbitwise-xor a b)
+  (cons
+   (bitwise-xor (LO a) (LO b))
+   (bitwise-xor (HI a) (HI b))))
+
+
+(define (wbitwise-not a)
+  (cons
+   (bitwise-and (bitwise-not (LO a)) #xffff)
+   (bitwise-and (bitwise-not (HI a)) #xffff)))
+
 
 ;;;----------------------------------------------------------------------------
 
@@ -606,549 +771,176 @@
 
 ;; MD5 digest.
 
-;; (define (hash-block-init-md5)
-;;   (vector #x2301 #x6745
-;;           #xab89 #xefcd
-;;           #xdcfe #x98ba
-;;           #x5476 #x1032))
-
-;; (define-macro (wstp dst w f i n-hi16 n-lo16 r body)
-;;   `(wlet T1
-;;          ,(cons (car f) (map (lambda (v) `(LO ,v)) (cdr f)))
-;;          ,(cons (car f) (map (lambda (v) `(HI ,v)) (cdr f)))
-;;    (wadd T2 ,dst T1
-;;    (wref T3 block ,i
-;;    (wadd T4 T2 T3
-;;    (wlet T5
-;;          ,n-lo16
-;;          ,n-hi16
-;;    (wadd T6 T4 T5
-;;    (wrot T7 T6 ,r
-;;    (wadd ,dst ,w T7
-;;          ,body)))))))))
-
-;; (define-macro (fn-F x y z)
-;;   `(bitwise-ior
-;;     (bitwise-and ,x ,y)
-;;     (bitwise-and (snow-fxnot ,x) ,z)))
-
-;; (define-macro (fn-G x y z)
-;;   `(bitwise-ior
-;;     (bitwise-and ,x ,z)
-;;     (bitwise-and ,y (snow-fxnot ,z))))
-
-;; (define-macro (fn-H x y z)
-;;   `(bitwise-xor ,x (bitwise-xor ,y ,z)))
-
-;; (define-macro (fn-I x y z)
-;;   `(cast-u16
-;;     (bitwise-xor
-;;      ,y
-;;      (bitwise-ior
-;;       ,x
-;;       (snow-fxnot ,z)))))
+(define (hash-block-init-md5)
+  (vector #x2301 #x6745
+          #xab89 #xefcd
+          #xdcfe #x98ba
+          #x5476 #x1032))
 
 
-;; (define (digest-update-md5 digest)
-;;   (let* ((bd (digest-state digest))
-;;          (hash (block-digest-hash bd))
-;;          (block (block-digest-block bd)))
-;;     (define (stage1 A-L A-H B-L B-H C-L C-H D-L D-H)
-;;       (wstp A
-;;             B
-;;             (fn-F B C D)
-;;             0
-;;             55146
-;;             42104
-;;             7
-;;             (wstp D
-;;                   A
-;;                   (fn-F A B C)
-;;                   1
-;;                   59591
-;;                   46934
-;;                   12
-;;                   (wstp C
-;;                         D
-;;                         (fn-F D A B)
-;;                         2
-;;                         9248
-;;                         28891
-;;                         17
-;;                         (wstp B
-;;                               C
-;;                               (fn-F C D A)
-;;                               3
-;;                               49597
-;;                               52974
-;;                               22
-;;                               (wstp A
-;;                                     B
-;;                                     (fn-F B C D)
-;;                                     4
-;;                                     62844
-;;                                     4015
-;;                                     7
-;;                                     (wstp D
-;;                                           A
-;;                                           (fn-F A B C)
-;;                                           5
-;;                                           18311
-;;                                           50730
-;;                                           12
-;;                                           (wstp C
-;;                                                 D
-;;                                                 (fn-F D A B)
-;;                                                 6
-;;                                                 43056
-;;                                                 17939
-;;                                                 17
-;;                                                 (wstp B
-;;                                                       C
-;;                                                       (fn-F C D A)
-;;                                                       7
-;;                                                       64838
-;;                                                       38145
-;;                                                       22
-;;                                                       (stage2 A-L A-H B-L B-H C-L C-H D-L D-H))))))))))
-;;     (define (stage2 A-L A-H B-L B-H C-L C-H D-L D-H)
-;;       (wstp A
-;;             B
-;;             (fn-F B C D)
-;;             8
-;;             27008
-;;             39128
-;;             7
-;;             (wstp D
-;;                   A
-;;                   (fn-F A B C)
-;;                   9
-;;                   35652
-;;                   63407
-;;                   12
-;;                   (wstp C
-;;                         D
-;;                         (fn-F D A B)
-;;                         10
-;;                         65535
-;;                         23473
-;;                         17
-;;                         (wstp B
-;;                               C
-;;                               (fn-F C D A)
-;;                               11
-;;                               35164
-;;                               55230
-;;                               22
-;;                               (wstp A
-;;                                     B
-;;                                     (fn-F B C D)
-;;                                     12
-;;                                     27536
-;;                                     4386
-;;                                     7
-;;                                     (wstp D
-;;                                           A
-;;                                           (fn-F A B C)
-;;                                           13
-;;                                           64920
-;;                                           29075
-;;                                           12
-;;                                           (wstp C
-;;                                                 D
-;;                                                 (fn-F D A B)
-;;                                                 14
-;;                                                 42617
-;;                                                 17294
-;;                                                 17
-;;                                                 (wstp B
-;;                                                       C
-;;                                                       (fn-F C D A)
-;;                                                       15
-;;                                                       18868
-;;                                                       2081
-;;                                                       22
-;;                                                       (stage3 A-L A-H B-L B-H C-L C-H D-L D-H))))))))))
-;;     (define (stage3 A-L A-H B-L B-H C-L C-H D-L D-H)
-;;       (wstp A
-;;             B
-;;             (fn-G B C D)
-;;             1
-;;             63006
-;;             9570
-;;             5
-;;             (wstp D
-;;                   A
-;;                   (fn-G A B C)
-;;                   6
-;;                   49216
-;;                   45888
-;;                   9
-;;                   (wstp C
-;;                         D
-;;                         (fn-G D A B)
-;;                         11
-;;                         9822
-;;                         23121
-;;                         14
-;;                         (wstp B
-;;                               C
-;;                               (fn-G C D A)
-;;                               0
-;;                               59830
-;;                               51114
-;;                               20
-;;                               (wstp A
-;;                                     B
-;;                                     (fn-G B C D)
-;;                                     5
-;;                                     54831
-;;                                     4189
-;;                                     5
-;;                                     (wstp D
-;;                                           A
-;;                                           (fn-G A B C)
-;;                                           10
-;;                                           580
-;;                                           5203
-;;                                           9
-;;                                           (wstp C
-;;                                                 D
-;;                                                 (fn-G D A B)
-;;                                                 15
-;;                                                 55457
-;;                                                 59009
-;;                                                 14
-;;                                                 (wstp B
-;;                                                       C
-;;                                                       (fn-G C D A)
-;;                                                       4
-;;                                                       59347
-;;                                                       64456
-;;                                                       20
-;;                                                       (stage4 A-L A-H B-L B-H C-L C-H D-L D-H))))))))))
-;;     (define (stage4 A-L A-H B-L B-H C-L C-H D-L D-H)
-;;       (wstp A
-;;             B
-;;             (fn-G B C D)
-;;             9
-;;             8673
-;;             52710
-;;             5
-;;             (wstp D
-;;                   A
-;;                   (fn-G A B C)
-;;                   14
-;;                   49975
-;;                   2006
-;;                   9
-;;                   (wstp C
-;;                         D
-;;                         (fn-G D A B)
-;;                         3
-;;                         62677
-;;                         3463
-;;                         14
-;;                         (wstp B
-;;                               C
-;;                               (fn-G C D A)
-;;                               8
-;;                               17754
-;;                               5357
-;;                               20
-;;                               (wstp A
-;;                                     B
-;;                                     (fn-G B C D)
-;;                                     13
-;;                                     43491
-;;                                     59653
-;;                                     5
-;;                                     (wstp D
-;;                                           A
-;;                                           (fn-G A B C)
-;;                                           2
-;;                                           64751
-;;                                           41976
-;;                                           9
-;;                                           (wstp C
-;;                                                 D
-;;                                                 (fn-G D A B)
-;;                                                 7
-;;                                                 26479
-;;                                                 729
-;;                                                 14
-;;                                                 (wstp B
-;;                                                       C
-;;                                                       (fn-G C D A)
-;;                                                       12
-;;                                                       36138
-;;                                                       19594
-;;                                                       20
-;;                                                       (stage5 A-L A-H B-L B-H C-L C-H D-L D-H))))))))))
-;;     (define (stage5 A-L A-H B-L B-H C-L C-H D-L D-H)
-;;       (wstp A
-;;             B
-;;             (fn-H B C D)
-;;             5
-;;             65530
-;;             14658
-;;             4
-;;             (wstp D
-;;                   A
-;;                   (fn-H A B C)
-;;                   8
-;;                   34673
-;;                   63105
-;;                   11
-;;                   (wstp C
-;;                         D
-;;                         (fn-H D A B)
-;;                         11
-;;                         28061
-;;                         24866
-;;                         16
-;;                         (wstp B
-;;                               C
-;;                               (fn-H C D A)
-;;                               14
-;;                               64997
-;;                               14348
-;;                               23
-;;                               (wstp A
-;;                                     B
-;;                                     (fn-H B C D)
-;;                                     1
-;;                                     42174
-;;                                     59972
-;;                                     4
-;;                                     (wstp D
-;;                                           A
-;;                                           (fn-H A B C)
-;;                                           4
-;;                                           19422
-;;                                           53161
-;;                                           11
-;;                                           (wstp C
-;;                                                 D
-;;                                                 (fn-H D A B)
-;;                                                 7
-;;                                                 63163
-;;                                                 19296
-;;                                                 16
-;;                                                 (wstp B
-;;                                                       C
-;;                                                       (fn-H C D A)
-;;                                                       10
-;;                                                       48831
-;;                                                       48240
-;;                                                       23
-;;                                                       (stage6 A-L A-H B-L B-H C-L C-H D-L D-H))))))))))
-;;     (define (stage6 A-L A-H B-L B-H C-L C-H D-L D-H)
-;;       (wstp A
-;;             B
-;;             (fn-H B C D)
-;;             13
-;;             10395
-;;             32454
-;;             4
-;;             (wstp D
-;;                   A
-;;                   (fn-H A B C)
-;;                   0
-;;                   60065
-;;                   10234
-;;                   11
-;;                   (wstp C
-;;                         D
-;;                         (fn-H D A B)
-;;                         3
-;;                         54511
-;;                         12421
-;;                         16
-;;                         (wstp B
-;;                               C
-;;                               (fn-H C D A)
-;;                               6
-;;                               1160
-;;                               7429
-;;                               23
-;;                               (wstp A
-;;                                     B
-;;                                     (fn-H B C D)
-;;                                     9
-;;                                     55764
-;;                                     53305
-;;                                     4
-;;                                     (wstp D
-;;                                           A
-;;                                           (fn-H A B C)
-;;                                           12
-;;                                           59099
-;;                                           39397
-;;                                           11
-;;                                           (wstp C
-;;                                                 D
-;;                                                 (fn-H D A B)
-;;                                                 15
-;;                                                 8098
-;;                                                 31992
-;;                                                 16
-;;                                                 (wstp B
-;;                                                       C
-;;                                                       (fn-H C D A)
-;;                                                       2
-;;                                                       50348
-;;                                                       22117
-;;                                                       23
-;;                                                       (stage7 A-L A-H B-L B-H C-L C-H D-L D-H))))))))))
-;;     (define (stage7 A-L A-H B-L B-H C-L C-H D-L D-H)
-;;       (wstp A
-;;             B
-;;             (fn-I B C D)
-;;             0
-;;             62505
-;;             8772
-;;             6
-;;             (wstp D
-;;                   A
-;;                   (fn-I A B C)
-;;                   7
-;;                   17194
-;;                   65431
-;;                   10
-;;                   (wstp C
-;;                         D
-;;                         (fn-I D A B)
-;;                         14
-;;                         43924
-;;                         9127
-;;                         15
-;;                         (wstp B
-;;                               C
-;;                               (fn-I C D A)
-;;                               5
-;;                               64659
-;;                               41017
-;;                               21
-;;                               (wstp A
-;;                                     B
-;;                                     (fn-I B C D)
-;;                                     12
-;;                                     25947
-;;                                     22979
-;;                                     6
-;;                                     (wstp D
-;;                                           A
-;;                                           (fn-I A B C)
-;;                                           3
-;;                                           36620
-;;                                           52370
-;;                                           10
-;;                                           (wstp C
-;;                                                 D
-;;                                                 (fn-I D A B)
-;;                                                 10
-;;                                                 65519
-;;                                                 62589
-;;                                                 15
-;;                                                 (wstp B
-;;                                                       C
-;;                                                       (fn-I C D A)
-;;                                                       1
-;;                                                       34180
-;;                                                       24017
-;;                                                       21
-;;                                                       (stage8 A-L A-H B-L B-H C-L C-H D-L D-H))))))))))
-;;     (define (stage8 A-L A-H B-L B-H C-L C-H D-L D-H)
-;;       (wstp A
-;;             B
-;;             (fn-I B C D)
-;;             8
-;;             28584
-;;             32335
-;;             6
-;;             (wstp D
-;;                   A
-;;                   (fn-I A B C)
-;;                   15
-;;                   65068
-;;                   59104
-;;                   10
-;;                   (wstp C
-;;                         D
-;;                         (fn-I D A B)
-;;                         6
-;;                         41729
-;;                         17172
-;;                         15
-;;                         (wstp B
-;;                               C
-;;                               (fn-I C D A)
-;;                               13
-;;                               19976
-;;                               4513
-;;                               21
-;;                               (wstp A
-;;                                     B
-;;                                     (fn-I B C D)
-;;                                     4
-;;                                     63315
-;;                                     32386
-;;                                     6
-;;                                     (wstp D
-;;                                           A
-;;                                           (fn-I A B C)
-;;                                           11
-;;                                           48442
-;;                                           62005
-;;                                           10
-;;                                           (wstp C
-;;                                                 D
-;;                                                 (fn-I D A B)
-;;                                                 2
-;;                                                 10967
-;;                                                 53947
-;;                                                 15
-;;                                                 (wstp B
-;;                                                       C
-;;                                                       (fn-I C D A)
-;;                                                       9
-;;                                                       60294
-;;                                                       54161
-;;                                                       21
-;;                                                       (stage9 A-L A-H B-L B-H C-L C-H D-L D-H))))))))))
-;;     (define (stage9 A-L A-H B-L B-H C-L C-H D-L D-H)
-;;       (wref AA hash 0 (wadd A AA A (wset hash 0 A)))
-;;       (wref BB hash 1 (wadd B BB B (wset hash 1 B)))
-;;       (wref CC hash 2 (wadd C CC C (wset hash 2 C)))
-;;       (wref DD hash 3 (wadd D DD D (wset hash 3 D))))
-;;     (wref A
-;;           hash
-;;           0
-;;           (wref B
-;;                 hash
-;;                 1
-;;                 (wref C
-;;                       hash
-;;                       2
-;;                       (wref D
-;;                             hash
-;;                             3
-;;                             (stage1 A-L A-H B-L B-H C-L C-H D-L D-H)))))))
+(define-syntax wstp
+  (syntax-rules ()
+    ((_ block dst w f i n-hi16 n-lo16 r body ...)
+     (let ((f-value f))
+     (wlet T1 (LO f-value) (HI f-value)
+            ;; (cons (car f) (map (lambda (v) (LO v)) (cdr f)))
+            ;; (cons (car f) (map (lambda (v) (HI v)) (cdr f)))
+      (wadd T2 dst T1
+      (wref T3 block i
+      (wadd T4 T2 T3
+      (wlet T5
+            n-lo16
+            n-hi16
+      (wadd T6 T4 T5
+      (wrot T7 T6 r
+      (wadd dst w T7
+            body ...))))))))))))
 
 
-;; (define (open-digest-md5)
-;;   (make-digest
-;;    end-block-digest
-;;    digest-update-block-digest
-;;    (make-block-digest
-;;     digest-update-md5
-;;     (hash-block-init-md5)
-;;     (make-vector 32 0)
-;;     0
-;;     0
-;;     #f
-;;     128)))
+(define (fn-F x y z)
+  (wbitwise-ior
+   (wbitwise-and x y)
+   (wbitwise-and (wbitwise-not x) z)))
+
+(define (fn-G x y z)
+  (wbitwise-ior
+   (wbitwise-and x z)
+   (wbitwise-and y (wbitwise-not z))))
+
+(define (fn-H x y z)
+  (wbitwise-xor x (wbitwise-xor y z)))
+
+(define (fn-I x y z)
+  (cons
+   (cast-u16
+    (LO
+     (wbitwise-xor
+      y
+      (wbitwise-ior
+       x
+       (wbitwise-not z)))))
+   0))
+
+
+
+(define (digest-update-md5 digest)
+  (let* ((bd (digest-state digest))
+         (hash (block-digest-hash bd))
+         (block (block-digest-block bd)))
+
+    (define (stage1 A B C D)
+      (wstp block A B (fn-F B C D)  0 #xD76A #xA478  7
+      (wstp block D A (fn-F A B C)  1 #xE8C7 #xB756 12
+      (wstp block C D (fn-F D A B)  2 #x2420 #x70DB 17
+      (wstp block B C (fn-F C D A)  3 #xC1BD #xCEEE 22
+      (wstp block A B (fn-F B C D)  4 #xF57C #x0FAF  7
+      (wstp block D A (fn-F A B C)  5 #x4787 #xC62A 12
+      (wstp block C D (fn-F D A B)  6 #xA830 #x4613 17
+      (wstp block B C (fn-F C D A)  7 #xFD46 #x9501 22
+      (stage2 A B C D))))))))))
+
+    (define (stage2 A B C D)
+      (wstp block A B (fn-F B C D)  8 #x6980 #x98D8  7
+      (wstp block D A (fn-F A B C)  9 #x8B44 #xF7AF 12
+      (wstp block C D (fn-F D A B) 10 #xFFFF #x5BB1 17
+      (wstp block B C (fn-F C D A) 11 #x895C #xD7BE 22
+      (wstp block A B (fn-F B C D) 12 #x6B90 #x1122  7
+      (wstp block D A (fn-F A B C) 13 #xFD98 #x7193 12
+      (wstp block C D (fn-F D A B) 14 #xA679 #x438E 17
+      (wstp block B C (fn-F C D A) 15 #x49B4 #x0821 22
+      (stage3 A B C D))))))))))
+
+    (define (stage3 A B C D)
+      (wstp block A B (fn-G B C D)  1 #xF61E #x2562  5
+      (wstp block D A (fn-G A B C)  6 #xC040 #xB340  9
+      (wstp block C D (fn-G D A B) 11 #x265E #x5A51 14
+      (wstp block B C (fn-G C D A)  0 #xE9B6 #xC7AA 20
+      (wstp block A B (fn-G B C D)  5 #xD62F #x105D  5
+      (wstp block D A (fn-G A B C) 10 #x0244 #x1453  9
+      (wstp block C D (fn-G D A B) 15 #xD8A1 #xE681 14
+      (wstp block B C (fn-G C D A)  4 #xE7D3 #xFBC8 20
+      (stage4 A B C D))))))))))
+
+    (define (stage4 A B C D)
+      (wstp block A B (fn-G B C D)  9 #x21E1 #xCDE6  5
+      (wstp block D A (fn-G A B C) 14 #xC337 #x07D6  9
+      (wstp block C D (fn-G D A B)  3 #xF4D5 #x0D87 14
+      (wstp block B C (fn-G C D A)  8 #x455A #x14ED 20
+      (wstp block A B (fn-G B C D) 13 #xA9E3 #xE905  5
+      (wstp block D A (fn-G A B C)  2 #xFCEF #xA3F8  9
+      (wstp block C D (fn-G D A B)  7 #x676F #x02D9 14
+      (wstp block B C (fn-G C D A) 12 #x8D2A #x4C8A 20
+      (stage5 A B C D))))))))))
+
+    (define (stage5 A B C D)
+      (wstp block A B (fn-H B C D)  5 #xFFFA #x3942  4
+      (wstp block D A (fn-H A B C)  8 #x8771 #xF681 11
+      (wstp block C D (fn-H D A B) 11 #x6D9D #x6122 16
+      (wstp block B C (fn-H C D A) 14 #xFDE5 #x380C 23
+      (wstp block A B (fn-H B C D)  1 #xA4BE #xEA44  4
+      (wstp block D A (fn-H A B C)  4 #x4BDE #xCFA9 11
+      (wstp block C D (fn-H D A B)  7 #xF6BB #x4B60 16
+      (wstp block B C (fn-H C D A) 10 #xBEBF #xBC70 23
+      (stage6 A B C D))))))))))
+
+    (define (stage6 A B C D)
+      (wstp block A B (fn-H B C D) 13 #x289B #x7EC6  4
+      (wstp block D A (fn-H A B C)  0 #xEAA1 #x27FA 11
+      (wstp block C D (fn-H D A B)  3 #xD4EF #x3085 16
+      (wstp block B C (fn-H C D A)  6 #x0488 #x1D05 23
+      (wstp block A B (fn-H B C D)  9 #xD9D4 #xD039  4
+      (wstp block D A (fn-H A B C) 12 #xE6DB #x99E5 11
+      (wstp block C D (fn-H D A B) 15 #x1FA2 #x7CF8 16
+      (wstp block B C (fn-H C D A)  2 #xC4AC #x5665 23
+      (stage7 A B C D))))))))))
+
+    (define (stage7 A B C D)
+      (wstp block A B (fn-I B C D)  0 #xF429 #x2244  6
+      (wstp block D A (fn-I A B C)  7 #x432A #xFF97 10
+      (wstp block C D (fn-I D A B) 14 #xAB94 #x23A7 15
+      (wstp block B C (fn-I C D A)  5 #xFC93 #xA039 21
+      (wstp block A B (fn-I B C D) 12 #x655B #x59C3  6
+      (wstp block D A (fn-I A B C)  3 #x8F0C #xCC92 10
+      (wstp block C D (fn-I D A B) 10 #xFFEF #xF47D 15
+      (wstp block B C (fn-I C D A)  1 #x8584 #x5DD1 21
+      (stage8 A B C D))))))))))
+
+    (define (stage8 A B C D)
+      (wstp block A B (fn-I B C D)  8 #x6FA8 #x7E4F  6
+      (wstp block D A (fn-I A B C) 15 #xFE2C #xE6E0 10
+      (wstp block C D (fn-I D A B)  6 #xA301 #x4314 15
+      (wstp block B C (fn-I C D A) 13 #x4E08 #x11A1 21
+      (wstp block A B (fn-I B C D)  4 #xF753 #x7E82  6
+      (wstp block D A (fn-I A B C) 11 #xBD3A #xF235 10
+      (wstp block C D (fn-I D A B)  2 #x2AD7 #xD2BB 15
+      (wstp block B C (fn-I C D A)  9 #xEB86 #xD391 21
+      (stage9 A B C D))))))))))
+
+    (define (stage9 A B C D)
+      (wref AA hash 0 (wadd A AA A (wset hash 0 A)))
+      (wref BB hash 1 (wadd B BB B (wset hash 1 B)))
+      (wref CC hash 2 (wadd C CC C (wset hash 2 C)))
+      (wref DD hash 3 (wadd D DD D (wset hash 3 D))))
+
+    (wref A hash 0
+    (wref B hash 1
+    (wref C hash 2
+    (wref D hash 3
+    (stage1 A B C D)))))))
+
+
+(define (open-digest-md5)
+  (make-digest
+   end-block-digest
+   digest-update-block-digest
+   (make-block-digest
+    digest-update-md5
+    (hash-block-init-md5)
+    (make-vector 32 0)
+    0
+    0
+    #f
+    128)))
 
 ;;;----------------------------------------------------------------------------
 
@@ -1511,8 +1303,8 @@
 
   (cond ((memq algorithm '(crc32 CRC32))
          (open-digest-crc32))
-;;        ((memq algorithm '(md5 MD5))
-;;         (open-digest-md5))
+        ((memq algorithm '(md5 MD5))
+         (open-digest-md5))
 ;;        ((memq algorithm '(sha-1 SHA-1))
 ;;         (open-digest-sha-1))
 ;;        ((memq algorithm '(sha-224 SHA-224))

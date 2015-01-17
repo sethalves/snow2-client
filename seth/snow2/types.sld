@@ -8,6 +8,7 @@
           snow2-repository-url set-snow2-repository-url!
           snow2-repository-dirty set-snow2-repository-dirty!
           snow2-repository-force
+          snow2-repository-local-or-url
 
           make-snow2-sibling
           snow2-sibling?
@@ -115,6 +116,9 @@
       (snow2-repository-dirty~ (snow2-repository-force repo)))
     (define (set-snow2-repository-dirty! repo v)
       (set-snow2-repository-dirty~! (snow2-repository-force repo) v))
+
+    (define (snow2-repository-local-or-url repo)
+      (or (snow2-repository-local repo) (snow2-repository-url repo)))
 
 
     (define-record-type <snow2-sibling>

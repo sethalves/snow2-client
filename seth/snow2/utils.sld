@@ -58,7 +58,8 @@
           (only (scheme r5rs) string-ci<?)
           (scheme process-context)
           (srfi 95)
-          (snow assert))
+          (snow assert)
+          (seth cout))
   (cond-expand
    (chibi (import (only (srfi 1) fold lset-intersection last drop-right find)
                   (only (chibi) read)))
@@ -92,6 +93,29 @@
 
     (define repository-hash (make-hash-table))
 
+    (define (repository-hash-key repository)
+      (snow-assert (snow2-repository? repository))
+      (uri->hashtable-key
+       (snow2-repository-url repository)))
+
+    (define (url-in-repository-hash? repository-url)
+      (snow-assert (uri-reference? repository-url))
+      (hash-table-exists?
+       repository-hash (uri->hashtable-key repository-url)))
+
+    (define (get-repository-by-url repository-url)
+      (snow-assert (uri-reference? repository-url))
+      (hash-table-ref repository-hash (uri->hashtable-key repository-url)))
+
+    (define (repository-in-hash? repository)
+      (snow-assert (snow2-repository? repository))
+      (hash-table-exists? repository-hash (repository-hash-key repository)))
+
+    (define (replace-repository-in-hash old new)
+      (snow-assert (snow2-repository? old))
+      (snow-assert (snow2-repository? new))
+      (hash-table-set! repository-hash (repository-hash-key old) new))
+
 
     ;; due to the delayed downloading of repository indexes, the
     ;; list of repositories can change during a loop.
@@ -107,6 +131,14 @@
       (snow-assert (repository-iterator? iter))
       (let loop ((current-repo-list (hash-table-values repository-hash)))
         (cond ((null? current-repo-list) #f)
+              ((and
+                (snow2-repository-local (car current-repo-list))
+                (hash-table-exists?
+                 (repository-iterator-table iter)
+                 (uri->hashtable-key
+                  (snow2-repository-local (car current-repo-list)))))
+               ;; this iterator already returned this one
+               (loop (cdr current-repo-list)))
               ((hash-table-exists?
                 (repository-iterator-table iter)
                 (uri->hashtable-key
@@ -731,15 +763,30 @@
 
     (define (caching-get-repository repository-url)
       (snow-assert (uri-reference? repository-url))
-      (cond ((hash-table-exists?
-              repository-hash (uri->hashtable-key repository-url))
-             (hash-table-ref
-              repository-hash (uri->hashtable-key repository-url)))
+      (cond ((url-in-repository-hash? repository-url)
+             (get-repository-by-url repository-url))
             (else
              (let ((new-repo (get-repository repository-url)))
-               (hash-table-set!
-                repository-hash (uri->hashtable-key repository-url)
-                new-repo)))))
+               (cond ((repository-in-hash? new-repo)
+                      ;; if repository-url is a local filesystem path,
+                      ;; get-repository may have called get-siblings, which may
+                      ;; have caused a remote version of this repository to be
+                      ;; placed in the repository-hash.  If this has happened,
+                      ;; replace the remote version of the repository with the
+                      ;; local one.
+                      (let ((already-in-table
+                             (hash-table-ref
+                              repository-hash (repository-hash-key new-repo))))
+                        (if (and (not (snow2-repository-local already-in-table))
+                                 (snow2-repository-local new-repo))
+                            (replace-repository-in-hash
+                             already-in-table new-repo))))
+                     (else
+                      ;; put this repository into repository-hash for the
+                      ;; first time.
+                      (hash-table-set!
+                       repository-hash (uri->hashtable-key repository-url)
+                       new-repo)))))))
 
 
     (define (get-siblings repository)
