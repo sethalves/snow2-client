@@ -8,6 +8,7 @@
           get-next-repository
           get-current-repositories
           for-each-repository
+          add-repository-to-hash
 
           find-packages-with-library
           snow2-packages-libraries
@@ -165,6 +166,11 @@
       (snow-assert (snow2-repository? old))
       (snow-assert (snow2-repository? new))
       (hash-table-set! repository-hash (repository-hash-key old) new))
+
+    (define (add-repository-to-hash repository-url repository)
+      (hash-table-set!
+       repository-hash (uri->hashtable-key repository-url)
+       repository))
 
 
 
@@ -849,9 +855,7 @@
                      (else
                       ;; put this repository into repository-hash for the
                       ;; first time.
-                      (hash-table-set!
-                       repository-hash (uri->hashtable-key repository-url)
-                       new-repo)))))))
+                      (add-repository-to-hash repository-url new-repo)))))))
 
 
     (define (get-siblings repository)

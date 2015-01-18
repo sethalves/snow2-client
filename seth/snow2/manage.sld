@@ -457,7 +457,10 @@
                      (else
                       ;; no local repositories on the command-line, see
                       ;; if this was run from within a source repository.
-                      (find-implied-local-repository)))))
+                      (let ((implied (find-implied-local-repository)))
+                        (add-repository-to-hash
+                         (snow2-repository-url implied) implied)
+                        implied)))))
           (cond (repository
                  (set-snow2-repository-dirty! repository #t)
                  (sanity-check-repository repository)
