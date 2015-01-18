@@ -13,6 +13,7 @@
           (scheme time)
           (scheme process-context)
           (scheme lazy)
+          (seth cout)
           )
   (cond-expand
    (chibi (import (only (srfi 1) filter make-list any
@@ -435,17 +436,32 @@
                                         (get-current-repositories))))
         (let ((repository
                (cond ((> (length local-repositories) 1)
-                      (let ((repo (car local-repositories)))
-                        (display "multiple local repositories given, using ")
-                        (write (uri->string (snow2-repository-local repo)))
-                        (newline)
-                        repo))
+                      ;; more than one local repo indicated on the command-line.
+                      ;; figure out if the program was run from inside one.
+                      (let* ((run-inside-repo (find-implied-local-repository))
+                             (run-inside-from-list
+                              (find-matching-repository-in-list
+                               run-inside-repo local-repositories)))
+                        ;; if none of the repos from the command-line are
+                        ;; the one this was run from within, just take
+                        ;; the first one.
+                        (let ((repo (if run-inside-from-list
+                                        run-inside-from-list
+                                        (car local-repositories))))
+                          (cout "multiple local repositories given, using "
+                                (uri->string (snow2-repository-local repo)) "\n")
+                          repo)))
                      ((= (length local-repositories) 1)
+                      ;; one local repository, use it.
                       (car local-repositories))
-                     (else (find-implied-local-repository)))))
+                     (else
+                      ;; no local repositories on the command-line, see
+                      ;; if this was run from within a source repository.
+                      (find-implied-local-repository)))))
           (cond (repository
                  (set-snow2-repository-dirty! repository #t)
                  (sanity-check-repository repository)
+                 ;; call (op local-repository)
                  (let ((result (op repository)))
                    (sanity-check-repository repository)
                    (cond ((snow2-repository-dirty repository)

@@ -45,6 +45,8 @@
           local-repository->in-fs-lib-path
           local-repository->in-fs-lib-filename
 
+          find-matching-repository-in-list
+
           sanity-check-repository
           sanity-check-package
 
@@ -163,6 +165,21 @@
       (snow-assert (snow2-repository? old))
       (snow-assert (snow2-repository? new))
       (hash-table-set! repository-hash (repository-hash-key old) new))
+
+
+
+    (define (find-matching-repository-in-list needle hay-list)
+      ;; see if any of the repositories in hay-list have the same
+      ;; url as needle.
+      (snow-assert (or (not needle) (snow2-repository? needle)))
+      (snow-assert (list? hay-list))
+      (let ((needle-key (repository-hash-key needle)))
+        (find (lambda (local-repository)
+                (equal?
+                 (repository-hash-key local-repository)
+                 needle-key))
+              hay-list)))
+
 
 
     ;; due to the delayed downloading of repository indexes, the
