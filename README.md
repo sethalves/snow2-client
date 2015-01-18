@@ -90,12 +90,22 @@ Running
 
 ```
 $ snow2 -h
+
 snow2 [arguments] <operation> '(library name)' ...
   <operation> can be one of: install uninstall list-depends search
-  -r --repo <url>      Add to list of snow2 repositories.
-  -s --symlink         Make symlinks to a repo's source files.
-  -v --verbose         Print more.
-  -h --help            Print usage message.
+  -r --repo <url>                Add to list of snow2 repositories.
+  -v --verbose                   Print more.
+  -h --help                      Print usage message.
+
+For install operation:
+  -d --destination <directory>   Set where to install packages.
+  -s --symlink                   Make symlinks to a repo's source files.
+  -l --link                      Make hard-links to a repo's source files.
+  -t --test                      Install code needed to run tests.
+
+Repository Maintenance:
+  When the current directory is within a source repository, <operation>
+  can also be one of: run-source-tests package upload check
 
 Example: snow2 install '(snow hello)'
 ```
@@ -105,15 +115,16 @@ Example: snow2 install '(snow hello)'
 #### install
 
 The requested libraries will be made available as children of the
-current directory.  If the package holding the requested libraries is
-located on an HTTP server, it will be downloaded to a file in /tmp/
-and untarred (and the tarball in /tmp will be removed).  If the
-repository is a directory on the local file system, the package will
-be untarred from the tarball located in the repository's directory.
-If the repository is a local directory and the --symlink option is
-used, the installed libraries will be symbolic links to the source
-files in the local repository.  This can be useful when working on
-changes to a library.
+current directory or, if the --destination option is used, as children
+of the indicated directory.  If the package holding the requested
+libraries is located on an HTTP server, it will be downloaded to a
+file in /tmp/ and untarred (and the tarball in /tmp will be removed).
+If the repository is a directory on the local file system, the package
+will be untarred from the tarball located in the repository's
+directory.  If the repository is a local directory and the --symlink
+option is used, the installed libraries will be symbolic links to the
+source files in the local repository.  This can be useful when working
+on changes to a library.
 
 If no repository urls (or filesystem paths) are indicated on
 the command-line, the default repository will be used.
@@ -211,7 +222,7 @@ because they will be overwritten when "snow2 package" is run.
 Check the md5 sum of index.scm, index.html, and each .tgz file against
 copies in the s3 bucket implied by the repository's (url ...) clause
 in index.scm.  For any mismatches, upload the local file to s3.  This
-assumes you've already run "snow2 pacakge".  It also assumes you've
+assumes you've already run "snow2 package".  It also assumes you've
 created an index.css file and placed it in the top-level directory.
 
 For aws credentials, the client looks for environment variables:
