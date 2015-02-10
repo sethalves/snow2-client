@@ -622,9 +622,7 @@
                    (let repo-loop ((repository (get-next-repository iter)))
                      (cond
                       (repository
-                       (cout "  " (uri->string
-                                   (snow2-repository-local-or-url repository)
-                                   ) "\n")
+                       (cout "  " (repository-urls->string repository) "\n")
                        (repo-loop (get-next-repository iter))))))))
 
           (cond

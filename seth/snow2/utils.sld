@@ -9,6 +9,7 @@
           get-current-repositories
           for-each-repository
           add-repository-to-hash
+          repository-urls->string
 
           find-packages-with-library
           snow2-packages-libraries
@@ -167,10 +168,23 @@
       (snow-assert (snow2-repository? new))
       (hash-table-set! repository-hash (repository-hash-key old) new))
 
-    (define (add-repository-to-hash repository-url repository)
-      (hash-table-set!
-       repository-hash (uri->hashtable-key repository-url)
-       repository))
+    (define (add-repository-to-hash repository)
+      (hash-table-set! repository-hash (repository-hash-key repository)
+                       repository))
+
+
+    (define (repository-urls->string repository)
+      ;; for verbose output or debugging
+      (string-append
+       (if (snow2-repository-local repository)
+           (uri->string
+            (snow2-repository-local repository))
+           "#f")
+       "  "
+       (if (snow2-repository-url repository)
+           (uri->string
+            (snow2-repository-url repository))
+           "#f")))
 
 
 
@@ -855,7 +869,7 @@
                      (else
                       ;; put this repository into repository-hash for the
                       ;; first time.
-                      (add-repository-to-hash repository-url new-repo)))))))
+                      (add-repository-to-hash new-repo)))))))
 
 
     (define (get-siblings repository)

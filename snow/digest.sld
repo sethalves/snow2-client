@@ -23,7 +23,11 @@
           digest-substring
           digest-u8vector
           digest-subu8vector
-          digest-file)
+          digest-file
+          digest?
+          crc32-digest?
+          block-digest?
+          )
   (import (scheme base)
           (scheme cxr)
           (scheme char))
@@ -75,12 +79,12 @@
 (define-record-type <digest>
   (make-digest end update state)
   digest?
-  (end digest-end set-digest-end!)
-  (update digest-update set-digest-update!)
-  (state digest-state set-digest-state!))
+  (end digest-end)
+  (update digest-update)
+  (state digest-state))
 
-(define (hex8 n) ;; assumes n is a fixnum
-  (substring (number->string (+ n #x100) 16) 1 3))
+;; (define (hex8 n) ;; assumes n is a fixnum
+;;   (substring (number->string (+ n #x100) 16) 1 3))
 
 (define (hex16 n) ;; assumes n is a fixnum
   (substring (number->string (+ n #x10000) 16) 1 5))
@@ -587,13 +591,13 @@
   (make-block-digest hash-update hash block block-pos
                      bit-pos big-endian? width)
   block-digest?
-  (hash-update block-digest-hash-update set-block-digest-hash-update!)
-  (hash block-digest-hash set-block-digest-hash!)
-  (block block-digest-block set-block-digest-block!)
+  (hash-update block-digest-hash-update)
+  (hash block-digest-hash)
+  (block block-digest-block)
   (block-pos block-digest-block-pos block-digest-block-pos-set!)
   (bit-pos block-digest-bit-pos block-digest-bit-pos-set!)
-  (big-endian? block-digest-big-endian? set-block-digest-big-endian?!)
-  (width block-digest-width set-block-digest-width!))
+  (big-endian? block-digest-big-endian?)
+  (width block-digest-width))
 
 
 (define (convert-hash-block digest result-type)

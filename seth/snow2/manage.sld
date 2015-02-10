@@ -13,8 +13,7 @@
           (scheme time)
           (scheme process-context)
           (scheme lazy)
-          (seth cout)
-          )
+          (seth cout))
   (cond-expand
    (chibi (import (only (srfi 1) filter make-list any
                         fold last lset-difference delete-duplicates
@@ -193,15 +192,14 @@
            (lambda (lib lib-sexp)
              ;; if the depends have changes from what's in index.scm
              ;; mark the package dirty
-             (let* ((all-deps (r7rs-get-imported-library-names
-                               lib-sexp verbose))
+             (let* ((all-deps
+                     (r7rs-get-imported-library-names lib-sexp verbose))
                     ;; remove dependencies that we can't find
                     ;; packages for.
-                    (deps
-                     (filter
-                      (lambda (dep-lib-name)
-                        (find-package-with-library dep-lib-name))
-                      all-deps)))
+                    (deps (filter
+                           (lambda (dep-lib-name)
+                             (find-package-with-library dep-lib-name))
+                           all-deps)))
 
                (define (lib-name<? a b)
                  (string-ci<? (write-to-string a)
@@ -212,26 +210,17 @@
                               (sort deps lib-name<?)))
                  (set-snow2-library-depends! lib deps)
                  (set-snow2-repository-dirty! local-repository #t)
-
-                 (cond (verbose
-                        (display "  setting depends to ")
-                        (write deps)
-                        (newline))))))
+                 (if verbose (cout "  setting depends to " deps "\n")))))
 
              (cond ((or (not (snow2-library-name lib))
                         (null? (snow2-library-name lib)))
-                    (cond (verbose
-                           (display "  setting library name to ")
-                           (write (lib-sexp->name lib-sexp))
-                           (newline)))
+                    (if verbose (cout "  setting library name to "
+                                      (lib-sexp->name lib-sexp) "\n"))
                     (set-snow2-repository-dirty! local-repository #t)
-                    (set-snow2-library-name!
-                     lib (lib-sexp->name lib-sexp)))
+                    (set-snow2-library-name! lib (lib-sexp->name lib-sexp)))
                    (else
-                    (cond (verbose
-                           (display "  keeping library name of ")
-                           (write (snow2-library-name lib))
-                           (newline))))))
+                    (if verbose (cout "  keeping library name of "
+                                      (snow2-library-name lib) "\n")))))
            libraries lib-sexps)
 
           ;; find the most recent file mtime and set the mtimes of
@@ -458,8 +447,7 @@
                       ;; no local repositories on the command-line, see
                       ;; if this was run from within a source repository.
                       (let ((implied (find-implied-local-repository)))
-                        (add-repository-to-hash
-                         (snow2-repository-url implied) implied)
+                        (add-repository-to-hash implied)
                         implied)))))
           (cond (repository
                  (set-snow2-repository-dirty! repository #t)
@@ -747,13 +735,11 @@
                (lambda (unwanted-clause-name)
                  (cond ((get-child-by-type
                          lib-meta-sexp unwanted-clause-name #f)
-                        (display "in package meta-file ")
-                        (write package-metafile)
-                        (display " library ")
-                        (write (cadr (get-child-by-type lib-meta-sexp 'path)))
-                        (display " has (")
-                        (display unwanted-clause-name)
-                        (display " ...)\n"))))
+                        (cout "In package meta-file "
+                              package-metafile " library "
+                              (cadr (get-child-by-type lib-meta-sexp 'path))
+                              " has (" (display unwanted-clause-name)
+                              " ...)\n"))))
                (list 'name 'depends)))
             (get-children-by-type meta-data 'library))
 
