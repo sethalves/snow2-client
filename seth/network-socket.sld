@@ -88,13 +88,10 @@
             (snow bytevector)))
 
    (gauche (import (scheme read) (scheme write)
-                   ;; (gauche)
+                   (only (gauche base) make)
                    (r7rs)
                    (gauche net)
-                   (seth gauche-socket-utils)
-                   (snow bytevector)
-                   ;; (seth port-extras)
-                   ))
+                   (snow bytevector)))
    (sagittarius
     ;; http://ktakashi.github.io/sagittarius-ref.html#lib.sagittarius.socket
     (import (scheme read)
@@ -111,6 +108,12 @@
             ))
    )
   (begin
+
+    (cond-expand
+     (gauche
+      (define (make-sockaddr server port)
+        (make <sockaddr-in> :host server :port port)))
+     (else))
 
     ;;
     ;; general

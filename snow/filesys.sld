@@ -30,7 +30,7 @@
           snow-filename-relative?
           ;; snow-make-temp-filename
           snow-directory-subfiles
-          ;; snow-directory-tree-walk
+          snow-directory-tree-walk
           snow-create-directory-recursive
           snow-create-symbolic-link
           snow-create-hard-link

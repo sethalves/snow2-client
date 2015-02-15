@@ -2,8 +2,6 @@
   (export get-repository
           caching-get-repository
           read-repository
-          ;; get-repositories
-          ;; get-repositories-and-siblings
           make-repository-iterator
           get-next-repository
           get-current-repositories
@@ -147,13 +145,11 @@
 
     (define (repository-hash-key repository)
       (snow-assert (snow2-repository? repository))
-      (uri->hashtable-key
-       (snow2-repository-url repository)))
+      (uri->hashtable-key (snow2-repository-url repository)))
 
     (define (url-in-repository-hash? repository-url)
       (snow-assert (uri-reference? repository-url))
-      (hash-table-exists?
-       repository-hash (uri->hashtable-key repository-url)))
+      (hash-table-exists? repository-hash (uri->hashtable-key repository-url)))
 
     (define (get-repository-by-url repository-url)
       (snow-assert (uri-reference? repository-url))
@@ -166,10 +162,13 @@
     (define (replace-repository-in-hash old new)
       (snow-assert (snow2-repository? old))
       (snow-assert (snow2-repository? new))
+      (snow2-trace "    replacing in hash:" (repository-hash-key old))
       (hash-table-set! repository-hash (repository-hash-key old) new))
 
-    (define (add-repository-to-hash repository)
-      (hash-table-set! repository-hash (repository-hash-key repository)
+    (define (add-repository-to-hash repository-url repository)
+      (snow2-trace "    adding to hash:" (uri->hashtable-key repository-url))
+      (hash-table-set! repository-hash
+                       (uri->hashtable-key repository-url)
                        repository))
 
 
@@ -852,7 +851,11 @@
              (get-repository-by-url repository-url))
             (else
              (let ((new-repo (get-repository repository-url)))
-               (cond ((repository-in-hash? new-repo)
+               (cond (;; (url-in-repository-hash? repository-url)
+                      (repository-in-hash? new-repo)
+
+                      (snow2-trace
+                       "  " (uri->string repository-url) "in hash? YES")
                       ;; if repository-url is a local filesystem path,
                       ;; get-repository may have called get-siblings, which may
                       ;; have caused a remote version of this repository to be
@@ -867,9 +870,11 @@
                             (replace-repository-in-hash
                              already-in-table new-repo))))
                      (else
+                      (snow2-trace
+                       "  " (uri->string repository-url) "in hash? NO")
                       ;; put this repository into repository-hash for the
                       ;; first time.
-                      (add-repository-to-hash new-repo)))))))
+                      (add-repository-to-hash repository-url new-repo)))))))
 
 
     (define (get-siblings repository)
@@ -885,7 +890,8 @@
       ;; it must have a "packages" subdirectory and an index.scm file.
       ;; if it's missing either of these, raise an error unless
       ;; maybe-error-on-bad-repo is #f.
-      (snow-assert (uri-reference? repository-url))
+      (snow2-trace `(get-repository ,(uri->string repository-url)))
+
       (cond ((memq (uri-scheme repository-url) '(http https))
              (delay
                (begin
@@ -893,7 +899,7 @@
                  ;; get repository over http
 
                  (snow2-trace
-                  `(downloading index ,(uri->string repository-url)))
+                  "  " `(downloading index ,(uri->string repository-url)))
 
                  (guard
                      (err (#t
@@ -916,7 +922,7 @@
                      repository)))))
             (else
              ;; read from local filesystem repository
-             (snow2-trace `(loading index ,(uri->string repository-url)))
+             (snow2-trace "  " `(loading index ,(uri->string repository-url)))
              (let* ((error-on-bad-repo (if (pair? maybe-error-on-bad-repo)
                                            (car maybe-error-on-bad-repo)
                                            #t))
@@ -948,12 +954,17 @@
                         (repository (read-repository in-port)))
                    (set-snow2-repository-local! repository repository-url)
 
+                   (snow-assert (snow2-repository-url repository))
+
                    ;; XXX
                    ;; should the repository s-expression have name
                    ;; and url fields?
                    ;; (set-snow2-repository-url! repository repository-url)
 
                    (close-input-port in-port)
+                   (add-repository-to-hash
+                    (snow2-repository-url repository)
+                    repository)
                    (get-siblings repository)
                    repository)))))))
 

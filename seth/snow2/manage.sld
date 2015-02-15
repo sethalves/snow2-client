@@ -447,8 +447,11 @@
                       ;; no local repositories on the command-line, see
                       ;; if this was run from within a source repository.
                       (let ((implied (find-implied-local-repository)))
-                        (add-repository-to-hash implied)
-                        implied)))))
+                        (cond (implied
+                               (add-repository-to-hash
+                                (snow2-repository-url implied) implied)
+                               implied)
+                              (else #f)))))))
           (cond (repository
                  (set-snow2-repository-dirty! repository #t)
                  (sanity-check-repository repository)
@@ -536,15 +539,21 @@
 
 
     (define (make-package-archives package-metafiles verbose)
-      ;; call make-package-archive for each of packages-files
-      (local-packages-operation package-metafiles
-       (lambda (local-repository package-metafile package)
-         ;; (refresh-package-from-filename
-         ;;  local-repository package-metafile verbose)
+      (guard
+       (err (#t
+             (display (error-object-message err) (current-error-port))
+             (newline (current-error-port))
+             #f))
+       ;; call make-package-archive for each of packages-files
+       (local-packages-operation
+        package-metafiles
+        (lambda (local-repository package-metafile package)
+          ;; (refresh-package-from-filename
+          ;;  local-repository package-metafile verbose)
          
-         (make-package-archive
-          local-repository package-metafile package verbose))
-       verbose))
+          (make-package-archive
+           local-repository package-metafile package verbose))
+        verbose)))
 
 
     (define (run-source-tests package-metafiles verbose)

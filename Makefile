@@ -50,6 +50,11 @@ PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-gauche
 BIN_DIR=$(DESTDIR)/usr/bin
 endif
 
+ifeq "$(SCHEME)" "kawa"
+PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-kawa
+BIN_DIR=$(DESTDIR)/usr/bin
+endif
+
 ifeq "$(SCHEME)" "sagittarius"
 PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-sagittarius
 BIN_DIR=$(DESTDIR)/usr/bin
@@ -82,7 +87,9 @@ uninstall-libs:
 	- rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*
 
 
-clean: clean-chibi clean-chicken clean-foment clean-gauche clean-sagittarius 
+clean: clean-chibi clean-chicken \
+       clean-foment clean-gauche \
+       clean-kawa clean-sagittarius 
 	rm -f *~
 
 bootstrap: bootstrap-$(SCHEME)
@@ -197,6 +204,19 @@ clean-gauche:
 
 
 #
+# kawa
+#
+
+build-kawa:
+
+install-kawa:
+
+uninstall-kawa:
+
+clean-kawa:
+	find . -name \*.class | while read I; do rm "$$I"; done
+
+#
 # sagittarius
 #
 
@@ -221,6 +241,7 @@ clean-sagittarius:
 	$(info make SCHEME=chicken <target>)
 	$(info make SCHEME=foment <target>)
 	$(info make SCHEME=gauche <target>)
+	$(info make SCHEME=kawa <target>)
 	$(info make SCHEME=sagittarius <target>)
 	$(error <target> should be one of: build clean install uninstall)
 

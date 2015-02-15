@@ -334,12 +334,18 @@
 
     ;; (define-syntax snow2-trace
     ;;   (syntax-rules ()
-    ;;     ((_ what) (begin
-    ;;                 (write what)
-    ;;                 (newline)))))
+    ;;     ((_ what)
+    ;;      (begin
+    ;;        (if (string? what) (display what) (write what))
+    ;;        (newline)))
+    ;;     ((_ what rest ...)
+    ;;      (begin
+    ;;        (if (string? what) (display what) (write what))
+    ;;        (display " ")
+    ;;        (snow2-trace rest ...)))))
 
     (define-syntax snow2-trace
       (syntax-rules ()
-        ((_ what) #t)))
+        ((_ what ...) #t)))
 
     ))

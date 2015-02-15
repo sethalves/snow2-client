@@ -615,6 +615,7 @@
 
           (snow2-trace "done deciding repos")
           (for-each caching-get-repository repository-urls)
+          (snow2-trace "done with caching-get-repository")
 
           (cond (verbose
                  (display "repositories:\n")
