@@ -44,7 +44,7 @@ called snow-chibi.
 
 CHICKEN 4.9.0.1 or newer is required to run snow2.
 
-Running under CHICKEN requires that several eggs be installed:
+Running under CHICKEN requires that some eggs be installed:
 
 ```
 chicken-install srfi-19 srfi-27 srfi-29 srfi-37 srfi-95 http-client openssl udp r7rs ssax sxpath hmac sha1
@@ -100,6 +100,7 @@ $ snow2 -h
 snow2 [arguments] <operation> '(library name)' ...
   <operation> can be one of: install uninstall list-depends search
   -r --repo <url>                Add to list of snow2 repositories.
+  -p --prepend-repo <url>        Prepend to built-in list of snow2 repositories.
   -v --verbose                   Print more.
   -h --help                      Print usage message.
 
@@ -143,7 +144,7 @@ This currently does nothing.
 
 #### list-depends
 
-The arguments of the (depends ...)  clause of each package containing
+The arguments of the (depends ...) clause of each package containing
 the mentioned libraries will be printed.
 
 #### search

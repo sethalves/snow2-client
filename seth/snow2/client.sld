@@ -516,7 +516,7 @@
          (display "uninstall list-depends search\n")
          (display "  -r --repo <url>                ")
          (display "Add to list of snow2 repositories.\n")
-         (display "  -p --prepend-repo <url>                ")
+         (display "  -p --prepend-repo <url>        ")
          (display "Prepend to built-in list of snow2 repositories.\n")
          (display "  -v --verbose                   ")
          (display "Print more.\n")
