@@ -24,6 +24,7 @@ Supported schemes are:
 <a href="https://code.google.com/p/foment/">Foment</a>,
 <a href="http://practical-scheme.net/gauche/">Gauche</a>,
 <a href="https://bitbucket.org/ktakashi/sagittarius-scheme/wiki/Home">Sagittarius</a>
+<a href="http://www.gnu.org/software/kawa/index.html">Kawa</a>
 
 
 
@@ -59,6 +60,10 @@ Build Foment from git.
 
 Gauche 0.9.4 can run snow2.
 
+### Kawa
+
+Build kawa from <a href="http://www.gnu.org/software/kawa/Getting-Kawa.html#Getting-the-development-sources-using-SVN">svn</a>.
+
 ### Sagittarius
 
 Snow2 works with sagittarius-0.5.3.
@@ -82,7 +87,8 @@ snow2 will be placed in /usr/local/bin/
 Some libraries may be placed in /usr/local/share/
 
 You can also use "build" rather than "install".  This does nothing unless
-SCHEME=chicken, in which case it compiles the client.
+SCHEME=chicken or kawa, in which case it compiles the client
+(to a native program or to java class files, respectively).
 
 
 Running
