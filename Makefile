@@ -6,7 +6,7 @@ CHICKEN_COMPILER=csc -X r7rs
 
 ifeq "$(SCHEME)" "chicken"
 PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-chicken
-BIN_DIR=$(DESTDIR)/usr/bin
+BIN_DIR=$(DESTDIR)/usr/local/bin
 EGGS=$(shell chicken-status -e)
   ifneq ($(findstring srfi-27, $(EGGS)), srfi-27)
     $(error 'missing srfi-27 egg, try: make chicken-deps')
@@ -33,27 +33,27 @@ endif
 
 ifeq "$(SCHEME)" "chibi"
 PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-chibi
-BIN_DIR=$(DESTDIR)/usr/bin
+BIN_DIR=$(DESTDIR)/usr/local/bin
 endif
 
 ifeq "$(SCHEME)" "foment"
 PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-foment
-BIN_DIR=$(DESTDIR)/usr/bin
+BIN_DIR=$(DESTDIR)/usr/local/bin
 endif
 
 ifeq "$(SCHEME)" "gauche"
 PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-gauche
-BIN_DIR=$(DESTDIR)/usr/bin
+BIN_DIR=$(DESTDIR)/usr/local/bin
 endif
 
 ifeq "$(SCHEME)" "kawa"
 PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-kawa
-BIN_DIR=$(DESTDIR)/usr/bin
+BIN_DIR=$(DESTDIR)/usr/local/bin
 endif
 
 ifeq "$(SCHEME)" "sagittarius"
 PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-sagittarius
-BIN_DIR=$(DESTDIR)/usr/bin
+BIN_DIR=$(DESTDIR)/usr/local/bin
 endif
 
 
