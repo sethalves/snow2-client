@@ -116,7 +116,7 @@ Repository Maintenance:
 Example: snow2 install '(snow hello)'
 ```
 
-### operations
+### Operations
 
 #### install
 
