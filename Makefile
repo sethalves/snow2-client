@@ -2,10 +2,6 @@
 #
 #
 
-# XXX
-PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-chibi
-BIN_DIR=$(DESTDIR)/usr/bin
-
 CHICKEN_COMPILER=csc -X r7rs
 
 ifeq "$(SCHEME)" "chicken"
@@ -208,10 +204,29 @@ clean-gauche:
 #
 
 build-kawa:
+	KAWALIB=$${KAWALIB-/usr/local/share/java/kawa-2.0.1.jar} \
+	CLASSPATH="$${KAWALIB}:$${DIR}:$${CLASSPATH}" \
+	java -Xss4096k \
+	  -Dkawa.import.path="./*.sld" -Dkawa.include.path='|:.' \
+	  kawa.repl -C snow2-client-kawa.scm
 
-install-kawa:
+install-kawa: build-kawa
+	mkdir -p $(PACKAGE_DIR)
+	find . -name *\.class | \
+	  while read I; do install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
+	install ./snow2-client-kawa.scm $(PACKAGE_DIR)/snow2
+	rm -f $(BIN_DIR)/snow2
+	ln -s $(PACKAGE_DIR)/snow2 $(BIN_DIR)/snow2
 
-uninstall-kawa:
+uninstall-kawa: build-kawa
+	rm -f $(BIN_DIR)/snow2
+	rm -f $(PACKAGE_DIR)/snow2
+	find . -name \*.class | \
+	  while read I; do rm -f "$(PACKAGE_DIR)/$$I"; done
+	- rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*/*/*
+	- rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*/*
+	- rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*
+	- rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)
 
 clean-kawa:
 	find . -name \*.class | while read I; do rm "$$I"; done
