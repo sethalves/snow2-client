@@ -23,9 +23,8 @@ Supported schemes are:
 <a href="http://call-cc.org/">Chicken</a>,
 <a href="https://code.google.com/p/foment/">Foment</a>,
 <a href="http://practical-scheme.net/gauche/">Gauche</a>,
-<a href="https://bitbucket.org/ktakashi/sagittarius-scheme/wiki/Home">Sagittarius</a>,
-<a href="http://www.gnu.org/software/kawa/index.html">Kawa</a>
-
+<a href="http://www.gnu.org/software/kawa/index.html">Kawa</a>,
+<a href="https://bitbucket.org/ktakashi/sagittarius-scheme/wiki/Home">Sagittarius</a>
 
 
 Other schemes will be supported when they support r7rs-style libraries.
