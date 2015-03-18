@@ -19,7 +19,7 @@ Inspiration and some packages are taken from the first snow system:
 
 Supported schemes are:
 
-<a href="http://code.google.com/p/chibi-scheme/">Chibi</a>,
+<a href="https://github.com/ashinn/chibi-scheme">Chibi</a>,
 <a href="http://call-cc.org/">Chicken</a>,
 <a href="https://code.google.com/p/foment/">Foment</a>,
 <a href="http://practical-scheme.net/gauche/">Gauche</a>,
