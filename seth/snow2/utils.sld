@@ -846,8 +846,12 @@
 
 
     (define (caching-get-repository repository-url)
+      (snow2-trace `(caching-get-repository ,(uri->string repository-url)))
+      (snow2-trace (hash-table-keys repository-hash))
       (snow-assert (uri-reference? repository-url))
       (cond ((url-in-repository-hash? repository-url)
+             (snow2-trace
+              "  " (uri->string repository-url) "url in hash? YES")
              (get-repository-by-url repository-url))
             (else
              (let ((new-repo (get-repository repository-url)))
@@ -871,13 +875,14 @@
                              already-in-table new-repo))))
                      (else
                       (snow2-trace
-                       "  " (uri->string repository-url) "in hash? NO")
+                       "  putting " (uri->string repository-url) "into hash")
                       ;; put this repository into repository-hash for the
                       ;; first time.
                       (add-repository-to-hash repository-url new-repo)))))))
 
 
     (define (get-siblings repository)
+      (snow2-trace `(get-siblings ,(uri->string (snow2-repository-url repository))))
       (snow-assert (snow2-repository? repository))
       (for-each
        caching-get-repository
@@ -918,6 +923,9 @@
                            read-repository)))
                      (set-snow2-repository-local! repository #f)
                      (set-snow2-repository-url! repository repository-url)
+                     (add-repository-to-hash
+                      (snow2-repository-url repository)
+                      repository)
                      (get-siblings repository)
                      repository)))))
             (else

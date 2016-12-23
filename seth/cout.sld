@@ -6,7 +6,8 @@
 
 
 (define-library (seth cout)
-  (export cout)
+  (export cout
+          cerr)
   (import (scheme base)
           (scheme write)
           (srfi 1))
@@ -53,4 +54,7 @@
                                ((pair? x) (cout-pair x port))
                                (else (display x port))))
                   items-maybe-port)))
+
+    (define (cerr . items)
+      (apply cout (reverse (cons (current-error-port) (reverse items)))))
     ))

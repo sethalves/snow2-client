@@ -24,6 +24,7 @@
           (srfi 95)
           (srfi 29)
           (srfi 19)
+          (srfi 69)
           (snow extio)
           (seth http)
           (seth crypt hmac-sha-1)
