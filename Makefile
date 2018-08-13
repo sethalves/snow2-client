@@ -1,3 +1,5 @@
+.POSIX:
+.DELETE_ON_ERROR:
 #
 #
 #
@@ -52,41 +54,45 @@ BIN_DIR=$(DESTDIR)/usr/local/bin
 endif
 
 ifeq "$(SCHEME)" "sagittarius"
-PACKAGE_DIR=$(DESTDIR)/usr/share/scheme/snow2-sagittarius
+PACKAGE_DIR=$(DESTDIR)/usr/local/share/scheme/snow2-sagittarius
 BIN_DIR=$(DESTDIR)/usr/local/bin
 endif
 
-
+.PHONY: all
 all: build
 
+.PHONY: build
 build: build-$(SCHEME)
 
+.PHONY: install
 install: build install-$(SCHEME)
 
+.PHONY: install-libs
 install-libs:
 	mkdir -p $(PACKAGE_DIR)
-	find srfi -type f | while read I; do install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
-	find snow -type f | while read I; do install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
-	find seth -type f | while read I; do install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
-	find chibi -type f | while read I; do install -D "$$I" "$(PACKAGE_DIR)/$$I"; done
+	find srfi -type f | while read I; do ./build/install "$$I" -d "$(PACKAGE_DIR)/$$(dirname $$I)"; done
+	find snow -type f | while read I; do ./build/install "$$I" -d "$(PACKAGE_DIR)/$$(dirname $$I)"; done
+	find seth -type f | while read I; do ./build/install "$$I" -d "$(PACKAGE_DIR)/$$(dirname $$I)"; done
+	find chibi -type f | while read I; do ./build/install "$$I" -d "$(PACKAGE_DIR)/$$(dirname $$I)"; done
 
-
+.PHONY: uninstall
 uninstall: uninstall-$(SCHEME)
 
+.PHONY: uninstall-libs
 uninstall-libs:
-	find srfi -type f | while read I; do rm -f "$(PACKAGE_DIR)/$$I"; done
-	find snow -type f | while read I; do rm -f "$(PACKAGE_DIR)/$$I"; done
-	find seth -type f | while read I; do rm -f "$(PACKAGE_DIR)/$$I"; done
-	find chibi -type f | while read I; do rm -f "$(PACKAGE_DIR)/$$I"; done
+	find srfi -type f | while read I; do $(RM) "$(PACKAGE_DIR)/$$I"; done
+	find snow -type f | while read I; do $(RM) "$(PACKAGE_DIR)/$$I"; done
+	find seth -type f | while read I; do $(RM) "$(PACKAGE_DIR)/$$I"; done
+	find chibi -type f | while read I; do $(RM) "$(PACKAGE_DIR)/$$I"; done
 	- rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*/*/*
 	- rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*/*
 	- rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)/*
 
-
+.PHONY: clean
 clean: clean-chibi clean-chicken \
        clean-foment clean-gauche \
        clean-kawa clean-sagittarius 
-	rm -f *~
+	$(RM) *~
 
 bootstrap: bootstrap-$(SCHEME)
 
@@ -239,13 +245,14 @@ build-sagittarius:
 
 install-sagittarius: install-libs
 	mkdir -p $(BIN_DIR)
-	install ./snow2-client-sagittarius.scm $(PACKAGE_DIR)/snow2
-	rm -f $(BIN_DIR)/snow2
+	cp ./snow2-client-sagittarius.scm snow2
+	./build/install snow2 -d $(PACKAGE_DIR)
+	$(RM) $(BIN_DIR)/snow2
 	ln -s $(PACKAGE_DIR)/snow2 $(BIN_DIR)/snow2
 
 uninstall-sagittarius: uninstall-libs
-	rm -f $(BIN_DIR)/snow2
-	rm -f $(PACKAGE_DIR)/snow2
+	$(RM) $(BIN_DIR)/snow2
+	$(RM) $(PACKAGE_DIR)/snow2
 	- rmdir --ignore-fail-on-non-empty $(PACKAGE_DIR)
 
 clean-sagittarius:

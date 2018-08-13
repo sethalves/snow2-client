@@ -28,5 +28,5 @@
              "srfi-27/mrg32k3a-a.scm"
              "srfi-27/mrg32k3a.scm"))
    ;; (gauche (import (srfi-27)))
-   ;; (sagittarius (import (srfi :27)))
+   (sagittarius (import (srfi :27)))
    ))
