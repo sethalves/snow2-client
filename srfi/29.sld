@@ -6,6 +6,8 @@
   (cond-expand
    (chibi
     (import (chibi io)))
+   (sagittarius
+    (import (srfi :29)))
    (else))
   (begin
 
